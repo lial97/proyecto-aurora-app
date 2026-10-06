@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<!--
+=====================================================================
+  AURORA · WIDGETS, NOTIFICACIÓN Y PANTALLA DE BLOQUEO · Referencia
+=====================================================================
+  1. Widgets de pantalla de inicio (Glance): 4x1, 2x2, 4x2 y 4x3.
+     Usan los colores y la forma de portada del tema de la app, o los
+     colores del fondo de pantalla (Material You).
+  2. Notificación de reproducción (MediaStyle de Android 13+).
+  3. Controles en la pantalla de bloqueo (mismo componente del sistema).
+  En 2 y 3 Android dibuja la tarjeta: la app solo controla portada,
+  datos, botones y acciones extra. Ver notas al final.
+=====================================================================
+-->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Aurora · Widgets y controles del sistema</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&family=Roboto+Condensed:wght@500;700&family=Noto+Serif:ital,wght@1,500;1,600&family=Archivo:wght@800;900&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f3f2f6;--ink:#1b1a22;--muted:#5f5d6b;--card:#fff;--line:#e2e0e9;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#111016;--ink:#ecebf2;--muted:#a3a1b0;--card:#1b1a22;--line:#2c2a36}}
+:root[data-theme="dark"]{--bg:#111016;--ink:#ecebf2;--muted:#a3a1b0;--card:#1b1a22;--line:#2c2a36}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Roboto,system-ui,sans-serif;line-height:1.5}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+button:focus-visible{outline:2px solid #6a8cff;outline-offset:2px}
+.wrap{max-width:1400px;margin:0 auto;padding:0 20px}
+.intro{max-width:780px;padding:40px 0 6px}
+.intro h1{font-family:Archivo,sans-serif;font-weight:900;font-size:clamp(30px,5.5vw,50px);line-height:.95;letter-spacing:-.04em;margin:0 0 12px}
+.intro p,.lead{color:var(--muted);margin:0 0 8px;max-width:66ch}
+.sec{padding:34px 0}
+.sec>h2{font-family:Archivo,sans-serif;font-weight:800;font-size:26px;margin:0 0 6px;letter-spacing:-.02em}
+.controls{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:14px 0 22px}
+.controls>span{font-size:13px;color:var(--muted);margin-right:4px}
+.controls button{padding:6px 12px;border-radius:20px;border:1px solid var(--line);background:var(--card);font-size:13px;display:flex;align-items:center;gap:6px}
+.controls button i{width:12px;height:12px;border-radius:50%}
+.controls button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.row{display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start}
+.side{flex:1;min-width:260px;max-width:520px}
+.side h3{margin:18px 0 4px;font-size:16px}
+.side p{margin:0;color:var(--muted);font-size:14.5px}
+.tbl{width:100%;border-collapse:collapse;font-size:14px;margin-top:10px}
+.tbl td{padding:7px 4px;border-top:1px solid var(--line);vertical-align:top}
+.tbl td:first-child{font-weight:600;width:42%}
+.tblwrap{overflow-x:auto}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.box{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px 18px}
+.box h3{margin:0 0 6px;font-size:16px}.box p{margin:0 0 6px;color:var(--muted);font-size:14px}
+.ok{color:#2f9e6a;font-weight:700}.no{color:#d9534f;font-weight:700}
+footer{color:var(--muted);font-size:13px;padding:10px 0 50px}
+
+/* ---------- Teléfono ---------- */
+.phone{width:340px;height:720px;border-radius:48px;border:10px solid #0b0b10;position:relative;overflow:hidden;flex:none;box-shadow:0 28px 56px rgba(10,8,30,.28);color:#fff;font-family:Roboto,sans-serif}
+.phone::before{content:"";position:absolute;top:9px;left:50%;transform:translateX(-50%);width:20px;height:20px;border-radius:50%;background:#0b0b10;z-index:50}
+.sb{position:absolute;top:12px;left:24px;right:24px;display:flex;justify-content:space-between;font-size:12.5px;font-weight:500;z-index:40}
+.wall{position:absolute;inset:0;background:radial-gradient(circle at 20% 15%,#5d6fd8 0,transparent 45%),radial-gradient(circle at 85% 60%,#d8657f 0,transparent 50%),radial-gradient(circle at 30% 95%,#3fae9a 0,transparent 45%),#1d2140}
+.navbar{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:110px;height:4px;border-radius:2px;background:rgba(255,255,255,.8);z-index:40}
+svg.i{width:20px;height:20px;fill:currentColor;display:block;flex:none}
+.ic-pause{display:none}.playing .ic-play{display:none}.playing .ic-pause{display:block}
+
+/* ---------- Pantalla de inicio ---------- */
+.home{position:absolute;inset:0;padding:46px 14px 0}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px 8px;margin-top:14px}
+.app{display:flex;flex-direction:column;align-items:center;gap:5px;font-size:11px;text-shadow:0 1px 3px rgba(0,0,0,.4)}
+.app span{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.88);color:#333}
+.app span.aur{background:linear-gradient(135deg,#FF9F43,#FF5FA2);color:#fff}
+.search{position:absolute;left:14px;right:14px;bottom:30px;height:48px;border-radius:24px;background:rgba(255,255,255,.88);display:flex;align-items:center;padding:0 18px;color:#555;font-size:14px;gap:10px}
+.dock{position:absolute;left:14px;right:14px;bottom:92px;display:grid;grid-template-columns:repeat(4,1fr)}
+
+/* ---------- WIDGETS (tokens por tema) ---------- */
+.w{--wbg:#1B1640;--wink:#F2EEFF;--wmute:rgba(242,238,255,.65);--wacc:#FF5FA2;--wplay:#F2EEFF;--wplayink:#1B1640;--wtrack:rgba(255,255,255,.2);--wr:22px;--artr:14px;--wfd:Roboto;--wtw:700;--wtf:none;--wfs:normal;
+  position:relative;border-radius:var(--wr);background:var(--wbg);color:var(--wink);overflow:hidden;font-family:Roboto,sans-serif;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+.w .art{display:block;background:center/cover;flex:none;border-radius:var(--artr)}
+.w button[data-act=open]{display:block;flex:none}
+.w .q{width:100%;text-align:left}
+.w .t{font-family:var(--wfd),sans-serif;font-weight:var(--wtw);text-transform:var(--wtf);font-style:var(--wfs);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
+.w .a{color:var(--wmute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12.5px;line-height:1.3}
+.w .b{width:36px;height:36px;display:grid;place-items:center;border-radius:50%;color:var(--wink)}
+.w .b.on{color:var(--wacc)}
+.w .pb{width:44px;height:44px;border-radius:var(--playr,50%);background:var(--wplay);color:var(--wplayink);display:grid;place-items:center;flex:none;clip-path:var(--playclip,none)}
+.w .pb svg.i{width:22px;height:22px}
+.w .bar{height:4px;border-radius:2px;background:var(--wtrack);overflow:hidden}
+.w .bar i{display:block;height:100%;background:var(--wacc);border-radius:2px;transition:width .9s linear}
+.w .brand{position:absolute;right:12px;top:10px;width:16px;height:16px;border-radius:5px;background:var(--wacc);display:grid;place-items:center;color:var(--wplayink);opacity:.9}
+.w .brand svg.i{width:10px;height:10px}
+/* 4x1 */
+.w41{height:72px;display:flex;align-items:center;gap:10px;padding:0 8px 0 10px}
+.w41 .art{width:52px;height:52px}
+.w41 .mt{flex:1;min-width:0}.w41 .t{font-size:14.5px}
+/* 2x2 */
+.w22{width:150px;height:150px}
+.w22 .art{position:absolute;inset:0;border-radius:0}
+.w22::after{content:"";position:absolute;inset:0;background:linear-gradient(transparent 35%,rgba(0,0,0,.75))}
+.w22 .info{position:absolute;left:12px;right:60px;bottom:12px;z-index:2;color:#fff}
+.w22 .info .a{color:rgba(255,255,255,.75);font-size:11.5px}.w22 .t{font-size:14px}
+.w22 .pb{position:absolute;right:10px;bottom:10px;z-index:3;width:42px;height:42px}
+/* 4x2 */
+.w42{height:150px;display:flex;gap:12px;padding:12px}
+.w42 .art{width:126px;height:126px}
+.w42 .mt{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:space-between;padding:2px 0}
+.w42 .t{font-size:16px}
+.w42 .tm{display:flex;justify-content:space-between;font-size:10.5px;color:var(--wmute);margin-top:4px;font-variant-numeric:tabular-nums}
+.w42 .ctr{display:flex;align-items:center;justify-content:space-between}
+.w42 .b{width:30px;height:32px}.w42 .art{width:118px;height:118px;align-self:center}
+.w.estadio.w42 .pb{width:50px}
+/* 4x3 */
+.w43{height:262px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.w43 .top{display:flex;gap:12px;align-items:center}
+.w43 .art{width:84px;height:84px}
+.w43 .mt{flex:1;min-width:0}.w43 .t{font-size:16px}
+.w43 .ctr{display:flex;align-items:center;justify-content:space-between}
+.w43 .nx{border-top:1px solid color-mix(in srgb,var(--wink) 12%,transparent);padding-top:8px;display:flex;flex-direction:column;gap:6px}
+.w43 .nx small{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--wmute)}
+.w43 .q{display:flex;align-items:center;gap:8px;font-size:12.5px}
+.w43 .q .art{width:28px;height:28px;border-radius:calc(var(--artr) / 2)}
+.w43 .q span:not(.art){flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.w43 .q em{font-style:normal;color:var(--wmute)}
+/* Temas aplicados al widget (Glance: colores, radio, imagen recortada; fuentes del sistema) */
+.w.aurora{--wbg:linear-gradient(140deg,var(--c1d,#3a1a5c),#1B1640 60%);--wacc:var(--acc,#FF5FA2)}
+.w.poster{--wbg:#EDEBFF;--wink:#1F2BFF;--wmute:rgba(31,43,255,.7);--wacc:#1F2BFF;--wplay:#1F2BFF;--wplayink:#EDEBFF;--wtrack:#d3d0ff;--wr:4px;--artr:0;--playr:0;--wfd:'Archivo';--wtw:900;--wtf:lowercase;border:2.5px solid #1F2BFF;box-shadow:none}
+.w.petalo{--wbg:#FFFFFF;--wink:#4A2B3A;--wmute:#9A7383;--wacc:#E0567A;--wplay:#E0567A;--wplayink:#fff;--wtrack:#F4D9E1;--wr:26px;--artr:999px 999px 12px 12px;--wfd:'Noto Serif';--wtw:600;--wfs:italic}
+.w.seda{--wbg:#1E0F18;--wink:#F6E9DD;--wmute:rgba(246,233,221,.6);--wacc:#E8C9A0;--wplay:#E8C9A0;--wplayink:#1E0F18;--wtrack:rgba(232,201,160,.2);--wr:20px;--artr:50%;--wfd:'Noto Serif';--wtw:600;--wfs:italic;border:1px solid rgba(232,201,160,.35)}
+.w.carbono{--wbg:#16191C;--wink:#E3E7EC;--wmute:#8A929C;--wacc:#FF7A1A;--wplay:#FF7A1A;--wplayink:#121417;--wtrack:#2C3138;--wr:8px;--artr:0;--playr:0;--wfd:'Roboto Condensed';--wtw:700;--wtf:uppercase;--playclip:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)}
+.w.carbono .art{clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)}
+.w.estadio{--wbg:#0D1B2E;--wink:#fff;--wmute:#9DB0C8;--wacc:#E63946;--wplay:#E63946;--wplayink:#fff;--wtrack:#22395A;--wr:10px;--artr:6px;--playr:6px;--wfd:'Roboto Condensed';--wtw:700;--wtf:uppercase;--playclip:polygon(16% 0,100% 0,84% 100%,0 100%)}
+.w.estadio .pb{width:54px}.w.estadio .bar i{background:linear-gradient(90deg,#FFD23F,#E63946)}
+.w.bruma{--wbg:#F4F6F2;--wink:#1F2A24;--wmute:#6B776F;--wacc:#2F7D6A;--wplay:#1F2A24;--wplayink:#ECEFEA;--wtrack:#D5DBD3;--wr:24px;--artr:14px;--wtw:700}
+.w.you{--wbg:#E9DDFF;--wink:#22005D;--wmute:#5B4A86;--wacc:#6C4BCB;--wplay:#6C4BCB;--wplayink:#fff;--wtrack:#CDBDF4;--wr:28px;--artr:18px;--wtw:500}
+
+/* ---------- Galería de widgets ---------- */
+.wstage{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:22px;align-items:start}
+.wcell{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:12px}
+.wcell .lbl{font-size:13px;color:var(--muted)}
+.wcell .lbl b{color:var(--ink);font-size:14px}
+.wpad{padding:16px;border-radius:16px;background:radial-gradient(circle at 20% 15%,#5d6fd8 0,transparent 55%),radial-gradient(circle at 85% 80%,#d8657f 0,transparent 55%),#1d2140;display:flex;justify-content:center}
+.wpad .w42,.wpad .w41,.wpad .w43{width:100%;max-width:312px}
+.allrow{display:flex;gap:16px;overflow-x:auto;padding:4px 2px 16px}
+.allrow figure{margin:0;flex:none;width:312px}
+.allrow figcaption{font-size:13px;color:var(--muted);margin-top:8px;text-align:center}
+
+/* ---------- Tarjeta multimedia del sistema (Android 13+) ---------- */
+.mcard{position:relative;border-radius:24px;overflow:hidden;color:#fff;height:176px}
+.mcard .bgart{position:absolute;inset:0;background:center/cover;transform:scale(1.05)}
+.mcard::before{content:"";position:absolute;inset:0;z-index:1;background:linear-gradient(90deg,var(--sc,rgba(30,20,40,.92)) 30%,color-mix(in srgb,var(--sc,#1e1428) 55%,transparent))}
+.mcard>*:not(.bgart){position:relative;z-index:2}
+.mtop{display:flex;align-items:center;justify-content:space-between;padding:14px 14px 0 16px}
+.mapp{display:flex;align-items:center;gap:8px;font-size:12px;opacity:.9}
+.mapp i{width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#FF9F43,#FF5FA2);display:grid;place-items:center}
+.mapp i svg.i{width:12px;height:12px}
+.mout{display:flex;align-items:center;gap:6px;font-size:12px;padding:5px 10px;border-radius:14px;background:rgba(255,255,255,.18)}
+.mout svg.i{width:14px;height:14px}
+.mmid{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 0}
+.mmid .mt{min-width:0;flex:1}
+.mmid b{display:block;font-size:17px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mmid small{display:block;font-size:13.5px;opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mplay{width:54px;height:54px;border-radius:18px;background:var(--sa,#F6B8D7);color:#24101c;display:grid;place-items:center;flex:none;margin-left:10px;transition:border-radius .35s}
+.playing .mplay{border-radius:50%}
+.mplay svg.i{width:24px;height:24px}
+.mbot{display:flex;align-items:center;gap:6px;padding:10px 10px 0}
+.mbot .bb{width:36px;height:36px;display:grid;place-items:center;border-radius:50%}
+.mbot .bb.on{color:var(--sa,#F6B8D7)}
+.mseek{flex:1;height:24px;position:relative;cursor:pointer}
+.mseek svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+/* Sombra (panel de notificaciones) */
+.shade{position:absolute;inset:0;background:rgba(18,16,24,.92);backdrop-filter:blur(20px);padding:44px 12px 0}
+.qs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0 12px}
+.tile{height:58px;border-radius:20px;background:rgba(255,255,255,.12);display:flex;align-items:center;gap:10px;padding:0 14px;font-size:13px}
+.tile.on{background:#d9c8ff;color:#22005D}
+.tile svg.i{width:18px;height:18px}
+.tile small{display:block;font-size:11px;opacity:.75}
+.bright{height:40px;border-radius:20px;background:rgba(255,255,255,.12);margin-bottom:12px;position:relative;overflow:hidden}
+.bright::before{content:"";position:absolute;inset:0 45% 0 0;background:#d9c8ff;border-radius:20px}
+.notif{margin-top:10px;border-radius:22px;background:rgba(255,255,255,.1);padding:12px 14px;font-size:13px}
+.notif b{display:block;font-weight:500}
+.notif small{opacity:.7}
+.collapsed{margin-top:10px;border-radius:22px;background:rgba(255,255,255,.1);padding:10px 12px;display:flex;align-items:center;gap:10px}
+.collapsed .art{width:44px;height:44px;border-radius:10px;background:center/cover}
+.collapsed .mt{flex:1;min-width:0;font-size:13px;line-height:1.3}
+.collapsed .mt b{display:block;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.collapsed .mt small{opacity:.7}
+.collapsed .bb{width:34px;height:34px;display:grid;place-items:center}
+/* Bloqueo */
+.lock{position:absolute;inset:0;padding:54px 14px 0}
+.lockbg{position:absolute;inset:0;background:center/cover;filter:blur(30px) brightness(.55) saturate(1.2);transform:scale(1.2)}
+.clock{position:relative;text-align:center;margin-top:30px}
+.clock b{display:block;font-size:84px;font-weight:400;line-height:1;letter-spacing:-2px}
+.clock span{font-size:15px;opacity:.9}
+.lock .mcard{margin-top:150px}
+.unlock{position:absolute;bottom:40px;left:0;right:0;display:flex;justify-content:space-between;padding:0 36px;opacity:.9}
+.unlock span{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.15)}
+.lockfp{position:absolute;bottom:100px;left:50%;transform:translateX(-50%);opacity:.7}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="play" viewBox="0 0 24 24"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5A1 1 0 0 0 7 4.5z"/></symbol>
+  <symbol id="pause" viewBox="0 0 24 24"><rect x="5.5" y="4" width="4.5" height="16" rx="1.2"/><rect x="14" y="4" width="4.5" height="16" rx="1.2"/></symbol>
+  <symbol id="prev" viewBox="0 0 24 24"><rect x="4" y="5" width="2.6" height="14" rx="1"/><path d="M20 6.2v11.6a1 1 0 0 1-1.55.83L9.7 12.83a1 1 0 0 1 0-1.66l8.75-5.8A1 1 0 0 1 20 6.2z"/></symbol>
+  <symbol id="next" viewBox="0 0 24 24"><rect x="17.4" y="5" width="2.6" height="14" rx="1"/><path d="M4 6.2v11.6a1 1 0 0 0 1.55.83l8.75-5.8a1 1 0 0 0 0-1.66L5.55 5.37A1 1 0 0 0 4 6.2z"/></symbol>
+  <symbol id="heartf" viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21.2l8.8-8.8a5.5 5.5 0 0 0 0-7.8z"/></symbol>
+  <symbol id="heart" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21.2l8.8-8.8a5.5 5.5 0 0 0 0-7.8z"/></symbol>
+  <symbol id="shuffle" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></symbol>
+  <symbol id="music" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></g></symbol>
+  <symbol id="phoneic" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M11 18h2"/></g></symbol>
+  <symbol id="wifi" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M2 9a15 15 0 0 1 20 0M5.5 12.5a10 10 0 0 1 13 0M9 16a5 5 0 0 1 6 0M12 19.5h.01"/></symbol>
+  <symbol id="bt" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M7 7l10 10-5 4V3l5 4L7 17"/></symbol>
+  <symbol id="moon" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
+  <symbol id="torch" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M7 3h10v4l-3 4v10h-4V11L7 7z"/></symbol>
+  <symbol id="cam" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 8h4l2-3h6l2 3h4v11H3z"/><circle cx="12" cy="13" r="3.5"/></g></symbol>
+  <symbol id="fp" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M6 8a7 7 0 0 1 12 0M5 13c0-4 3-7 7-7s7 3 7 7M8.5 19c-1-1.8-1.5-3.8-1.5-6a5 5 0 0 1 10 0c0 1.5-.2 3-.7 4.3M12 13v2c0 2-.6 4-1.5 5.5M15 19.5c.4-1.2.6-2.5.6-3.8"/></symbol>
+  <symbol id="search" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></g></symbol>
+</svg>
+
+<div class="wrap">
+  <header class="intro">
+    <h1>Aurora fuera de la app</h1>
+    <p>Cuatro widgets para la pantalla de inicio, la notificación de reproducción y los controles de la pantalla de bloqueo. Todo es interactivo: reproduce, pausa o cambia de canción en cualquiera y los demás se actualizan.</p>
+  </header>
+
+  <section class="sec">
+    <h2>1. Widgets de la pantalla de inicio</h2>
+    <p class="lead">Siguen el tema elegido en la app, o pueden tomar los colores del fondo de pantalla (Material You).</p>
+    <div class="controls" id="wpick"><span>Estilo del widget</span></div>
+    <div class="row">
+      <div class="phone" id="homePhone"></div>
+      <div class="side">
+        <h3>Cuatro tamaños</h3>
+        <p><b>4×1 Barra:</b> portada, título y controles. <b>2×2 Portada:</b> la portada ocupa todo, con título y botón de reproducir. <b>4×2 Reproductor:</b> portada grande, progreso, me gusta y aleatorio. <b>4×3 Con cola:</b> todo lo anterior más las dos canciones que siguen.</p>
+        <h3>Qué hace cada toque</h3>
+        <p>Portada o título: abre el reproductor. Botones: actúan sin abrir la app. Una canción de "A continuación": la reproduce. Sin música: el widget muestra la última canción y un botón para continuar.</p>
+        <h3>La portada siempre visible</h3>
+        <p>En todos los tamaños. La forma de la portada sigue el tema (arco, círculo, esquinas cortadas…).</p>
+      </div>
+    </div>
+    <h3 style="margin:32px 0 12px">Los cuatro tamaños</h3>
+    <div class="wstage" id="wstage"></div>
+    <h3 style="margin:32px 0 6px">El widget 4×2 en cada estilo</h3>
+    <div class="allrow" id="allrow"></div>
+  </section>
+
+  <section class="sec">
+    <h2>2. Notificación de reproducción</h2>
+    <p class="lead">Así se ve en el panel de notificaciones de Android 13 o superior. La tarjeta la dibuja el sistema: Aurora aporta la portada, los datos y los botones.</p>
+    <div class="row">
+      <div class="phone" id="shadePhone"></div>
+      <div class="side">
+        <h3>Botones</h3>
+        <p>Reproducir/pausa (grande, a la derecha), anterior y siguiente junto a la barra, y dos acciones propias de Aurora en los extremos: <b>Me gusta</b> y <b>Aleatorio</b>. Tócalos en la maqueta.</p>
+        <h3>Barra de progreso</h3>
+        <p>Se puede arrastrar. La línea ondulada mientras suena y recta en pausa es propia de Android.</p>
+        <h3>Color</h3>
+        <p>Android toma los colores de la portada. Por eso es clave enviar una portada nítida de al menos 512×512.</p>
+        <h3>Contraída</h3>
+        <p>En el panel cerrado o en notificaciones agrupadas aparece la versión compacta, con portada, título y tres botones.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2>3. Pantalla de bloqueo</h2>
+    <p class="lead">Android usa la misma tarjeta multimedia en la pantalla de bloqueo. Se controla la música sin desbloquear.</p>
+    <div class="row">
+      <div class="phone" id="lockPhone"></div>
+      <div class="side">
+        <h3>Qué aporta Aurora</h3>
+        <p>La portada, que además tiñe el fondo; título y artista; las acciones Me gusta y Aleatorio; y que todo funcione con el teléfono bloqueado y con la pantalla apagada.</p>
+        <h3>Privacidad</h3>
+        <p>Una opción en Ajustes: "Mostrar controles en la pantalla de bloqueo". Si está apagada, la notificación se marca como privada y el bloqueo solo muestra "Aurora · Reproduciendo".</p>
+        <h3>Samsung y otras capas</h3>
+        <p>Samsung (One UI), Xiaomi y otros dibujan su propia versión, pero leen los mismos datos y botones, así que se ve bien en todos.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2>Qué se puede personalizar y qué no</h2>
+    <div class="cols">
+      <div class="box"><h3>Widgets</h3><p><span class="ok">Sí:</span> colores del tema, radio de las esquinas, forma de la portada (se recorta la imagen antes de enviarla), botones, tamaños y Material You.</p><p><span class="no">No:</span> fuentes propias (Android solo deja usar las del sistema), desenfoques, animaciones continuas ni el reloj en vivo segundo a segundo.</p></div>
+      <div class="box"><h3>Notificación y bloqueo</h3><p><span class="ok">Sí:</span> portada, título, artista, álbum, duración, posición, botones estándar y 2 acciones propias.</p><p><span class="no">No:</span> colores, fuentes ni la distribución de la tarjeta. Las dibuja el sistema para que todas las apps de música se vean coherentes.</p></div>
+      <div class="box"><h3>Progreso en el widget</h3><p>Los widgets no se pueden actualizar cada segundo sin gastar batería. La barra se actualiza al cambiar de canción, al pausar y como máximo cada 30 s; en la maqueta avanza en vivo solo como demostración.</p></div>
+      <div class="box"><h3>Fuentes en el widget</h3><p>Equivalentes del sistema: Aurora y Bruma en sans-serif, Póster en sans-serif-black, Pétalo y Seda en serif cursiva, Carbono y Estadio en sans-serif-condensed en mayúsculas.</p></div>
+    </div>
+  </section>
+  <footer>Canciones y portadas de ejemplo. Maquetas de Android 13/14; cada fabricante puede variar.</footer>
+</div>
+
+<script>
+/* ===================== DATOS ===================== */
+var STYLES=[['aurora','Aurora','#FF5FA2'],['poster','Póster','#1F2BFF'],['petalo','Pétalo','#E0567A'],['seda','Seda','#E8C9A0'],['carbono','Carbono','#FF7A1A'],['estadio','Estadio','#E63946'],['bruma','Bruma','#2F7D6A'],['you','Material You','#6C4BCB']];
+var SONGS=[
+ {t:"Neón en la piel",a:"Cielo Prisma",d:228,art:{st:"sun",bg:"#24103d",c:["#ff3d8b","#ff8a3d","#ffd23d"]}},
+ {t:"Agua de coco",a:"Tropicanta",d:185,art:{st:"waves",bg:"#0f3d2e",c:["#7ddc5a","#ffcf3d","#2bb3a0"]}},
+ {t:"Satélite",a:"Mar Abierto",d:252,art:{st:"circles",bg:"#0b1d2e",c:["#3de0c0","#1a8a9c","#e9f5f2"]}},
+ {t:"Calle sin nombre",a:"Los Imanes",d:201,art:{st:"stripes",bg:"#151515",c:["#ffd400","#f2f2f2","#ff4d2e"]}},
+ {t:"Papel y humo",a:"Nadia Roca",d:241,art:{st:"waves",bg:"#1a1530",c:["#8c7bd6","#c9c1f0","#4a3d8f"]}}
+];
+var S={playing:true,cur:0,t:62,liked:{0:true},shuffle:false,style:'aurora'};
+
+/* ===================== COLOR (como lo hace Android: tono de la portada) ===================== */
+function rgb2hsl(r,g,b){r/=255;g/=255;b/=255;var mx=Math.max(r,g,b),mn=Math.min(r,g,b),h=0,s=0,l=(mx+mn)/2,d=mx-mn;if(d){s=l>.5?d/(2-mx-mn):d/(mx+mn);h=mx===r?((g-b)/d+(g<b?6:0)):mx===g?(b-r)/d+2:(r-g)/d+4;h*=60}return [h,s,l]}
+function dominant(img){var n=40,cv=document.createElement('canvas');cv.width=cv.height=n;var x=cv.getContext('2d',{willReadFrequently:true});x.drawImage(img,0,0,n,n);var d=x.getImageData(0,0,n,n).data,bins=[];
+  for(var i=0;i<d.length;i+=4){var c=rgb2hsl(d[i],d[i+1],d[i+2]);if(c[1]<.25||c[2]<.12||c[2]>.9)continue;var k=Math.floor(c[0]/20)%18;bins[k]=bins[k]||{w:0,h:0};bins[k].w+=c[1];bins[k].h+=c[0]*c[1]}
+  var best=null;bins.forEach(function(b){if(b&&(!best||b.w>best.w))best=b});var h=best?best.h/best.w:270;return {surface:'hsl('+h.toFixed(0)+' 35% 14% / .93)',accent:'hsl('+h.toFixed(0)+' 75% 82%)',deep:'hsl('+h.toFixed(0)+' 45% 22%)',vivid:'hsl('+h.toFixed(0)+' 85% 65%)'}}
+function paintCover(sp){var Z=300,cv=document.createElement('canvas');cv.width=cv.height=Z;var x=cv.getContext('2d');x.fillStyle=sp.bg;x.fillRect(0,0,Z,Z);var c=sp.c;
+  if(sp.st==='sun'){var g=x.createLinearGradient(0,70,0,270);g.addColorStop(0,c[2]);g.addColorStop(.5,c[1]);g.addColorStop(1,c[0]);x.fillStyle=g;x.beginPath();x.arc(150,175,100,0,7);x.fill();x.fillStyle=sp.bg;for(var y=185,hh=4;y<280;y+=18,hh+=2)x.fillRect(0,y,Z,hh);x.fillStyle=c[2];x.beginPath();x.arc(238,62,9,0,7);x.fill()}
+  else if(sp.st==='circles'){[[110,120,90,c[1]],[190,170,80,c[0]],[150,230,40,c[2]]].forEach(function(q){x.globalAlpha=.85;x.fillStyle=q[3];x.beginPath();x.arc(q[0],q[1],q[2],0,7);x.fill()});x.globalAlpha=1}
+  else if(sp.st==='stripes'){x.save();x.translate(150,150);x.rotate(-.5);for(var i=-8;i<8;i++){x.fillStyle=c[(i+8)%3];x.fillRect(i*36,-260,18,520)}x.restore();x.fillStyle=sp.bg;x.beginPath();x.arc(150,150,62,0,7);x.fill();x.fillStyle=c[0];x.beginPath();x.arc(150,150,22,0,7);x.fill()}
+  else{for(var j=0;j<4;j++){x.fillStyle=c[j%3];x.globalAlpha=.9;x.beginPath();x.moveTo(0,Z);for(var px=0;px<=Z;px+=10)x.lineTo(px,130+j*40+Math.sin(px/40+j)*22);x.lineTo(Z,Z);x.fill()}x.globalAlpha=1;x.fillStyle=c[1];x.beginPath();x.arc(80,70,30,0,7);x.fill()}
+  return cv.toDataURL('image/jpeg',.88)}
+
+/* ===================== PIEZAS ===================== */
+function ic(id,c){return '<svg class="i '+(c||'')+'" aria-hidden="true"><use href="#'+id+'"/></svg>'}
+function pp(){return ic('play','ic-play')+ic('pause','ic-pause')}
+function fmt(s){s=Math.max(0,Math.floor(s));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
+function song(){return SONGS[S.cur]}
+function nexts(){return [1,2].map(function(k){return SONGS[(S.cur+k)%SONGS.length]})}
+function artEl(s,cls){return '<span class="art '+(cls||'')+'" style="background-image:url('+s.cover+')" role="img" aria-label="Portada de '+s.t+'"></span>'}
+function wvars(){var s=song();return S.style==='aurora'?'--acc:'+s.pal.vivid+';--c1d:'+s.pal.deep:''}
+var BR='<span class="brand" aria-hidden="true">'+ic('music')+'</span>';
+function likeB(){var l=S.liked[S.cur];return '<button class="b'+(l?' on':'')+'" data-act="like" aria-label="Me gusta">'+ic(l?'heartf':'heart')+'</button>'}
+function W41(st){var s=song();return '<div class="w w41 '+st+'" style="'+wvars()+'" role="group" aria-label="Widget Aurora 4 por 1"><button data-act="open" aria-label="Abrir reproductor">'+artEl(s)+'</button><div class="mt"><div class="t">'+s.t+'</div><div class="a">'+s.a+'</div></div>'+
+  '<button class="b" data-act="prev" aria-label="Anterior">'+ic('prev')+'</button><button class="pb" data-act="toggle" aria-label="Reproducir o pausar">'+pp()+'</button><button class="b" data-act="next" aria-label="Siguiente">'+ic('next')+'</button></div>'}
+function W22(st){var s=song();return '<div class="w w22 '+st+'" style="'+wvars()+'" role="group" aria-label="Widget Aurora 2 por 2"><button data-act="open" aria-label="Abrir reproductor" style="position:absolute;inset:0">'+artEl(s)+'</button>'+BR+'<div class="info"><div class="t">'+s.t+'</div><div class="a">'+s.a+'</div></div><button class="pb" data-act="toggle" aria-label="Reproducir o pausar">'+pp()+'</button></div>'}
+function W42(st){var s=song();return '<div class="w w42 '+st+'" style="'+wvars()+'" role="group" aria-label="Widget Aurora 4 por 2"><button data-act="open" aria-label="Abrir reproductor">'+artEl(s)+'</button><div class="mt"><div><div class="t" style="padding-right:18px">'+s.t+'</div><div class="a">'+s.a+'</div></div>'+
+  '<div><div class="bar"><i data-p></i></div><div class="tm"><span data-tm></span><span>'+fmt(s.d)+'</span></div></div>'+
+  '<div class="ctr">'+likeB()+'<button class="b" data-act="prev" aria-label="Anterior">'+ic('prev')+'</button><button class="pb" data-act="toggle" aria-label="Reproducir o pausar">'+pp()+'</button><button class="b" data-act="next" aria-label="Siguiente">'+ic('next')+'</button></div></div>'+BR+'</div>'}
+function W43(st){var s=song();return '<div class="w w43 '+st+'" style="'+wvars()+'" role="group" aria-label="Widget Aurora 4 por 3"><div class="top"><button data-act="open" aria-label="Abrir reproductor">'+artEl(s)+'</button><div class="mt"><div class="t" style="padding-right:18px">'+s.t+'</div><div class="a">'+s.a+'</div><div class="bar" style="margin-top:10px"><i data-p></i></div></div></div>'+
+  '<div class="ctr"><button class="b'+(S.shuffle?' on':'')+'" data-act="shuffle" aria-label="Aleatorio">'+ic('shuffle')+'</button><button class="b" data-act="prev" aria-label="Anterior">'+ic('prev')+'</button><button class="pb" data-act="toggle" aria-label="Reproducir o pausar">'+pp()+'</button><button class="b" data-act="next" aria-label="Siguiente">'+ic('next')+'</button>'+likeB()+'</div>'+
+  '<div class="nx"><small>A continuación</small>'+nexts().map(function(x,k){return '<button class="q" data-act="jump" data-k="'+(k+1)+'">'+artEl(x)+'<span>'+x.t+' <em>· '+x.a+'</em></span></button>'}).join('')+'</div>'+BR+'</div>'}
+
+/* Tarjeta multimedia del sistema */
+function squiggle(w){var p=S.t/song().d,x1=Math.max(6,w*p),d='M0,12';
+  if(S.playing){for(var x=0;x<=x1;x+=2)d+=' L'+x+','+(12+Math.sin((x+S.phase)/4.5)*3).toFixed(2)}else d+=' L'+x1+',12';
+  return '<svg viewBox="0 0 '+w+' 24" aria-hidden="true"><path d="'+d+'" fill="none" stroke="var(--sa)" stroke-width="2.5" stroke-linecap="round"/><path d="M'+(x1+4)+',12 L'+w+',12" stroke="rgba(255,255,255,.35)" stroke-width="2.5" stroke-linecap="round"/><rect x="'+(x1-2)+'" y="4" width="4" height="16" rx="2" fill="var(--sa)"/></svg>'}
+function MCARD(){var s=song(),l=S.liked[S.cur];return '<div class="mcard" style="--sc:'+s.pal.surface+';--sa:'+s.pal.accent+'" role="group" aria-label="Controles multimedia de Aurora"><span class="bgart" style="background-image:url('+s.cover+')"></span>'+
+  '<div class="mtop"><span class="mapp"><i>'+ic('music')+'</i>Aurora</span><span class="mout">'+ic('phoneic')+'Este teléfono</span></div>'+
+  '<div class="mmid"><div class="mt"><b>'+s.t+'</b><small>'+s.a+'</small></div><button class="mplay" data-act="toggle" aria-label="Reproducir o pausar">'+pp()+'</button></div>'+
+  '<div class="mbot"><button class="bb'+(l?' on':'')+'" data-act="like" aria-label="Me gusta">'+ic(l?'heartf':'heart')+'</button><button class="bb" data-act="prev" aria-label="Anterior">'+ic('prev')+'</button>'+
+  '<div class="mseek" data-act="seek" role="slider" aria-label="Posición" aria-valuemin="0" aria-valuemax="'+s.d+'" tabindex="0"></div>'+
+  '<button class="bb" data-act="next" aria-label="Siguiente">'+ic('next')+'</button><button class="bb'+(S.shuffle?' on':'')+'" data-act="shuffle" aria-label="Aleatorio">'+ic('shuffle')+'</button></div></div>'}
+function COLLAPSED(){var s=song();return '<div class="collapsed" style="background:'+s.pal.surface+'"><span class="art" style="background-image:url('+s.cover+')"></span><div class="mt"><b>'+s.t+'</b><small>'+s.a+'</small></div>'+
+  '<button class="bb" data-act="prev" aria-label="Anterior">'+ic('prev')+'</button><button class="bb" data-act="toggle" aria-label="Reproducir o pausar">'+pp()+'</button><button class="bb" data-act="next" aria-label="Siguiente">'+ic('next')+'</button></div>'}
+
+/* ===================== RENDER ===================== */
+function render(){var st=S.style;
+  document.getElementById('homePhone').innerHTML='<div class="wall"></div><div class="sb"><span>9:41</span><span>5G ● 87%</span></div><div class="home">'+W42(st)+
+    '<div style="display:flex;gap:14px;margin-top:14px;align-items:flex-start">'+W22(st)+'<div class="grid4" style="grid-template-columns:repeat(2,1fr);flex:1;margin-top:4px">'+['Cámara','Mapas','Fotos','Correo'].map(function(n){return '<div class="app"><span>'+n[0]+'</span>'+n+'</div>'}).join('')+'</div></div>'+
+    '<div style="margin-top:16px">'+W41(st)+'</div></div><div class="dock">'+['Teléfono','Mensajes','Aurora','Chrome'].map(function(n){return '<div class="app"><span class="'+(n==='Aurora'?'aur':'')+'">'+(n==='Aurora'?ic('music'):n[0])+'</span></div>'}).join('')+'</div><div class="search">'+ic('search')+'Buscar</div><div class="navbar"></div>';
+  document.getElementById('wstage').innerHTML=[['4×1','Barra','Ancho completo, 1 fila',W41],['2×2','Portada','Cuadrado, la portada de fondo',W22],['4×2','Reproductor','El más completo para el día a día',W42],['4×3','Con cola','Con las dos canciones siguientes',W43]].map(function(w){
+    return '<div class="wcell"><div class="lbl"><b>'+w[0]+' · '+w[1]+'</b><br>'+w[2]+'</div><div class="wpad">'+w[3](st)+'</div></div>'}).join('');
+  document.getElementById('allrow').innerHTML=STYLES.map(function(x){return '<figure><div class="wpad">'+W42(x[0])+'</div><figcaption>'+x[1]+'</figcaption></figure>'}).join('');
+  var s=song();
+  document.getElementById('shadePhone').innerHTML='<div class="wall"></div><div class="shade"><div class="sb" style="top:14px"><span>9:41 · lun 5 oct</span><span>87%</span></div>'+
+    '<div class="bright"></div><div class="qs">'+[['wifi','Wi-Fi','Casa',1],['bt','Bluetooth','Auriculares',1],['moon','No molestar','',0],['torch','Linterna','',0]].map(function(q){return '<div class="tile'+(q[3]?' on':'')+'">'+ic(q[0])+'<span>'+q[1]+(q[2]?'<small>'+q[2]+'</small>':'')+'</span></div>'}).join('')+'</div>'+
+    MCARD()+COLLAPSED()+'<div class="notif"><b>Mensajes · ahora</b><small>Ana: ¿ya escuchaste el disco nuevo?</small></div></div><div class="navbar"></div>';
+  document.getElementById('lockPhone').innerHTML='<span class="lockbg" style="background-image:url('+s.cover+')"></span><div class="sb"><span></span><span>5G ● 87%</span></div><div class="lock"><div class="clock"><b>9:41</b><span>lunes, 5 de octubre</span></div>'+MCARD()+'</div>'+
+    '<div class="lockfp">'+ic('fp')+'</div><div class="unlock"><span>'+ic('torch')+'</span><span>'+ic('cam')+'</span></div><div class="navbar"></div>';
+  document.querySelectorAll('.wrap').forEach(function(w){w.classList.toggle('playing',S.playing)});tick(0)}
+function tick(dt){var s=song();if(S.playing){S.t+=dt;if(S.t>=s.d){S.cur=(S.cur+1)%SONGS.length;S.t=0;render();return}}S.phase=(S.phase||0)+dt*12;
+  document.querySelectorAll('[data-p]').forEach(function(i){i.style.width=(S.t/s.d*100)+'%'});document.querySelectorAll('[data-tm]').forEach(function(e){e.textContent=fmt(S.t)});
+  document.querySelectorAll('.mseek').forEach(function(m){m.innerHTML=squiggle(m.clientWidth||150)})}
+document.addEventListener('click',function(e){var el=e.target.closest('[data-act]');if(!el)return;var a=el.dataset.act;
+  if(a==='toggle'){S.playing=!S.playing;document.querySelector('.wrap').classList.toggle('playing',S.playing);tick(0);return}
+  if(a==='next'){S.cur=S.shuffle?(S.cur+2+Math.floor(Math.random()*3))%SONGS.length:(S.cur+1)%SONGS.length;S.t=0}
+  else if(a==='prev'){if(S.t>3)S.t=0;else{S.cur=(S.cur+SONGS.length-1)%SONGS.length;S.t=0}}
+  else if(a==='like'){S.liked[S.cur]=!S.liked[S.cur]}
+  else if(a==='shuffle'){S.shuffle=!S.shuffle}
+  else if(a==='jump'){S.cur=(S.cur+(+el.dataset.k))%SONGS.length;S.t=0}
+  else if(a==='seek'){var r=el.getBoundingClientRect();S.t=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width))*song().d;tick(0);return}
+  else if(a==='open'){flash('Abre el reproductor de Aurora');return}
+  render()});
+document.addEventListener('keydown',function(e){var m=e.target.closest&&e.target.closest('.mseek');if(m&&(e.key==='ArrowRight'||e.key==='ArrowLeft')){S.t=Math.max(0,Math.min(song().d,S.t+(e.key==='ArrowRight'?5:-5)));tick(0);e.preventDefault()}});
+var fl;function flash(m){var t=document.getElementById('flash');if(!t){t=document.createElement('div');t.id='flash';t.setAttribute('role','status');t.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#111;color:#fff;padding:9px 16px;border-radius:20px;font-size:13px;z-index:99;transition:opacity .3s';document.body.appendChild(t)}t.textContent=m;t.style.opacity=1;clearTimeout(fl);fl=setTimeout(function(){t.style.opacity=0},1600)}
+var wp=document.getElementById('wpick');STYLES.forEach(function(x){var b=document.createElement('button');b.innerHTML='<i style="background:'+x[2]+'"></i>'+x[1];if(x[0]===S.style)b.className='on';
+  b.onclick=function(){S.style=x[0];wp.querySelectorAll('button').forEach(function(y){y.classList.toggle('on',y===b)});render()};wp.appendChild(b)});
+Promise.all(SONGS.map(function(s){return new Promise(function(res){s.cover=paintCover(s.art);var im=new Image();im.onload=function(){s.pal=dominant(im);res()};im.src=s.cover})})).then(function(){render();var last=performance.now();
+  setInterval(function(){var n=performance.now();tick((n-last)/1000);last=n},120)});
+</script>
+</body>
+</html>

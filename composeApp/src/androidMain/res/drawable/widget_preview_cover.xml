@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Portada de ejemplo de las vistas previas (la de Aurora: degradado y una nota). -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <gradient android:angle="315" android:startColor="#FF2A1659" android:centerColor="#FF7B2FBF" android:endColor="#FFFF5FA2" />
+            <corners android:radius="14dp" />
+        </shape>
+    </item>
+    <item android:gravity="center" android:width="40dp" android:height="40dp" android:drawable="@drawable/widget_ic_music" />
+</layer-list>

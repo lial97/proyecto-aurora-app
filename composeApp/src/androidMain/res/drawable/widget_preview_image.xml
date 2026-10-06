@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Imagen del selector de widgets en Android 11 o anterior. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@drawable/widget_preview_bg" />
+    <item android:gravity="center_vertical|start" android:left="12dp" android:width="96dp" android:height="96dp" android:drawable="@drawable/widget_preview_cover" />
+</layer-list>

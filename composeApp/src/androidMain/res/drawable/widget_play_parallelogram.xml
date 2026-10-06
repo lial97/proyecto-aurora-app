@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Botón principal en Estadio: paralelogramo inclinado. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="54dp" android:height="44dp" android:viewportWidth="54" android:viewportHeight="44">
+    <path android:fillColor="#FFFFFFFF" android:pathData="M8.64,0H54L45.36,44H0Z" />
+</vector>

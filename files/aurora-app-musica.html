@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<!--
+=====================================================================
+  AURORA · App de música · Referencia de interfaz (prototipo HTML)
+=====================================================================
+  Qué es:
+    Un prototipo navegable de una app de música con 6 pantallas
+    (Inicio, Lista, Reproductor, Letra, Información, Opciones) dentro
+    de un marco de teléfono. Todo vive en este único archivo:
+    HTML + CSS + JavaScript sin librerías.
+
+  Cómo está organizado:
+    1. <head>      Fuentes (Google Fonts: Syne + DM Sans) y CSS.
+    2. CSS         a) Variables y propiedades registradas (@property)
+                   b) Estilos de la PÁGINA de referencia (no son de la app)
+                   c) Estilos del TELÉFONO = estilos reales de la app
+    3. <svg>       Sprite de íconos (<symbol>), se usan con <use href="#id">
+    4. <body>      Página: intro, prototipo, color, galería, sistema visual
+    5. <script>    Datos, motor de color, clase Proto (cada teléfono),
+                   carga de portadas e inicio.
+
+  Sistema de color (lo más importante):
+    - ATMÓSFERA: depende del tempo (BPM). Lenta = azul (tono 225°),
+      movida = rojo (tono 360°). Controla fondo y luces difusas.
+    - ÉNFASIS: se extrae de la portada (color vivo dominante).
+      Si no hay portada o no tiene color vivo, sale del tempo.
+    - Todo se aplica con variables CSS sobre .phone:
+      --bgc (fondo), --c1/--c2/--c3 (luces), --acc (énfasis), --spd (velocidad)
+
+  Para Claude Code / producción:
+    Ver "aurora-especificaciones.txt". Las portadas aquí se dibujan con
+    <canvas> como ejemplo; en la app real vendrán de URLs (ojo con CORS
+    al leer píxeles: usar crossOrigin="anonymous" o extraer en el servidor).
+=====================================================================
+-->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Aurora · Referencia de interfaz</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=Syne:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+/* =========================================================
+   VARIABLES ANIMABLES
+   @property registra las variables como <color> para que el
+   navegador pueda INTERPOLARLAS (transición suave de color al
+   cambiar de canción). Sin esto el cambio sería instantáneo.
+   ========================================================= */
+@property --c1{syntax:'<color>';inherits:true;initial-value:#FF5FA2}
+@property --c2{syntax:'<color>';inherits:true;initial-value:#FFB547}
+@property --bgc{syntax:'<color>';inherits:true;initial-value:#120E2B}
+@property --acc{syntax:'<color>';inherits:true;initial-value:#FF5FA2}
+@property --c3{syntax:'<color>';inherits:true;initial-value:#5B8CFF}
+
+/* =========================================================
+   TOKENS GLOBALES
+   --bg/--ink/--muted/--card/--line: solo para la página de referencia
+   (cambian con modo claro/oscuro del sistema).
+   --night, --text y la paleta Aurora: colores base de la app.
+   --ease: curva de animación estándar de toda la app.
+   ========================================================= */
+:root{
+  --bg:#f2f1f7; --ink:#1a1730; --muted:#5f5b78; --card:#ffffff; --line:#e0deea;
+  --night:#120E2B; --night2:#1B1640; --text:#F2EEFF;
+  --pink:#FF5FA2; --amber:#FFB547; --blue:#5B8CFF; --violet:#9B5CFF; --mint:#38E1C6;
+  --ease:cubic-bezier(.2,.8,.2,1);
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --bg:#0d0b1d; --ink:#ece9fb; --muted:#a29dbf; --card:#17142c; --line:#2a2647; }
+}
+:root[data-theme="dark"]{ --bg:#0d0b1d; --ink:#ece9fb; --muted:#a29dbf; --card:#17142c; --line:#2a2647; }
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"DM Sans",system-ui,sans-serif;line-height:1.55}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+button:focus-visible,[role=button]:focus-visible{outline:2px solid var(--amber);outline-offset:3px;border-radius:8px}
+
+/* =========================================================
+   PÁGINA DE REFERENCIA (no forma parte de la app)
+   Layout de la documentación: intro, galería, tokens, tablas.
+   ========================================================= */
+.wrap{max-width:1500px;margin:0 auto;padding:0 20px}
+.intro{max-width:760px;padding:44px 0 10px}
+.intro h1{font-family:"Syne",sans-serif;font-weight:800;font-size:clamp(32px,6vw,54px);line-height:1;letter-spacing:-.03em;margin:0 0 14px}
+.intro p{color:var(--muted);margin:0;max-width:62ch}
+.sec{padding:36px 0}
+.sec>h2{font-family:"Syne",sans-serif;font-size:26px;margin:0 0 6px;letter-spacing:-.01em}
+.sec>p.lead{color:var(--muted);margin:0 0 22px;max-width:62ch}
+.proto{display:flex;gap:40px;flex-wrap:wrap;align-items:flex-start}
+.howto{flex:1;min-width:260px;max-width:460px}
+.howto h3{font-family:"Syne",sans-serif;font-size:17px;margin:20px 0 6px}
+.howto p{margin:0;color:var(--muted)}
+.gallery{display:flex;gap:26px;overflow-x:auto;padding:6px 4px 24px;scroll-snap-type:x mandatory}
+.gallery figure{margin:0;scroll-snap-align:start;flex:none}
+.gallery figcaption{font-family:"Syne",sans-serif;font-weight:700;margin-top:12px;text-align:center}
+.gallery figcaption small{display:block;font-family:"DM Sans",sans-serif;font-weight:400;color:var(--muted);font-size:13px;max-width:30ch;margin:2px auto 0}
+.tokens{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px}
+.tk{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:20px}
+.tk h3{font-family:"Syne",sans-serif;margin:0 0 14px;font-size:18px}
+.sw{display:flex;align-items:center;gap:12px;margin:8px 0}
+.sw i{width:40px;height:40px;border-radius:12px;flex:none;border:1px solid var(--line)}
+.sw small{display:block;color:var(--muted)}
+.typ div{margin-bottom:12px}
+.typ small{color:var(--muted);display:block;font-size:12px}
+.mot{width:100%;border-collapse:collapse;font-size:14px}
+.mot td{padding:8px 4px;border-top:1px solid var(--line);vertical-align:top}
+.mot td:first-child{font-weight:700;width:38%}
+.mot td small{color:var(--muted)}
+.tblwrap{overflow-x:auto}
+.moodbar{position:relative;height:16px;border-radius:10px;margin:34px 0 8px;background:linear-gradient(90deg,hsl(225 85% 60%),hsl(270 85% 62%),hsl(315 85% 62%),hsl(360 85% 60%))}
+.moodbar span{position:absolute;bottom:22px;line-height:1.3;transform:translateX(calc(var(--e) * -100%));font-size:11px;white-space:nowrap;color:var(--muted)}
+.moodbar span::after{content:"";position:absolute;left:calc(var(--e) * 100%);top:100%;width:1px;height:calc(var(--o) + 4px);background:var(--muted)}
+.moodends{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:22px}
+.songtbl{width:100%;border-collapse:collapse;font-size:14px;min-width:620px}
+.songtbl th{text-align:left;font-weight:500;color:var(--muted);font-size:12.5px;padding:6px 8px}
+.songtbl td{padding:8px;border-top:1px solid var(--line);vertical-align:middle}
+.songtbl .art{width:38px;height:38px;border-radius:9px;font-size:15px;display:inline-grid}
+.songtbl .sws i{border-color:var(--line)}
+.songtbl small{color:var(--muted)}
+.rule{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px 20px;margin-bottom:22px;max-width:760px}
+.rule p{margin:0 0 8px}.rule p:last-child{margin:0}
+footer{color:var(--muted);font-size:13px;padding:10px 0 50px}
+
+/* =========================================================
+   APP (todo lo que está dentro de .phone)
+   .phone recibe desde JS las variables de color de la canción:
+     --bgc  fondo principal (según tempo)
+     --c1   luz 1 / degradados  (según tempo)
+     --c2   luz 2               (según tempo)
+     --c3   luz 3               (según tempo)
+     --acc  color de énfasis (portada o tempo)
+     --spd  multiplicador de velocidad de animaciones (lenta > 1, movida < 1)
+   ========================================================= */
+.phone{--c1:#FF5FA2;--c2:#FFB547;--c3:#5B8CFF;--bgc:#120E2B;--acc:#FF5FA2;--spd:1;
+  width:340px;height:720px;border-radius:50px;border:10px solid #07060f;background:var(--bgc);color:var(--text);
+  position:relative;overflow:hidden;flex:none;font-family:"DM Sans",sans-serif;
+  box-shadow:0 30px 60px rgba(18,14,43,.35);transition:--c1 1.2s,--c2 1.2s,--c3 1.2s,--bgc 1.2s,--acc 1.2s;isolation:isolate}
+.phone::before{content:"";position:absolute;top:9px;left:50%;transform:translateX(-50%);width:96px;height:26px;border-radius:16px;background:#07060f;z-index:60}
+/* Barra de estado falsa (hora, batería) */
+.status{position:absolute;top:13px;left:28px;right:28px;display:flex;justify-content:space-between;font-size:12px;font-weight:700;z-index:55}
+
+/* FONDO AMBIENTAL: 3 manchas muy desenfocadas que flotan.
+   Más visibles en Reproductor y Letra (opacity 1) que en Inicio (0.5).
+   Se pausan cuando la música está en pausa (.playing en .phone). */
+.bg{position:absolute;inset:0;overflow:hidden;z-index:0;opacity:.5;transition:opacity .6s}
+.phone[data-screen=player] .bg,.phone[data-screen=letra] .bg{opacity:1}
+.blob{position:absolute;border-radius:50%;filter:blur(56px);animation:drift calc(18s * var(--spd)) ease-in-out infinite alternate;animation-play-state:paused}
+.playing .blob{animation-play-state:running}
+.b1{width:260px;height:260px;background:var(--c1);top:-30px;left:-80px}
+.b2{width:240px;height:240px;background:var(--c3);top:220px;right:-90px;animation-duration:calc(22s * var(--spd))}
+.b3{width:220px;height:220px;background:var(--c2);bottom:-60px;left:30px;opacity:.55;animation-duration:calc(26s * var(--spd))}
+@keyframes drift{0%{transform:translate(0,0) scale(1)}50%{transform:translate(40px,30px) scale(1.15)}100%{transform:translate(-20px,60px) scale(.95)}}
+.phone[data-screen=letra] .bg::after{content:"";position:absolute;inset:0;background:color-mix(in srgb,var(--bgc) 40%,transparent)}
+
+/* VISTA: contenedor con scroll donde se pinta cada pantalla.
+   padding-bottom deja espacio al mini reproductor + pestañas.
+   .enter dispara la animación de entrada al cambiar de pantalla. */
+.view{position:absolute;inset:0;z-index:2;overflow-y:auto;scrollbar-width:none;padding:50px 18px 160px}
+.view::-webkit-scrollbar{display:none}
+.phone[data-screen=player] .view,.phone[data-screen=letra] .view,.phone[data-screen=info] .view{padding-bottom:24px}
+.phone[data-screen=letra] .view{overflow:hidden}
+.view.enter .scr{animation:scrIn .42s var(--ease) both}
+.phone[data-screen=player] .view.enter .scr,.phone[data-screen=letra] .view.enter .scr{animation:sheetIn .5s var(--ease) both}
+@keyframes scrIn{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
+@keyframes sheetIn{from{opacity:0;transform:translateY(60px)}to{opacity:1;transform:none}}
+
+/* Íconos: los de play/pausa se alternan según .playing */
+svg.i{width:22px;height:22px;fill:currentColor;display:block;flex:none}
+.ic-pause{display:none}
+.playing .ic-play{display:none}
+.playing .ic-pause{display:block}
+/* Utilidades: texto atenuado, vidrio (glassmorphism), botón ícono */
+.dim{color:rgba(242,238,255,.62)}
+.sm{font-size:13px}
+.glass{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.18);backdrop-filter:blur(20px) saturate(140%);-webkit-backdrop-filter:blur(20px) saturate(140%)}
+.ib{width:40px;height:40px;display:grid;place-items:center;border-radius:50%;transition:background .2s,transform .15s}
+.ib:hover{background:rgba(255,255,255,.08)}
+.ib:active{transform:scale(.9)}
+.ib.on{color:var(--acc)}
+/* PORTADA (.art)
+   - .art.cover   -> imagen real (background-image)
+   - .art.nocover -> sin portada: degradado cónico con colores del tempo + nota ♪
+   Tamaños: .xs 40px, .sm 46px, .card 138px, .hero 262px */
+.art{--a1:#FF5FA2;--a2:#FFB547;--a3:#5B8CFF;display:block;border-radius:14px;flex:none;
+  background:radial-gradient(circle at 72% 76%,rgba(255,255,255,.42),transparent 42%),conic-gradient(from 200deg at 35% 40%,var(--a1),var(--a2),var(--a3),var(--a1))}
+.art.xs{width:40px;height:40px;border-radius:10px}
+.art.sm{width:46px;height:46px;border-radius:12px}
+
+.bar-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+.bar-top .ctr{text-align:center;line-height:1.2;min-width:0}
+.bar-top .ctr small{display:block;font-size:11px}
+.bar-top .ctr b{font-size:14px}
+.h1{font-family:"Syne",sans-serif;font-weight:800;font-size:30px;line-height:1.05;letter-spacing:-.02em;margin:0}
+.h2{font-family:"Syne",sans-serif;font-weight:700;font-size:18px;margin:24px 0 12px}
+/* BARRA DE PROGRESO: área táctil de 22px, barra visible de 5px.
+   El relleno va de --c1 (tempo) a --acc (énfasis). La bolita aparece al pasar el cursor. */
+.prog{height:22px;display:flex;align-items:center;cursor:pointer;position:relative}
+.prog::before{content:"";position:absolute;left:0;right:0;height:5px;border-radius:4px;background:rgba(255,255,255,.2)}
+.prog .fill{position:relative;height:5px;border-radius:4px;background:linear-gradient(90deg,var(--c1),var(--acc));transition:width .9s linear}
+.prog .fill::after{content:"";position:absolute;right:-7px;top:50%;width:14px;height:14px;margin-top:-7px;border-radius:50%;background:var(--text);box-shadow:0 0 14px var(--acc);transform:scale(0);transition:transform .2s}
+.prog:hover .fill::after{transform:scale(1)}
+.times{display:flex;justify-content:space-between;font-size:11px;color:rgba(242,238,255,.62);font-variant-numeric:tabular-nums}
+/* Botón principal reproducir/pausa: claro con halo del color de énfasis */
+.bigplay{width:72px;height:72px;border-radius:50%;background:var(--text);color:var(--bgc);display:grid;place-items:center;box-shadow:0 0 34px color-mix(in srgb,var(--acc) 70%,transparent);transition:transform .2s var(--ease)}
+.bigplay:active{transform:scale(.92)}
+.bigplay svg.i{width:30px;height:30px}
+
+/* FILA DE CANCIÓN: portada + título/artista + duración + menú.
+   La canción actual (.cur) usa el color de énfasis y muestra un ecualizador (.eqm).
+   En la lista entran en cascada (--k = índice, 40ms entre filas). */
+.row{display:flex;align-items:center;gap:12px;padding:7px 6px;border-radius:14px;cursor:pointer;transition:background .2s}
+.row:hover{background:rgba(255,255,255,.06)}
+.row .rt{flex:1;min-width:0;line-height:1.25}
+.row .rt b{display:block;font-weight:500;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .rt small{font-size:12.5px;color:rgba(242,238,255,.6)}
+.row.cur .rt b{color:var(--acc)}
+.row .num{width:18px;text-align:center;font-size:13px;color:rgba(242,238,255,.55);font-variant-numeric:tabular-nums}
+.row .dur{font-size:12px;color:rgba(242,238,255,.55);font-variant-numeric:tabular-nums}
+.row .ib{width:32px;height:32px}
+.eqm{display:inline-flex;gap:2px;height:14px;align-items:flex-end}
+.eqm i{width:3px;height:100%;background:var(--acc);border-radius:2px;transform-origin:bottom;transform:scaleY(.35);animation:eq calc(.8s * var(--spd)) ease-in-out infinite;animation-play-state:paused}
+.eqm i:nth-child(2){animation-duration:calc(.6s * var(--spd))}.eqm i:nth-child(3){animation-duration:calc(1s * var(--spd))}
+.playing .eqm i{animation-play-state:running}
+@keyframes eq{0%,100%{transform:scaleY(.3)}50%{transform:scaleY(1)}}
+.enter .tracks .row{animation:rowIn .45s var(--ease) both;animation-delay:calc(var(--k)*40ms + 120ms)}
+@keyframes rowIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:none}}
+
+/* PANTALLA INICIO: saludo, chips de filtro, carrusel horizontal, mezclas en 2 columnas */
+.h-top{display:flex;justify-content:space-between;align-items:flex-end;margin-top:6px}
+.h-top p{margin:0 0 4px}
+.avatar{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:13px;background:linear-gradient(135deg,var(--violet),var(--acc))}
+.chips{display:flex;gap:8px;margin-top:18px;overflow-x:auto;scrollbar-width:none}
+.chip{padding:7px 14px;border-radius:20px;font-size:13px;white-space:nowrap;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);transition:background .2s,color .2s}
+.chip.on{background:var(--text);color:var(--night);font-weight:700}
+.hscroll{display:flex;gap:14px;overflow-x:auto;scrollbar-width:none;margin:0 -18px;padding:0 18px 4px;scroll-snap-type:x mandatory}
+.hscroll::-webkit-scrollbar{display:none}
+.card{flex:none;width:138px;text-align:left;scroll-snap-align:start}
+.card .art{width:138px;height:138px;border-radius:22px;margin-bottom:8px;transition:transform .3s var(--ease),box-shadow .3s}
+.card:hover .art{transform:translateY(-4px);box-shadow:0 14px 26px rgba(0,0,0,.35)}
+.card b{display:block;font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card span{font-size:12px;color:rgba(242,238,255,.6)}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tile{display:flex;align-items:center;gap:10px;padding:6px;border-radius:14px;background:rgba(255,255,255,.07);text-align:left;font-size:13px;font-weight:500;line-height:1.2;transition:background .2s}
+.tile:hover{background:rgba(255,255,255,.13)}
+
+/* PANTALLA LISTA: portada grande centrada, acciones, pistas */
+.pl-head{text-align:center;padding-top:4px}
+.pl-head .art{width:190px;height:190px;border-radius:28px;margin:0 auto 18px;box-shadow:0 22px 44px rgba(0,0,0,.45)}
+.pl-head p{margin:6px 0 0}
+.pl-act{display:flex;align-items:center;gap:6px;margin:16px 0 10px}
+.pl-act .grow{flex:1}
+.pl-act .bigplay{width:58px;height:58px}
+.pl-act .bigplay svg.i{width:24px;height:24px}
+
+/* PANTALLA REPRODUCTOR
+   .hero: portada que se encoge a 0.88 en pausa y "respira" (1 -> 1.025) al sonar.
+   .pcard: panel de vidrio montado sobre la portada (-34px) con título, ánimo y progreso. */
+.hero{width:262px;height:262px;border-radius:30px;margin:4px auto 0;box-shadow:0 26px 50px rgba(0,0,0,.45),0 0 60px color-mix(in srgb,var(--c1) 40%,transparent);
+  transform:scale(.88);transition:transform .7s cubic-bezier(.34,1.4,.5,1)}
+.playing .hero{transform:scale(1);animation:breathe calc(4s * var(--spd)) ease-in-out .7s infinite}
+@keyframes breathe{50%{transform:scale(1.025)}}
+.pcard{margin-top:-34px;position:relative;border-radius:24px;padding:14px 16px 10px}
+.pt{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.ptitle{font-family:"Syne",sans-serif;font-weight:800;font-size:23px;line-height:1.1;margin:0;letter-spacing:-.01em}
+.pt p{margin:2px 0 4px;font-size:14px}
+.ctrls{display:flex;justify-content:space-between;align-items:center;margin:14px 4px 0}
+.lycard{display:block;width:100%;text-align:left;margin-top:14px;border-radius:18px;padding:10px 14px;min-height:62px}
+.lycard small{font-size:11px}
+.lycard p{margin:2px 0 0;font-family:"Syne",sans-serif;font-weight:700;font-size:16px;line-height:1.25;transition:opacity .3s}
+.pfoot{display:flex;justify-content:space-between;margin-top:10px;padding:0 6px}
+.like.pop svg{animation:pop .45s var(--ease)}
+@keyframes pop{30%{transform:scale(1.45)}60%{transform:scale(.9)}100%{transform:scale(1)}}
+
+/* PANTALLA LETRA
+   .lyr-track se desplaza con translateY para centrar la línea activa (~36% de alto).
+   Línea: futura = 30% opacidad + desenfoque, pasada = 45%, activa = 100% + brillo de --acc.
+   El mask-image difumina los bordes superior e inferior. */
+.letra{height:100%;display:flex;flex-direction:column}
+.mini-id{display:flex;align-items:center;gap:10px;text-align:left !important}
+.mini-id b{display:block;font-size:14px}
+.mini-id small{font-size:12px !important}
+.lyr-view{flex:1;overflow:hidden;position:relative;-webkit-mask-image:linear-gradient(transparent,#000 18%,#000 70%,transparent);mask-image:linear-gradient(transparent,#000 18%,#000 70%,transparent)}
+.lyr-track{transition:transform .7s var(--ease);will-change:transform}
+.ln{font-family:"Syne",sans-serif;font-weight:700;font-size:25px;line-height:1.18;margin:0 0 18px;opacity:.3;filter:blur(1.2px);transform-origin:left center;transform:scale(.96);
+  transition:opacity .5s,filter .5s,transform .5s var(--ease),color .5s;cursor:pointer}
+.ln.past{opacity:.45;filter:none}
+.ln.on{opacity:1;filter:none;transform:scale(1);text-shadow:0 0 24px color-mix(in srgb,var(--acc) 60%,transparent)}
+.ln.note{font-size:20px;letter-spacing:.3em}
+.lfoot{padding-top:6px}
+.lfoot .ctrls{justify-content:center;gap:30px;margin-top:6px}
+.lfoot .bigplay{width:60px;height:60px}
+
+/* PANTALLA INFORMACIÓN: cabecera, forma de onda, datos, color, créditos, artista */
+.i-head{display:flex;gap:14px;align-items:center}
+.i-head .art{width:96px;height:96px;border-radius:20px}
+.i-head h2{font-family:"Syne",sans-serif;font-size:22px;margin:0;line-height:1.1}
+.i-head p{margin:2px 0 0}
+.wave{display:flex;gap:2px;align-items:center;height:56px;margin:18px 0 4px;cursor:pointer}
+.wave i{flex:1;border-radius:2px;background:rgba(255,255,255,.22);transition:background .4s}
+.wave i.pl{background:linear-gradient(var(--acc),var(--c1))}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px}
+.stat{border-radius:16px;padding:10px 12px}
+.stat small{display:block;font-size:11px;color:rgba(242,238,255,.6)}
+.stat b{font-size:15px;font-weight:500}
+.h3{font-family:"Syne",sans-serif;font-size:16px;margin:22px 0 8px}
+.credits{margin:0}
+.credits div{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid rgba(255,255,255,.1);font-size:14px}
+.credits dt{color:rgba(242,238,255,.6)}
+.credits dd{margin:0;text-align:right}
+.about{border-radius:18px;padding:14px;font-size:14px}
+.about p{margin:0 0 8px}
+.pill{padding:7px 16px;border-radius:20px;border:1px solid rgba(255,255,255,.4);font-size:13px;font-weight:700;transition:background .2s,color .2s}
+.pill.on{background:var(--text);color:var(--night)}
+
+/* MINI REPRODUCTOR + PESTAÑAS: visibles en Inicio y Lista.
+   En Reproductor/Letra/Info se esconden deslizándose hacia abajo. */
+.mini{position:absolute;left:10px;right:10px;bottom:84px;height:62px;border-radius:18px;z-index:10;display:flex;align-items:center;gap:10px;padding:0 6px 0 11px;cursor:pointer;overflow:hidden;
+  background:color-mix(in srgb,var(--bgc),#ffffff 10%);transition:transform .45s var(--ease),opacity .3s}
+.mini .mt{flex:1;min-width:0;line-height:1.25}
+.mini .mt b{display:block;font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini .mt small{font-size:12px;color:rgba(242,238,255,.6)}
+.mprog{position:absolute;left:12px;right:12px;bottom:0;height:2px;background:rgba(255,255,255,.15)}
+.mprog .fill{height:100%;background:var(--text);transition:width .9s linear}
+.tabs{position:absolute;left:0;right:0;bottom:0;height:80px;z-index:9;display:flex;justify-content:space-around;align-items:flex-start;padding-top:12px;
+  background:linear-gradient(transparent,color-mix(in srgb,var(--bgc) 94%,transparent) 30%);transition:transform .45s var(--ease)}
+.tabs button{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:rgba(242,238,255,.55);width:80px;transition:color .2s}
+.tabs button.on{color:var(--text)}
+.phone[data-screen=player] .mini,.phone[data-screen=letra] .mini,.phone[data-screen=info] .mini{transform:translateY(160px);opacity:0;pointer-events:none}
+.phone[data-screen=player] .tabs,.phone[data-screen=letra] .tabs,.phone[data-screen=info] .tabs{transform:translateY(100px)}
+
+/* HOJA DE OPCIONES (bottom sheet) + fondo oscuro (scrim) + aviso (toast) */
+.scrim{position:absolute;inset:0;z-index:30;background:rgba(7,6,15,.55);opacity:0;pointer-events:none;transition:opacity .35s}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:31;border-radius:28px 28px 0 0;padding:10px 16px 22px;
+  background:color-mix(in srgb,color-mix(in srgb,var(--bgc),#ffffff 12%) 88%,transparent);backdrop-filter:blur(26px);-webkit-backdrop-filter:blur(26px);
+  border-top:1px solid rgba(255,255,255,.16);transform:translateY(105%);transition:transform .45s var(--ease)}
+.sheet-open .scrim{opacity:1;pointer-events:auto}
+.sheet-open .sheet{transform:none}
+.sh-handle{width:40px;height:5px;border-radius:3px;background:rgba(255,255,255,.3);margin:0 auto 14px}
+.sh-head{display:flex;align-items:center;gap:12px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.1);margin-bottom:6px}
+.sh-head b{display:block;font-size:15px}
+.sh-head small{font-size:12.5px;color:rgba(242,238,255,.6)}
+.opt{display:flex;align-items:center;gap:14px;width:100%;padding:10px 4px;font-size:15px;border-radius:12px;text-align:left;transition:background .2s}
+.opt:hover{background:rgba(255,255,255,.07)}
+.opt svg.i{color:rgba(242,238,255,.8)}
+.opt.on svg.i{color:var(--acc)}
+.sheet-open .opt{animation:rowIn .4s var(--ease) both;animation-delay:calc(var(--k)*30ms + 80ms)}
+
+.toast{position:absolute;top:52px;left:50%;z-index:40;transform:translate(-50%,-20px);opacity:0;padding:9px 16px;border-radius:20px;font-size:13px;font-weight:500;white-space:nowrap;
+  background:var(--text);color:var(--night);transition:opacity .3s,transform .4s var(--ease);pointer-events:none}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* Accesibilidad: sin animaciones si el usuario pidió reducir movimiento */
+@media (prefers-reduced-motion: reduce){
+  .phone *,.phone{animation:none !important;transition:none !important}
+}
+@media (max-width:380px){ .phone{transform:scale(.9);transform-origin:top left;margin-bottom:-72px} }
+
+/* PORTADAS Y COLOR DINÁMICO: estados de portada, etiqueta de ánimo, muestras de color */
+.art.cover{background:center/cover no-repeat}
+.art.nocover{display:grid;place-items:center}
+.art.nocover::after{content:"♪";color:rgba(255,255,255,.8);font-weight:700;line-height:1}
+.art.xs{font-size:17px}.art.sm{font-size:20px}.card .art{font-size:54px}.hero{font-size:110px}.i-head .art{font-size:40px}
+.moodtag{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:3px 10px 3px 8px;border-radius:12px;background:rgba(255,255,255,.1);margin:0 0 4px}
+.moodtag i{width:8px;height:8px;border-radius:50%;background:var(--acc);box-shadow:0 0 8px var(--acc)}
+.colorbox .cl{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.colorbox .cl b{display:block;font-size:14px}
+.colorbox .cl small{color:rgba(242,238,255,.6);font-size:12px}
+.sws{display:flex;flex:none}
+.sws i{width:22px;height:22px;border-radius:50%;border:2px solid rgba(255,255,255,.25);margin-right:-6px}
+.colorbox .btns{display:flex;gap:8px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<!-- =========================================================
+     SPRITE DE ÍCONOS: cada <symbol> se reutiliza con <use href="#id">.
+     Rellenos: play, pause, prev, next, dots, heartf.
+     De trazo (2px): el resto.
+     ========================================================= -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="play" viewBox="0 0 24 24"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5A1 1 0 0 0 7 4.5z"/></symbol>
+  <symbol id="pause" viewBox="0 0 24 24"><rect x="5.5" y="4" width="4.5" height="16" rx="1.2"/><rect x="14" y="4" width="4.5" height="16" rx="1.2"/></symbol>
+  <symbol id="prev" viewBox="0 0 24 24"><rect x="4" y="5" width="2.6" height="14" rx="1"/><path d="M20 6.2v11.6a1 1 0 0 1-1.55.83L9.7 12.83a1 1 0 0 1 0-1.66l8.75-5.8A1 1 0 0 1 20 6.2z"/></symbol>
+  <symbol id="next" viewBox="0 0 24 24"><rect x="17.4" y="5" width="2.6" height="14" rx="1"/><path d="M4 6.2v11.6a1 1 0 0 0 1.55.83l8.75-5.8a1 1 0 0 0 0-1.66L5.55 5.37A1 1 0 0 0 4 6.2z"/></symbol>
+  <symbol id="dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></symbol>
+  <symbol id="heartf" viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21.2l8.8-8.8a5.5 5.5 0 0 0 0-7.8z"/></symbol>
+  <symbol id="heart" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21.2l8.8-8.8a5.5 5.5 0 0 0 0-7.8z"/></symbol>
+  <symbol id="shuffle" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></symbol>
+  <symbol id="repeat" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3"/></symbol>
+  <symbol id="down" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"/></symbol>
+  <symbol id="back" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M15 18l-6-6 6-6"/></symbol>
+  <symbol id="home" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="search" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></g></symbol>
+  <symbol id="lib" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M4 4v16M9 4v16M14 4l6 16"/></symbol>
+  <symbol id="lyrics" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M4 6h16M4 12h11M4 18h7"/></symbol>
+  <symbol id="info" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.01"/></g></symbol>
+  <symbol id="queue" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h14M3 12h10M3 18h8"/><path d="M16 14.5l5 3-5 3z"/></g></symbol>
+  <symbol id="plus" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="album" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/></g></symbol>
+  <symbol id="user" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></g></symbol>
+  <symbol id="timer" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></g></symbol>
+  <symbol id="share" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7M16 6l-4-4-4 4M12 2v13"/></symbol>
+  <symbol id="download" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 3v12M7 10l5 5 5-5M5 21h14"/></symbol>
+</svg>
+
+<div class="wrap">
+  <header class="intro">
+    <h1>Aurora</h1>
+    <p>Referencia completa de la interfaz: inicio, listas, reproductor, letra sincronizada, información de la pista y menú de opciones. Todo es interactivo. La atmósfera de color sigue el tempo de cada canción (lentas en azules, movidas en rojos) y el color de énfasis sale de su portada.</p>
+  </header>
+
+  <section class="sec">
+    <h2>Prototipo interactivo</h2>
+    <p class="lead">Navega como en la app real. La canción avanza sola mientras suena.</p>
+    <div class="proto">
+      <!-- Teléfono principal: lo llena JS (new Proto) -->
+      <div class="phone" id="main"></div>
+      <div class="howto">
+        <h3>Inicio</h3>
+        <p>Toca una tarjeta de "Sigue escuchando" para reproducirla, o una mezcla para abrir la lista. El mini reproductor de abajo abre la pantalla completa.</p>
+        <h3>Reproductor</h3>
+        <p>La portada "respira" mientras suena y se encoge al pausar. Toca la barra para saltar a otro momento, el corazón para guardar, y la tarjeta de letra para verla completa.</p>
+        <h3>Letra</h3>
+        <p>La línea activa se ilumina y se centra; las que vienen están desenfocadas. Toca cualquier línea para saltar a esa parte.</p>
+        <h3>Opciones</h3>
+        <p>Los tres puntos abren una hoja inferior con acciones: guardar, añadir a la cola, ir al álbum, temporizador, compartir y más.</p>
+        <h3>Color</h3>
+        <p>Pasa de una canción lenta a una movida y mira cómo el fondo va de azul a rojo. El color de énfasis cambia con la portada.</p>
+        <h3>Información</h3>
+        <p>Desde el botón de información del reproductor: forma de onda, BPM, tonalidad, calidad de audio, créditos y artista.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2>Color según la canción</h2>
+    <p class="lead">Dos capas de color trabajan juntas: la atmósfera y el énfasis.</p>
+    <div class="rule">
+      <p><b>Atmósfera (siempre por tempo).</b> El fondo, las luces difusas y su velocidad dependen del BPM. Una canción lenta se ve azul y se mueve despacio; una movida se ve roja y las luces van más rápido.</p>
+      <p><b>Énfasis (por portada).</b> Se lee la portada, se busca su color más vivo y se usa para la barra de progreso, el botón principal, el corazón, la letra activa y la canción actual.</p>
+      <p><b>Sin portada.</b> El énfasis también sale del tempo y la portada se reemplaza por un degradado con una nota musical.</p>
+    </div>
+    <div class="moodbar" id="moodbar"></div>
+    <div class="moodends"><span>Lenta, 72 BPM o menos</span><span>Movida, 138 BPM o más</span></div>
+    <div class="tblwrap"><table class="songtbl" id="songtbl"></table></div>
+    <p class="lead" style="margin-top:14px">Prueba con tus propias imágenes: en el teléfono, abre las opciones de una canción y elige "Cambiar portada", o hazlo desde la pantalla de información.</p>
+  </section>
+
+  <section class="sec">
+    <h2>Todas las pantallas</h2>
+    <p class="lead">Cada una es independiente y también se puede tocar. Desliza para ver todas.</p>
+    <div class="gallery" id="gallery"></div>
+  </section>
+
+  <section class="sec">
+    <h2>Sistema visual</h2>
+    <p class="lead">Los valores base para llevar el diseño a producción.</p>
+    <div class="tokens">
+      <div class="tk">
+        <h3>Color</h3>
+        <div class="sw"><i style="background:#120E2B"></i><div><b>Noche</b> #120E2B<small>Fondo principal</small></div></div>
+        <div class="sw"><i style="background:#1B1640"></i><div><b>Noche 2</b> #1B1640<small>Hojas y mini reproductor</small></div></div>
+        <div class="sw"><i style="background:#F2EEFF"></i><div><b>Lila claro</b> #F2EEFF<small>Texto y botón principal</small></div></div>
+        <div class="sw"><i style="background:linear-gradient(90deg,hsl(225 85% 62%),hsl(360 85% 62%))"></i><div><b>Atmósfera</b> tono 225° → 360°<small>Según el tempo: de azul a rojo</small></div></div>
+        <div class="sw"><i style="background:#FF5FA2"></i><div><b>Énfasis</b> dinámico<small>Color vivo de la portada (o del tempo si no hay)</small></div></div>
+        <div class="sw"><i style="background:#FFB547"></i><div><b>Ámbar</b> #FFB547<small>Inicio del degradado de progreso</small></div></div>
+        <div class="sw"><i style="background:#5B8CFF"></i><div><b>Azul</b> #5B8CFF<small>Luz ambiental</small></div></div>
+        <div class="sw"><i style="background:rgba(255,255,255,.10)"></i><div><b>Vidrio</b> blanco 10% + desenfoque 20px<small>Paneles sobre el fondo de color</small></div></div>
+      </div>
+      <div class="tk typ">
+        <h3>Tipografía</h3>
+        <div><span style="font-family:Syne;font-weight:800;font-size:30px;line-height:1">Neón en la piel</span><small>Syne 800, 30 px: títulos de pantalla</small></div>
+        <div><span style="font-family:Syne;font-weight:700;font-size:23px">Letra activa</span><small>Syne 700, 23–25 px: título en reproductor y letra</small></div>
+        <div><span style="font-family:Syne;font-weight:700;font-size:18px">Tus mezclas</span><small>Syne 700, 18 px: secciones</small></div>
+        <div><span style="font-size:15px">Satélite, Mar Abierto</span><small>DM Sans 400/500, 15 px: filas y texto</small></div>
+        <div><span style="font-size:12px">3:48 · 118 BPM</span><small>DM Sans 400, 11–12 px, cifras tabulares: tiempos y datos</small></div>
+      </div>
+      <div class="tk">
+        <h3>Animaciones</h3>
+        <div class="tblwrap"><table class="mot">
+          <tr><td>Fondo ambiental</td><td>3 manchas desenfocadas que se mueven 18–26 s; su color cambia en 1,2 s con la portada.<br><small>Se pausan al pausar la música</small></td></tr>
+          <tr><td>Portada</td><td>Escala 0,88 → 1 con rebote (700 ms) al reproducir; respiración 1,025 cada 4 s</td></tr>
+          <tr><td>Cambio de pantalla</td><td>Desvanecer + subir 14 px, 420 ms. Reproductor y letra suben 60 px como hoja</td></tr>
+          <tr><td>Lista</td><td>Filas entran en cascada, 40 ms entre cada una</td></tr>
+          <tr><td>Letra</td><td>Desplazamiento 700 ms; línea activa nítida y con brillo, las siguientes con desenfoque 1,2 px</td></tr>
+          <tr><td>Me gusta</td><td>Pulso 1,45× y vuelta, 450 ms</td></tr>
+          <tr><td>Hoja de opciones</td><td>Sube 450 ms; opciones en cascada 30 ms</td></tr>
+          <tr><td>Ecualizador</td><td>3 barras a 0,6 / 0,8 / 1 s en la canción actual</td></tr>
+          <tr><td colspan="2"><small>Curva base: cubic-bezier(.2,.8,.2,1). Todo se desactiva con "reducir movimiento".</small></td></tr>
+        </table></div>
+      </div>
+    </div>
+  </section>
+  <!-- Selector de archivo oculto para "Cambiar portada" -->
+<input type="file" accept="image/*" id="coverInput" hidden>
+<footer>Canciones, artistas y letras son inventados para la referencia.</footer>
+</div>
+
+<script>
+/* =====================================================================
+   DATOS
+   SONGS: catálogo de ejemplo. Campos:
+     t título, a artista, al álbum, d duración (s), bpm tempo,
+     k tonalidad, g género, y lanzamiento, comp/prod/mix créditos,
+     ol oyentes mensuales, art receta para dibujar la portada (null = sin portada).
+   En ejecución se añaden: cover (dataURL/URL) y coverAcc (énfasis extraído).
+   ===================================================================== */
+var SONGS=[
+ {t:"Neón en la piel",a:"Cielo Prisma",al:"Luz de madrugada",d:228,bpm:118,k:"La menor",g:"Synth pop",y:"14 feb 2026",comp:"Valeria Ortiz, Tomás Ríos",prod:"Estudio Marejada",mix:"Iván Duarte",ol:"1,2 M",art:{st:"sun",bg:"#24103d",c:["#ff3d8b","#ff8a3d","#ffd23d"]}},
+ {t:"Satélite",a:"Mar Abierto",al:"Órbitas",d:252,bpm:92,k:"Re mayor",g:"Dream pop",y:"3 mar 2026",comp:"Lucas Mena",prod:"Lucas Mena",mix:"Sara Quintero",ol:"640 mil",art:{st:"circles",bg:"#0b1d2e",c:["#3de0c0","#1a8a9c","#e9f5f2"]}},
+ {t:"Calle sin nombre",a:"Los Imanes",al:"Ruido blanco",d:201,bpm:140,k:"Mi menor",g:"Indie rock",y:"22 nov 2025",comp:"Los Imanes",prod:"Andrés Pardo",mix:"Andrés Pardo",ol:"410 mil",art:{st:"stripes",bg:"#151515",c:["#ffd400","#f2f2f2","#ff4d2e"]}},
+ {t:"Ventana abierta",a:"Ana Brisa",al:"Casa de aire",d:179,bpm:80,k:"Sol mayor",g:"Folk",y:"9 ene 2026",comp:"Ana Brisa",prod:"Camila Soto",mix:"Camila Soto",ol:"280 mil",art:null},
+ {t:"Fiebre lunar",a:"Cielo Prisma",al:"Luz de madrugada",d:215,bpm:128,k:"Fa menor",g:"Synth pop",y:"14 feb 2026",comp:"Valeria Ortiz",prod:"Estudio Marejada",mix:"Iván Duarte",ol:"1,2 M",art:{st:"sun",bg:"#0e0a24",c:["#b9a4ff","#7a5cff","#f2eeff"]}},
+ {t:"Agua de coco",a:"Tropicanta",al:"Brisa salada",d:185,bpm:106,k:"Do mayor",g:"Tropical",y:"1 jul 2026",comp:"Jhon Palacios",prod:"Tropicanta",mix:"Mónica Gil",ol:"2,3 M",art:{st:"waves",bg:"#0f3d2e",c:["#7ddc5a","#ffcf3d","#2bb3a0"]}},
+ {t:"Papel y humo",a:"Nadia Roca",al:"Ceniza",d:241,bpm:70,k:"Si menor",g:"R&B",y:"18 may 2026",comp:"Nadia Roca",prod:"Felipe Arango",mix:"Felipe Arango",ol:"890 mil",art:null},
+ {t:"Kilómetro cero",a:"Mar Abierto",al:"Órbitas",d:230,bpm:112,k:"La mayor",g:"Dream pop",y:"3 mar 2026",comp:"Lucas Mena",prod:"Lucas Mena",mix:"Sara Quintero",ol:"640 mil",art:{st:"stripes",bg:"#1d1b3a",c:["#4d7cff","#ff6b6b","#f5f5f5"]}}
+];
+/* MIXES: mezclas de Inicio (colores fijos, no dependen del tempo) */
+var MIXES=[
+ {n:"Mezcla nocturna",c:["#9B5CFF","#FF5FA2","#1B1640"]},
+ {n:"Para concentrarte",c:["#38E1C6","#5B8CFF","#F2EEFF"]},
+ {n:"Energía",c:["#FFB547","#FF5F5F","#FF5FA2"]},
+ {n:"Descubrimientos",c:["#5B8CFF","#FFB547","#9B5CFF"]}
+];
+/* LYR: letra sincronizada [segundo de inicio, texto]. "♪" = instrumental. */
+var LYR=[[0,"♪"],[8,"Se apagan las ventanas de la avenida"],[13,"y tú sigues brillando sin pedir permiso"],[18,"la noche tiene el pulso de tu risa"],[23,"y yo me pierdo un poco, como quiso"],[29,"Neón en la piel, no me sueltes"],[34,"que el amanecer todavía no llega"],[39,"neón en la piel, si te vas, vuelve"],[44,"que esta ciudad sin ti no se enciende"],[50,"♪"],[56,"Los taxis dibujan líneas de colores"],[61,"tu sombra baila sobre la pared"],[66,"no quiero nombres, no quiero razones"],[71,"solo este ruido y tu forma de ser"],[77,"Neón en la piel, no me sueltes"],[82,"que el amanecer todavía no llega"],[87,"neón en la piel, si te vas, vuelve"],[92,"que esta ciudad sin ti no se enciende"],[100,"♪"]];
+
+/* =====================================================================
+   MOTOR DE COLOR
+   ===================================================================== */
+// Rango de tempo: <= 72 BPM es "totalmente lenta", >= 138 "totalmente movida"
+var BPM_LO=72,BPM_HI=138;
+// Construye un color hsl() normalizando el tono a 0-359
+function hsl(h,s,l){return 'hsl('+(((h%360)+360)%360).toFixed(0)+' '+s+'% '+l+'%)'}
+/* mood(bpm) -> paleta de ATMÓSFERA
+   e   energía 0..1 según BPM
+   h   tono: 225° (azul) + e*135 -> llega a 360° (rojo) pasando por violeta y magenta
+   c1  luz principal      c2 luz +28°      c3 luz -32°
+   bg  fondo muy oscuro del mismo tono
+   acc énfasis de respaldo (cuando no hay portada)
+   spd velocidad de animación: 1.45 (lenta) .. 0.60 (movida) */
+function mood(bpm){
+  var e=Math.max(0,Math.min(1,(bpm-BPM_LO)/(BPM_HI-BPM_LO))), h=225+e*135; // 225° azul → 360° rojo
+  return {e:e,h:h,c1:hsl(h,85,62),c2:hsl(h+28,90,64),c3:hsl(h-32,80,58),bg:hsl(h,48,10),acc:hsl(h+10,95,67),
+    label:e<.34?'Tranquila':e<.67?'Ritmo medio':'Movida',spd:(1.45-e*.85).toFixed(2)};
+}
+// Conversión RGB (0-255) -> [tono 0-360, saturación 0-1, luminosidad 0-1]
+function rgb2hsl(r,g,b){r/=255;g/=255;b/=255;var mx=Math.max(r,g,b),mn=Math.min(r,g,b),h=0,s=0,l=(mx+mn)/2,d=mx-mn;
+  if(d){s=l>.5?d/(2-mx-mn):d/(mx+mn);h=mx===r?((g-b)/d+(g<b?6:0)):mx===g?(b-r)/d+2:(r-g)/d+4;h*=60}return [h,s,l]}
+/* extractAccent(img) -> ÉNFASIS desde la portada
+   1. Reduce la imagen a 48x48 en un canvas.
+   2. Descarta píxeles casi negros (l<.15), casi blancos (l>.92) o grises (s<.25).
+   3. Agrupa por tono en 24 cajas de 15°; cada píxel pesa s² x cercanía a l=.55
+      (premia colores vivos y de luminosidad media).
+   4. Gana la caja con más peso; se promedia su RGB.
+   5. Se ajusta para que se lea sobre fondo oscuro: saturación >= 65%, luminosidad 58-72%.
+   Devuelve {css, hex} o null si la imagen no tiene color vivo suficiente. */
+function extractAccent(img){
+  var n=48,cv=document.createElement('canvas');cv.width=cv.height=n;var x=cv.getContext('2d',{willReadFrequently:true});
+  x.drawImage(img,0,0,n,n);var d=x.getImageData(0,0,n,n).data,bins=[];
+  for(var i=0;i<d.length;i+=4){
+    var c=rgb2hsl(d[i],d[i+1],d[i+2]);if(c[2]<.15||c[2]>.92||c[1]<.25)continue;
+    var w=c[1]*c[1]*(1-Math.abs(c[2]-.55)),k=Math.floor(c[0]/15)%24,b=bins[k]||(bins[k]={w:0,r:0,g:0,b:0});
+    b.w+=w;b.r+=d[i]*w;b.g+=d[i+1]*w;b.b+=d[i+2]*w;
+  }
+  var best=null;bins.forEach(function(b){if(b&&(!best||b.w>best.w))best=b});
+  if(!best||best.w<4)return null;
+  var r=best.r/best.w,g=best.g/best.w,bb=best.b/best.w,c=rgb2hsl(r,g,bb);
+  var hex='#'+[r,g,bb].map(function(v){return Math.round(v).toString(16).padStart(2,'0')}).join('');
+  return {css:hsl(c[0],Math.round(Math.max(c[1],.65)*100),Math.round(Math.min(.72,Math.max(.58,c[2]))*100)),hex:hex};
+}
+/* paintCover(receta) -> dataURL
+   SOLO PARA EL PROTOTIPO: dibuja portadas de ejemplo (sol, círculos, rayas, olas)
+   con grano. En la app real se reemplaza por la URL de la portada. */
+function paintCover(sp){
+  var S=300,cv=document.createElement('canvas');cv.width=cv.height=S;var x=cv.getContext('2d');
+  x.fillStyle=sp.bg;x.fillRect(0,0,S,S);var c=sp.c;
+  if(sp.st==='sun'){
+    var g=x.createLinearGradient(0,70,0,270);g.addColorStop(0,c[2]);g.addColorStop(.5,c[1]);g.addColorStop(1,c[0]);
+    x.fillStyle=g;x.beginPath();x.arc(150,175,100,0,7);x.fill();
+    x.fillStyle=sp.bg;for(var y=185,hh=4;y<280;y+=18,hh+=2)x.fillRect(0,y,S,hh);
+    x.fillStyle=c[2];x.beginPath();x.arc(238,62,9,0,7);x.fill();
+  }else if(sp.st==='circles'){
+    [[110,120,90,c[1]],[190,170,80,c[0]],[150,230,40,c[2]]].forEach(function(q){x.globalAlpha=.85;x.fillStyle=q[3];x.beginPath();x.arc(q[0],q[1],q[2],0,7);x.fill()});
+    x.globalAlpha=1;x.strokeStyle=c[2];x.lineWidth=2;x.beginPath();x.arc(150,150,130,0,7);x.stroke();
+  }else if(sp.st==='stripes'){
+    x.save();x.translate(150,150);x.rotate(-.5);
+    for(var i=-8;i<8;i++){x.fillStyle=c[(i+8)%3];x.fillRect(i*36,-260,18,520)}
+    x.restore();x.fillStyle=sp.bg;x.fillRect(40,110,220,80);
+    x.fillStyle=c[1];x.font='bold 30px sans-serif';x.fillText('#'+Math.floor(c[0].length*7),62,162);
+  }else{
+    for(var j=0;j<4;j++){x.fillStyle=c[j%3];x.globalAlpha=.9;x.beginPath();x.moveTo(0,S);
+      for(var px=0;px<=S;px+=10)x.lineTo(px,130+j*40+Math.sin(px/40+j)*22);x.lineTo(S,S);x.fill()}
+    x.globalAlpha=1;x.fillStyle=c[1];x.beginPath();x.arc(80,70,30,0,7);x.fill();
+  }
+  var id=x.getImageData(0,0,S,S),dd=id.data;for(var p=0;p<dd.length;p+=4){var nz=(Math.random()-.5)*22;dd[p]+=nz;dd[p+1]+=nz;dd[p+2]+=nz}
+  x.putImageData(id,0,0);return cv.toDataURL('image/jpeg',.88);
+}
+// Asigna/quita portada a una canción y calcula su énfasis cuando la imagen carga
+function setCover(s,url,cb){
+  if(!url){s.cover=null;s.coverAcc=null;cb&&cb();return}
+  var im=new Image();im.onload=function(){s.cover=url;s.coverAcc=extractAccent(im);cb&&cb()};im.src=url;
+}
+/* pal(canción) -> paleta FINAL = atmósfera del tempo + énfasis
+   accent: de la portada si existe y tiene color; si no, el del tempo.
+   src: texto que explica de dónde salió el énfasis. */
+function pal(s){var m=mood(s.bpm);m.accent=s.cover&&s.coverAcc?s.coverAcc.css:m.acc;
+  m.src=s.cover?(s.coverAcc?'Tomado de la portada':'La portada no tiene un color vivo; se usa el del tempo'):'Sin portada: se usa el del tempo';return m}
+// HTML de la portada: imagen o degradado del tempo con ♪
+function artS(s,cls){var m=mood(s.bpm);
+  if(s.cover)return '<span class="art cover '+(cls||'')+'" style="background-image:url('+s.cover+')"></span>';
+  return '<span class="art nocover '+(cls||'')+'" style="--a1:'+m.c1+';--a2:'+m.c2+';--a3:'+m.c3+'"></span>'}
+
+// Utilidades: ícono, par play/pausa, variables de color de una mezcla, formato m:ss
+function ic(id,cls){return '<svg class="i '+(cls||'')+'"><use href="#'+id+'"/></svg>'}
+function pp(){return ic('play','ic-play')+ic('pause','ic-pause')}
+function av(c){return '--a1:'+c[0]+';--a2:'+c[1]+';--a3:'+c[2]}
+function fmt(s){s=Math.max(0,Math.floor(s));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
+
+/* =====================================================================
+   PROTO: un teléfono interactivo e independiente.
+   Estado (this.s):
+     screen    pantalla actual: home | lista | player | letra | info
+     base      a dónde vuelve el reproductor al cerrarse (home | lista)
+     playing   sonando o en pausa
+     cur, t    índice de canción actual y segundo actual
+     liked     canciones con me gusta {indice: 1}
+     sheet     hoja de opciones abierta; sheetSong = canción del menú
+     shuffle, repeat, follow, chip  conmutadores de UI
+   Estructura del DOM: .bg (luces) .status .view (pantalla) .mini .tabs .scrim .sheet .toast
+   Toda interacción usa delegación: elementos con data-act="accion".
+   ===================================================================== */
+function Proto(root,o){
+  this.root=root;
+  this.s={screen:o.screen||'home',base:o.screen==='lista'?'lista':'home',playing:true,cur:o.cur||0,t:o.t==null?31:o.t,liked:{0:1,3:1},sheet:!!o.sheet,sheetSong:null,shuffle:false,repeat:false,follow:false,chip:0};
+  root.innerHTML='<div class="bg"><i class="blob b1"></i><i class="blob b2"></i><i class="blob b3"></i></div>'+
+   '<div class="status"><span>9:41</span><span>●●● 87%</span></div><div class="view"></div><div class="mini glass" data-act="go" data-to="player" role="button" tabindex="0"></div>'+
+   '<nav class="tabs"></nav><div class="scrim" data-act="close"></div><div class="sheet" role="dialog" aria-label="Opciones"></div><div class="toast" role="status"></div>';
+  this.view=root.querySelector('.view');this.lastIdx=-1;
+  var me=this;
+  root.addEventListener('click',function(e){me.click(e)});
+  root.addEventListener('keydown',function(e){if((e.key==='Enter'||e.key===' ')&&e.target.getAttribute('role')==='button'){e.preventDefault();e.target.click()}});
+  this.render(true);
+}
+Proto.prototype.song=function(){return SONGS[this.s.cur]};
+// Fila de canción (num = número de pista; si es la actual muestra ecualizador)
+Proto.prototype.row=function(i,num){
+  var s=SONGS[i],cur=i===this.s.cur;
+  var lead=num==null?'':'<span class="num">'+(cur?'<span class="eqm"><i></i><i></i><i></i></span>':num)+'</span>';
+  return '<div class="row'+(cur?' cur':'')+'" style="--k:'+(num||0)+'" data-act="play" data-i="'+i+'" role="button" tabindex="0">'+lead+
+   artS(s,'sm')+'<span class="rt"><b>'+s.t+'</b><small>'+s.a+'</small></span>'+
+   '<span class="dur">'+fmt(s.d)+'</span><button class="ib" data-act="sheet" data-i="'+i+'" aria-label="Más opciones">'+ic('dots')+'</button></div>';
+};
+/* PANTALLAS: cada función devuelve el HTML de una pantalla */
+Proto.prototype.screens={
+ // INICIO: saludo, filtros, "Sigue escuchando", mezclas, recientes
+ home:function(){
+  var me=this,chips=['Todo','Música','Mezclas','Descargas'];
+  return '<div class="scr"><header class="h-top"><div><p class="dim sm">Lunes, 5 de octubre</p><h1 class="h1">Buenas noches</h1></div><span class="avatar">LM</span></header>'+
+   '<div class="chips">'+chips.map(function(c,k){return '<button class="chip'+(k===me.s.chip?' on':'')+'" data-act="chip" data-k="'+k+'">'+c+'</button>'}).join('')+'</div>'+
+   '<h2 class="h2">Sigue escuchando</h2><div class="hscroll">'+[0,6,2,3].map(function(i){var s=SONGS[i];return '<button class="card" data-act="play" data-i="'+i+'">'+artS(s)+'<b>'+s.t+'</b><span>'+s.a+'</span></button>'}).join('')+'</div>'+
+   '<h2 class="h2">Tus mezclas</h2><div class="tiles">'+MIXES.map(function(m){return '<button class="tile" data-act="go" data-to="lista"><span class="art xs" style="'+av(m.c)+'"></span>'+m.n+'</button>'}).join('')+'</div>'+
+   '<h2 class="h2">Escuchado hace poco</h2>'+[1,4,5].map(function(i){return me.row(i)}).join('')+'</div>';
+ },
+ // LISTA: cabecera de la mezcla, acciones y todas las pistas
+ lista:function(){
+  var me=this;
+  return '<div class="scr"><div class="bar-top"><button class="ib" data-act="go" data-to="home" aria-label="Volver">'+ic('back')+'</button><span class="sm dim">Tu biblioteca</span><button class="ib" data-act="sheet" aria-label="Opciones">'+ic('dots')+'</button></div>'+
+   '<div class="pl-head"><span class="art" style="'+av(MIXES[0].c)+'"></span><h1 class="h1">Mezcla nocturna</h1><p class="dim sm">Hecha para ti con lo que escuchas después de las 10 p. m.</p><p class="sm">8 canciones, 29 min</p></div>'+
+   '<div class="pl-act"><button class="ib" data-act="toast" data-msg="Descargando la lista" aria-label="Descargar">'+ic('download')+'</button><button class="ib" data-act="toast" data-msg="Lista guardada en tu biblioteca" aria-label="Añadir">'+ic('plus')+'</button><span class="grow"></span>'+
+   '<button class="ib'+(this.s.shuffle?' on':'')+'" data-act="shuffle" aria-label="Aleatorio">'+ic('shuffle')+'</button><button class="bigplay" data-act="toggle" aria-label="Reproducir o pausar">'+pp()+'</button></div>'+
+   '<div class="tracks">'+SONGS.map(function(s,i){return me.row(i,i+1)}).join('')+'</div></div>';
+ },
+ // REPRODUCTOR: portada, panel de vidrio, controles, vista previa de letra
+ player:function(){
+  var s=this.song(),lk=this.s.liked[this.s.cur],m=mood(s.bpm);
+  return '<div class="scr"><div class="bar-top"><button class="ib" data-act="go" data-to="'+this.s.base+'" aria-label="Cerrar">'+ic('down')+'</button><div class="ctr"><small class="dim">Reproduciendo desde</small><b>Mezcla nocturna</b></div><button class="ib" data-act="sheet" aria-label="Opciones">'+ic('dots')+'</button></div>'+
+   artS(s,'hero')+
+   '<div class="glass pcard"><div class="pt"><div style="min-width:0"><h2 class="ptitle">'+s.t+'</h2><p class="dim">'+s.a+'</p><span class="moodtag"><i></i>'+m.label+', '+s.bpm+' BPM</span></div><button class="ib like'+(lk?' on':'')+'" data-act="like" aria-label="Me gusta">'+ic(lk?'heartf':'heart')+'</button></div>'+
+   '<div class="prog" data-act="seek"><div class="fill" data-prog></div></div><div class="times"><span data-time></span><span data-left></span></div></div>'+
+   '<div class="ctrls"><button class="ib'+(this.s.shuffle?' on':'')+'" data-act="shuffle" aria-label="Aleatorio">'+ic('shuffle')+'</button><button class="ib" data-act="prev" aria-label="Anterior">'+ic('prev')+'</button>'+
+   '<button class="bigplay" data-act="toggle" aria-label="Reproducir o pausar">'+pp()+'</button><button class="ib" data-act="next" aria-label="Siguiente">'+ic('next')+'</button><button class="ib'+(this.s.repeat?' on':'')+'" data-act="repeat" aria-label="Repetir">'+ic('repeat')+'</button></div>'+
+   '<button class="lycard glass" data-act="go" data-to="letra"><small class="dim">Letra</small><p data-lyricnow></p></button>'+
+   '<div class="pfoot"><button class="ib" data-act="go" data-to="info" aria-label="Información">'+ic('info')+'</button><button class="ib" data-act="toast" data-msg="Sigue: '+SONGS[(this.s.cur+1)%SONGS.length].t+'" aria-label="Cola">'+ic('queue')+'</button><button class="ib" data-act="toast" data-msg="Enlace copiado" aria-label="Compartir">'+ic('share')+'</button></div></div>';
+ },
+ // LETRA: líneas sincronizadas, cada una con data-t para saltar a ese segundo
+ letra:function(){
+  var s=this.song();
+  return '<div class="scr letra"><div class="bar-top"><button class="ib" data-act="go" data-to="player" aria-label="Cerrar">'+ic('down')+'</button><div class="ctr mini-id">'+artS(s,'xs')+'<span><b>'+s.t+'</b><small class="dim">'+s.a+'</small></span></div><button class="ib" data-act="sheet" aria-label="Opciones">'+ic('dots')+'</button></div>'+
+   '<div class="lyr-view"><div class="lyr-track">'+LYR.map(function(l){return '<p class="ln'+(l[1]==='♪'?' note':'')+'" data-act="lseek" data-t="'+l[0]+'">'+l[1]+'</p>'}).join('')+'</div></div>'+
+   '<div class="lfoot"><div class="prog" data-act="seek"><div class="fill" data-prog></div></div><div class="times"><span data-time></span><span data-left></span></div>'+
+   '<div class="ctrls"><button class="ib" data-act="prev" aria-label="Anterior">'+ic('prev')+'</button><button class="bigplay" data-act="toggle" aria-label="Reproducir o pausar">'+pp()+'</button><button class="ib" data-act="next" aria-label="Siguiente">'+ic('next')+'</button></div></div></div>';
+ },
+ // INFORMACIÓN: forma de onda (decorativa), datos, color, créditos, artista
+ info:function(){
+  var s=this.song(),n=56,w='',m=pal(s),i=this.s.cur;
+  for(var k=0;k<n;k++){var h=18+78*Math.abs(Math.sin(k*1.7+i)*Math.cos(k*.31));w+='<i style="height:'+h.toFixed(0)+'%"></i>'}
+  var stats=[['Duración',fmt(s.d)],['Tempo',s.bpm+' BPM'],['Tonalidad',s.k],['Calidad','Sin pérdida, 24 bit'],['Género',s.g],['Lanzamiento',s.y]];
+  var cred=[['Voz principal',s.a],['Composición',s.comp],['Producción',s.prod],['Mezcla y máster',s.mix],['Sello','Discos Bruma']];
+  return '<div class="scr"><div class="bar-top"><button class="ib" data-act="go" data-to="player" aria-label="Volver">'+ic('back')+'</button><span class="sm dim">Información de la pista</span><span style="width:40px"></span></div>'+
+   '<div class="i-head">'+artS(s)+'<div><h2>'+s.t+'</h2><p class="dim">'+s.a+'</p><p class="dim sm">'+s.al+'</p></div></div>'+
+   '<div class="wave" data-act="seek">'+w+'</div><div class="times"><span data-time></span><span data-left></span></div>'+
+   '<div class="stats">'+stats.map(function(x){return '<div class="stat glass"><small>'+x[0]+'</small><b>'+x[1]+'</b></div>'}).join('')+'</div>'+
+   '<h3 class="h3">Color de esta canción</h3><div class="about glass colorbox">'+
+   '<div class="cl"><span class="sws"><i style="background:'+m.bg+'"></i><i style="background:'+m.c3+'"></i><i style="background:'+m.c1+'"></i><i style="background:'+m.c2+'"></i></span><div><b>Atmósfera: '+m.label.toLowerCase()+'</b><small>Por el tempo, '+s.bpm+' BPM</small></div></div>'+
+   '<div class="cl"><span class="sws"><i style="background:'+m.accent+'"></i></span><div><b>Énfasis</b><small>'+m.src+'</small></div></div>'+
+   '<div class="btns"><button class="pill" data-act="opt" data-o="cover" data-i="'+i+'">Cambiar portada</button>'+(s.cover?'<button class="pill" data-act="opt" data-o="nocover" data-i="'+i+'">Quitar portada</button>':'')+'</div></div>'+
+   '<h3 class="h3">Créditos</h3><dl class="credits">'+cred.map(function(x){return '<div><dt>'+x[0]+'</dt><dd>'+x[1]+'</dd></div>'}).join('')+'</dl>'+
+   '<h3 class="h3">Sobre el artista</h3><div class="about glass"><p><b>'+s.a+'</b>, '+s.ol+' oyentes al mes</p><p class="dim">Proyecto nacido entre azoteas y estudios caseros; mezcla sintetizadores de los 80 con percusión caribeña.</p>'+
+   '<button class="pill'+(this.s.follow?' on':'')+'" data-act="follow">'+(this.s.follow?'Siguiendo':'Seguir')+'</button></div></div>';
+ }
+};
+// Hoja de opciones de una canción (la actual o la de la fila tocada)
+Proto.prototype.renderSheet=function(){
+  var i=this.s.sheetSong==null?this.s.cur:this.s.sheetSong,s=SONGS[i],lk=this.s.liked[i];
+  var opts=[['like',lk?'heartf':'heart',lk?'Quitar de Me gusta':'Añadir a Me gusta'],['addlist','plus','Añadir a una lista'],['queue','queue','Añadir a la cola'],
+    ['album','album','Ir al álbum'],['artist','user','Ir al artista'],['letra','lyrics','Ver letra'],['info','info','Información de la pista'],
+    ['cover','download','Cambiar portada (prueba de color)']];
+  if(s.cover)opts.push(['nocover','album','Quitar portada']);
+  opts.push(['timer','timer','Temporizador de apagado'],['share','share','Compartir']);
+  this.root.querySelector('.sheet').innerHTML='<div class="sh-handle"></div><div class="sh-head">'+artS(s,'sm')+'<span><b>'+s.t+'</b><small>'+s.a+', '+s.al+'</small></span></div>'+
+    opts.map(function(o,k){return '<button class="opt'+(o[0]==='like'&&lk?' on':'')+'" style="--k:'+k+'" data-act="opt" data-o="'+o[0]+'" data-i="'+i+'">'+ic(o[1])+o[2]+'</button>'}).join('');
+};
+// Aplica la paleta de la canción actual al teléfono (las transiciones las hace CSS)
+Proto.prototype.applyColor=function(){
+  var r=this.root,m=pal(this.song());
+  r.style.setProperty('--c1',m.c1);r.style.setProperty('--c2',m.c2);r.style.setProperty('--c3',m.c3);
+  r.style.setProperty('--bgc',m.bg);r.style.setProperty('--acc',m.accent);r.style.setProperty('--spd',m.spd);
+};
+// Pinta todo. anim=true reproduce la animación de entrada de pantalla
+Proto.prototype.render=function(anim){
+  var s=this.s,r=this.root,sg=this.song();
+  this.applyColor();
+  r.dataset.screen=s.screen;
+  r.classList.toggle('playing',s.playing);r.classList.toggle('sheet-open',s.sheet);
+  var st=this.view.scrollTop;
+  this.view.innerHTML=this.screens[s.screen].call(this);
+  if(anim){this.view.classList.remove('enter');void this.view.offsetWidth;this.view.classList.add('enter');this.view.scrollTop=0}else{this.view.classList.remove('enter');this.view.scrollTop=st}
+  var lk=s.liked[s.cur];
+  r.querySelector('.mini').innerHTML=artS(sg,'xs')+'<span class="mt"><b>'+sg.t+'</b><small>'+sg.a+'</small></span>'+
+   '<button class="ib like'+(lk?' on':'')+'" data-act="like" aria-label="Me gusta">'+ic(lk?'heartf':'heart')+'</button><button class="ib" data-act="toggle" aria-label="Reproducir o pausar">'+pp()+'</button><div class="mprog"><div class="fill" data-prog></div></div>';
+  var tb=[['home','home','Inicio'],['search','search','Buscar'],['lista','lib','Biblioteca']];
+  r.querySelector('.tabs').innerHTML=tb.map(function(t){return '<button class="'+(s.screen===t[0]?'on':'')+'" '+(t[0]==='search'?'data-act="toast" data-msg="Buscar no está en esta referencia"':'data-act="go" data-to="'+t[0]+'"')+'>'+ic(t[1])+'<span>'+t[2]+'</span></button>'}).join('');
+  this.renderSheet();
+  this.lastIdx=-1;this.update();
+};
+// Actualización ligera cada segundo: progreso, tiempos, onda y línea de letra activa
+Proto.prototype.update=function(){
+  var s=this.s,sg=this.song(),r=this.root,p=Math.min(100,s.t/sg.d*100);
+  r.querySelectorAll('[data-prog]').forEach(function(f){f.style.width=p+'%'});
+  r.querySelectorAll('[data-time]').forEach(function(e){e.textContent=fmt(s.t)});
+  r.querySelectorAll('[data-left]').forEach(function(e){e.textContent='-'+fmt(sg.d-s.t)});
+  var bars=r.querySelectorAll('.wave i');bars.forEach(function(b,k){b.classList.toggle('pl',k/bars.length<s.t/sg.d)});
+  var idx=0;for(var k=0;k<LYR.length;k++){if(LYR[k][0]<=s.t)idx=k}
+  var now=r.querySelector('[data-lyricnow]');
+  if(now){var line=LYR[idx][1]==='♪'&&LYR[idx+1]?LYR[idx+1][1]:LYR[idx][1];if(now.textContent!==line)now.textContent=line}
+  var lines=r.querySelectorAll('.ln');
+  if(lines.length&&idx!==this.lastIdx){
+    lines.forEach(function(l,k){l.classList.toggle('on',k===idx);l.classList.toggle('past',k<idx)});
+    var v=r.querySelector('.lyr-view');
+    r.querySelector('.lyr-track').style.transform='translateY('+(v.clientHeight*.36-lines[idx].offsetTop)+'px)';
+    this.lastIdx=idx;
+  }
+};
+// Reloj: avanza 1 s; al terminar repite o pasa a la siguiente
+Proto.prototype.tick=function(){
+  if(!this.s.playing)return;
+  this.s.t++;
+  if(this.s.t>=this.song().d){ if(this.s.repeat){this.s.t=0;this.lastIdx=-1;this.update()} else this.change(1) } else this.update();
+};
+// Cambiar canción. "Anterior" con más de 3 s reinicia la actual (como apps reales)
+Proto.prototype.change=function(dir){
+  var s=this.s;
+  if(dir<0&&s.t>3){s.t=0;this.lastIdx=-1;this.update();return}
+  s.cur=s.shuffle?Math.floor(Math.random()*SONGS.length):(s.cur+dir+SONGS.length)%SONGS.length;
+  s.t=0;this.render(false);
+};
+// Aviso flotante breve (2,2 s)
+Proto.prototype.toast=function(m){
+  var t=this.root.querySelector('.toast');t.textContent=m;t.classList.add('show');
+  clearTimeout(this._tt);this._tt=setTimeout(function(){t.classList.remove('show')},2200);
+};
+/* Manejador único de clics (delegación). Acciones data-act:
+   go(data-to) toggle next prev play(data-i) seek lseek(data-t) like
+   opt(data-o: like addlist queue album artist letra info cover nocover timer share)
+   sheet close shuffle repeat follow chip toast(data-msg) */
+Proto.prototype.click=function(e){
+  var el=e.target.closest('[data-act]');if(!el||!this.root.contains(el))return;
+  e.stopPropagation();
+  var s=this.s,a=el.dataset.act,me=this;
+  switch(a){
+   case 'go': var to=el.dataset.to; if(to==='home'||to==='lista')s.base=to; s.screen=to; s.sheet=false; this.render(true); break;
+   case 'toggle': s.playing=!s.playing; this.root.classList.toggle('playing',s.playing); break;
+   case 'next': this.change(1); break;
+   case 'prev': this.change(-1); break;
+   case 'play': var i=+el.dataset.i; if(i===s.cur){s.playing=true;this.root.classList.add('playing');} else {s.cur=i;s.t=0;s.playing=true;this.render(false);} break;
+   case 'seek': var rc=el.getBoundingClientRect(); s.t=Math.round(Math.max(0,Math.min(1,(e.clientX-rc.left)/rc.width))*this.song().d); this.lastIdx=-1; this.update(); break;
+   case 'lseek': s.t=+el.dataset.t; s.playing=true; this.root.classList.add('playing'); this.lastIdx=-1; this.update(); break;
+   case 'like': case 'opt':
+     var o=a==='opt'?el.dataset.o:'like', target=el.dataset.i!=null?+el.dataset.i:s.cur;
+     if(o==='like'){ s.liked[target]=!s.liked[target]; this.render(false); this.root.querySelectorAll('.like').forEach(function(b){b.classList.add('pop')}); this.toast(s.liked[target]?'Añadida a Me gusta':'Quitada de Me gusta'); break; }
+     s.sheet=false; this.root.classList.remove('sheet-open');
+     if(o==='cover'){ pickCover(target,this); }
+     else if(o==='nocover'){ setCover(SONGS[target],null); refreshAll(); this.toast('Portada quitada: el color sale del tempo'); }
+     else if(o==='letra'||o==='info'){ if(target!==s.cur){s.cur=target;s.t=0} s.screen=o; this.render(true); }
+     else if(o==='album'){ s.screen='lista'; s.base='lista'; this.render(true); }
+     else { var msgs={addlist:'Guardada en Mezcla nocturna',queue:'Añadida a la cola',artist:'Abriendo perfil de '+SONGS[target].a,timer:'Se pausará en 30 min',share:'Enlace copiado'}; this.toast(msgs[o]); }
+     break;
+   case 'sheet': s.sheetSong=el.dataset.i!=null?+el.dataset.i:null; s.sheet=true; this.renderSheet(); this.root.classList.add('sheet-open'); break;
+   case 'close': s.sheet=false; this.root.classList.remove('sheet-open'); break;
+   case 'shuffle': s.shuffle=!s.shuffle; el.classList.toggle('on',s.shuffle); this.toast(s.shuffle?'Aleatorio activado':'Aleatorio desactivado'); break;
+   case 'repeat': s.repeat=!s.repeat; el.classList.toggle('on',s.repeat); this.toast(s.repeat?'Repetir esta canción':'Repetir desactivado'); break;
+   case 'follow': s.follow=!s.follow; el.classList.toggle('on',s.follow); el.textContent=s.follow?'Siguiendo':'Seguir'; break;
+   case 'chip': s.chip=+el.dataset.k; this.view.querySelectorAll('.chip').forEach(function(c,k){c.classList.toggle('on',k===s.chip)}); break;
+   case 'toast': this.toast(el.dataset.msg); break;
+  }
+};
+
+/* ---------- Cambiar portada con una imagen propia ---------- */
+var input=document.getElementById('coverInput'),pending=null;
+function pickCover(i,proto){pending={i:i,p:proto};input.value='';input.click()}
+input.addEventListener('change',function(){
+  var f=input.files&&input.files[0];if(!f||!pending)return;var pd=pending;
+  var fr=new FileReader();fr.onload=function(){
+    setCover(SONGS[pd.i],fr.result,function(){refreshAll();
+      pd.p.toast(SONGS[pd.i].coverAcc?'Énfasis tomado de tu portada':'Sin color vivo: se usa el del tempo')});
+  };fr.readAsDataURL(f);
+});
+
+/* ---------- Leyenda en la página (barra de tempo + tabla de colores) ---------- */
+function renderLegend(){
+  var bar=document.getElementById('moodbar');
+  bar.innerHTML=SONGS.map(function(s,k){var m=mood(s.bpm);return '<span style="--e:'+m.e.toFixed(3)+';--o:'+((k%3)*16+18)+'px;left:'+(m.e*100)+'%;bottom:'+(22+(k%3)*16)+'px">'+s.t+'</span>'}).join('');
+  bar.style.marginTop='70px';
+  document.getElementById('songtbl').innerHTML='<tr><th>Canción</th><th>Tempo</th><th>Atmósfera</th><th>Énfasis</th><th>De dónde sale el énfasis</th></tr>'+
+   SONGS.slice().sort(function(a,b){return a.bpm-b.bpm}).map(function(s){var m=pal(s);
+    return '<tr><td style="display:flex;align-items:center;gap:10px">'+artS(s)+'<span>'+s.t+'<br><small>'+s.a+'</small></span></td><td>'+s.bpm+' BPM<br><small>'+m.label+'</small></td>'+
+     '<td><span class="sws"><i style="background:'+m.bg+'"></i><i style="background:'+m.c3+'"></i><i style="background:'+m.c1+'"></i><i style="background:'+m.c2+'"></i></span></td>'+
+     '<td><span class="sws"><i style="background:'+m.accent+'"></i></span></td><td><small>'+m.src+'</small></td></tr>'}).join('');
+}
+// Todos los teléfonos activos; refreshAll los repinta tras cambiar una portada
+var protos=[];
+function refreshAll(){protos.forEach(function(p){p.render(false)});renderLegend()}
+
+/* ---------- Inicio: pintar portadas, leer sus colores y montar los teléfonos ---------- */
+Promise.all(SONGS.map(function(s){return new Promise(function(res){if(!s.art){res();return}setCover(s,paintCover(s.art),res)})})).then(function(){
+  protos.push(new Proto(document.getElementById('main'),{screen:'home'}));
+  var G=[
+   ['home','Inicio','Saludo, accesos rápidos, mezclas y recientes',{t:40}],
+   ['lista','Lista de canciones','Cada fila muestra su portada o el degradado del tempo',{t:60,cur:2}],
+   ['player','Reproductor, canción lenta','Papel y humo, 70 BPM, sin portada: todo azul',{t:31,cur:6}],
+   ['player','Reproductor, canción movida','Calle sin nombre, 140 BPM: fondo rojo, énfasis amarillo de la portada',{t:31,cur:2}],
+   ['letra','Letra sincronizada','Línea activa iluminada; toca para saltar',{t:30}],
+   ['info','Información de la pista','Incluye de dónde sale cada color',{t:90,cur:5}],
+   ['player','Opciones','Hoja inferior con todas las acciones',{t:70,cur:1,sheet:true}]
+  ];
+  var gal=document.getElementById('gallery');
+  G.forEach(function(g){
+    var f=document.createElement('figure');var ph=document.createElement('div');ph.className='phone';
+    f.appendChild(ph);var cap=document.createElement('figcaption');cap.innerHTML=g[1]+'<small>'+g[2]+'</small>';f.appendChild(cap);gal.appendChild(f);
+    var o=g[3];o.screen=g[0];protos.push(new Proto(ph,o));
+  });
+  renderLegend();
+  setInterval(function(){protos.forEach(function(p){p.tick()})},1000);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Vista previa de "Aurora · Barra" en el selector de widgets (Android 12 a 14). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="horizontal" android:gravity="center_vertical" android:paddingStart="10dp" android:paddingEnd="8dp"
+    android:background="@drawable/widget_preview_bg">
+    <ImageView android:layout_width="52dp" android:layout_height="52dp" android:src="@drawable/widget_preview_cover" android:importantForAccessibility="no" />
+    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="10dp" android:orientation="vertical">
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Luz de neón" android:textSize="14.5sp" android:textColor="#FFF2EEFF" android:textStyle="bold" android:fontFamily="sans-serif" android:maxLines="1" android:ellipsize="end" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Aurora" android:textColor="#A6F2EEFF" android:textSize="12.5sp" android:maxLines="1" android:ellipsize="end" />
+    </LinearLayout>
+    <ImageView android:layout_width="36dp" android:layout_height="36dp" android:padding="7dp" android:src="@drawable/widget_ic_prev" android:tint="#FFF2EEFF" android:importantForAccessibility="no" />
+    <FrameLayout android:layout_width="42dp" android:layout_height="42dp" android:background="@drawable/widget_circle" android:backgroundTint="#FFF2EEFF"><ImageView android:layout_width="22dp" android:layout_height="22dp" android:layout_gravity="center" android:src="@drawable/widget_ic_pause" android:tint="#FF1B1640" android:importantForAccessibility="no" /></FrameLayout>
+    <ImageView android:layout_width="36dp" android:layout_height="36dp" android:padding="7dp" android:src="@drawable/widget_ic_next" android:tint="#FFF2EEFF" android:importantForAccessibility="no" />
+</LinearLayout>

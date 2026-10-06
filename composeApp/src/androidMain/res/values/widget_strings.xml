@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_reproductor_nombre">Aurora · Reproductor</string>
+    <string name="widget_reproductor_desc">Portada, progreso y controles. Agrándalo para ver la cola</string>
+    <string name="widget_barra_nombre">Aurora · Barra</string>
+    <string name="widget_barra_desc">Lo que suena y sus controles en una línea</string>
+    <string name="widget_portada_nombre">Aurora · Portada</string>
+    <string name="widget_portada_desc">La portada grande con reproducir y pausar</string>
+</resources>

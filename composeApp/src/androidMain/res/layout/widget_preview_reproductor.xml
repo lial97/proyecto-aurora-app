@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Vista previa de "Aurora · Reproductor" en el selector de widgets (Android 12 a 14). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="horizontal" android:gravity="center_vertical" android:padding="12dp"
+    android:background="@drawable/widget_preview_bg">
+    <ImageView android:layout_width="118dp" android:layout_height="118dp" android:src="@drawable/widget_preview_cover" android:importantForAccessibility="no" />
+    <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+        android:layout_marginStart="12dp" android:orientation="vertical">
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Luz de neón" android:textSize="16sp" android:textColor="#FFF2EEFF" android:textStyle="bold" android:fontFamily="sans-serif" android:maxLines="1" android:ellipsize="end" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Aurora" android:textColor="#A6F2EEFF" android:textSize="12.5sp" android:maxLines="1" android:ellipsize="end" />
+        <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="4dp" android:orientation="horizontal" android:weightSum="1">
+            <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="0.36" android:background="#FFFF5FA2" />
+            <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="0.64" android:background="#33FFFFFF" />
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:orientation="horizontal">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="1:18" android:textColor="#A6F2EEFF" android:textSize="10.5sp" />
+            <FrameLayout android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="3:34" android:textColor="#A6F2EEFF" android:textSize="10.5sp" />
+        </LinearLayout>
+        <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+            <ImageView android:layout_width="36dp" android:layout_height="36dp" android:padding="7dp" android:src="@drawable/widget_ic_heart_filled" android:tint="#FFFF5FA2" android:importantForAccessibility="no" />
+            <FrameLayout android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" />
+            <ImageView android:layout_width="36dp" android:layout_height="36dp" android:padding="7dp" android:src="@drawable/widget_ic_prev" android:tint="#FFF2EEFF" android:importantForAccessibility="no" />
+            <FrameLayout android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" />
+            <FrameLayout android:layout_width="44dp" android:layout_height="44dp" android:background="@drawable/widget_circle" android:backgroundTint="#FFF2EEFF"><ImageView android:layout_width="22dp" android:layout_height="22dp" android:layout_gravity="center" android:src="@drawable/widget_ic_pause" android:tint="#FF1B1640" android:importantForAccessibility="no" /></FrameLayout>
+            <FrameLayout android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" />
+            <ImageView android:layout_width="36dp" android:layout_height="36dp" android:padding="7dp" android:src="@drawable/widget_ic_next" android:tint="#FFF2EEFF" android:importantForAccessibility="no" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

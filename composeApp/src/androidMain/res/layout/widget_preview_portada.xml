@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Vista previa de "Aurora · Portada" en el selector de widgets (Android 12 a 14). -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@drawable/widget_preview_cover">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_gravity="bottom"
+        android:orientation="horizontal" android:gravity="bottom" android:paddingStart="12dp" android:paddingEnd="10dp" android:paddingBottom="10dp">
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Luz de neón" android:textSize="14sp" android:textStyle="bold" android:fontFamily="sans-serif" android:maxLines="1" android:ellipsize="end" android:textColor="#FFFFFFFF" />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Aurora" android:textColor="#BFFFFFFF" android:textSize="11.5sp" android:maxLines="1" />
+        </LinearLayout>
+        <FrameLayout android:layout_width="42dp" android:layout_height="42dp" android:background="@drawable/widget_circle" android:backgroundTint="#FFF2EEFF"><ImageView android:layout_width="22dp" android:layout_height="22dp" android:layout_gravity="center" android:src="@drawable/widget_ic_pause" android:tint="#FF1B1640" android:importantForAccessibility="no" /></FrameLayout>
+    </LinearLayout>
+</FrameLayout>

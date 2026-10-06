@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tiempo transcurrido del widget: Android lo hace avanzar cada segundo sin volver a dibujar el widget. -->
+<Chronometer xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_tiempo"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:textSize="10.5sp"
+    android:maxLines="1" />

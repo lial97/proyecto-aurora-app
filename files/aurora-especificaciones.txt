@@ -1,0 +1,418 @@
+=====================================================================
+AURORA · APP DE MÚSICA
+ESPECIFICACIONES DE INTERFAZ, COLOR, ANIMACIÓN E INTERACCIÓN
+Versión de referencia 1.0 · Octubre 2026
+Archivo prototipo: aurora-app-musica.html
+=====================================================================
+
+ÍNDICE
+  1. Resumen
+  2. Pantallas
+  3. Sistema de color dinámico (tempo + portada)
+  4. Paleta base y tokens
+  5. Tipografía
+  6. Medidas y componentes
+  7. Animaciones y movimiento
+  8. Interacciones y navegación
+  9. Modelo de datos
+ 10. Accesibilidad
+ 11. Notas para implementar en producción
+ 12. Instrucciones sugeridas para Claude Code
+
+
+---------------------------------------------------------------------
+1. RESUMEN
+---------------------------------------------------------------------
+Estilo: oscuro, inmersivo, con "vidrio" (glassmorphism) y luces de
+color difusas que flotan detrás del contenido.
+
+Idea central: la app cambia de color con cada canción.
+  - La ATMÓSFERA (fondo y luces) depende del tempo:
+    canciones lentas en azules, canciones movidas en rojos.
+  - El ÉNFASIS (botones, progreso, me gusta, letra activa) sale del
+    color más vivo de la portada. Si no hay portada, sale del tempo.
+
+Pantalla de referencia: teléfono de 320 x 700 px de área útil
+(marco de 340 x 720 con borde de 10 px y radio de 50 px).
+
+
+---------------------------------------------------------------------
+2. PANTALLAS
+---------------------------------------------------------------------
+
+2.1 INICIO
+  - Fecha pequeña ("Lunes, 5 de octubre") + saludo grande ("Buenas noches").
+  - Avatar circular con iniciales a la derecha (40 px, degradado violeta -> énfasis).
+  - Chips de filtro con scroll horizontal: Todo, Música, Mezclas, Descargas.
+    Chip activo: fondo lila claro, texto oscuro, negrita.
+  - "Sigue escuchando": carrusel horizontal de tarjetas (portada 138 x 138,
+    radio 22) con título y artista. Tocar = reproducir.
+  - "Tus mezclas": cuadrícula de 2 columnas, cada mosaico con portada de
+    40 px y nombre. Tocar = abrir la lista.
+  - "Escuchado hace poco": filas de canción.
+  - Abajo: mini reproductor + barra de pestañas.
+
+2.2 LISTA DE CANCIONES
+  - Barra superior: volver, "Tu biblioteca", menú (tres puntos).
+  - Portada de la lista 190 x 190, radio 28, sombra profunda.
+  - Título (Syne 800, 30 px), descripción atenuada, "8 canciones, 29 min".
+  - Acciones: descargar, añadir, [espacio], aleatorio, botón reproducir 58 px.
+  - Pistas numeradas. La actual muestra ecualizador en lugar del número y
+    su título en color de énfasis.
+  - Las filas entran en cascada al abrir la pantalla.
+
+2.3 REPRODUCTOR
+  - Barra superior: cerrar (flecha abajo), "Reproduciendo desde / Mezcla
+    nocturna", menú.
+  - Portada grande 262 x 262, radio 30, sombra + halo del color de la luz 1.
+  - Panel de vidrio superpuesto 34 px sobre la portada con:
+      título (Syne 800, 23 px), artista, etiqueta de ánimo
+      ("Tranquila, 70 BPM" con punto del color de énfasis), botón me gusta,
+      barra de progreso y tiempos (actual / restante con signo menos).
+  - Controles: aleatorio, anterior, reproducir/pausa (72 px), siguiente, repetir.
+    Aleatorio y repetir activos se pintan con el color de énfasis.
+  - Tarjeta "Letra" con la línea que suena (tocar = abrir Letra).
+  - Pie: información, cola, compartir.
+  - Mini reproductor y pestañas se ocultan.
+
+2.4 LETRA SINCRONIZADA
+  - Barra superior: cerrar, mini identificación (portada 40 px + título + artista), menú.
+  - Líneas grandes (Syne 700, 25 px). La línea activa se ubica al ~36 % de
+    la altura del área de letra.
+  - Estados: futura (30 % opacidad, desenfoque 1,2 px, escala .96),
+    pasada (45 %), activa (100 %, escala 1, brillo del color de énfasis).
+  - Tramos instrumentales se muestran como "♪" con espaciado amplio.
+  - Tocar una línea salta a ese momento y reanuda.
+  - Pie: progreso, tiempos, anterior / reproducir / siguiente.
+  - Bordes superior e inferior se desvanecen (máscara degradada).
+
+2.5 INFORMACIÓN DE LA PISTA
+  - Cabecera: portada 96 px, título, artista, álbum.
+  - Forma de onda de 56 barras (la parte reproducida con degradado énfasis -> luz 1).
+    Tocar = saltar a ese punto.
+  - Datos en cuadrícula 2 x 3 (vidrio): Duración, Tempo, Tonalidad, Calidad,
+    Género, Lanzamiento.
+  - "Color de esta canción": muestras de la atmósfera (fondo + 3 luces) con
+    su ánimo y BPM; muestra del énfasis con su origen. Botones
+    "Cambiar portada" y "Quitar portada" (si tiene).
+  - Créditos: Voz principal, Composición, Producción, Mezcla y máster, Sello.
+  - Sobre el artista: oyentes mensuales, descripción, botón Seguir/Siguiendo.
+
+2.6 OPCIONES (HOJA INFERIOR)
+  - Se abre desde cualquier botón de tres puntos (de la canción actual o
+    de una fila concreta).
+  - Asa superior, cabecera con portada + título + "artista, álbum".
+  - Opciones con ícono:
+      Añadir a / Quitar de Me gusta
+      Añadir a una lista
+      Añadir a la cola
+      Ir al álbum
+      Ir al artista
+      Ver letra
+      Información de la pista
+      Cambiar portada (prueba de color)
+      Quitar portada (solo si tiene)
+      Temporizador de apagado
+      Compartir
+  - Fondo oscurecido detrás; tocarlo cierra la hoja.
+
+2.7 ELEMENTOS PERSISTENTES
+  - Mini reproductor (Inicio y Lista): portada 40 px, título, artista,
+    me gusta, reproducir/pausa, línea de progreso de 2 px abajo.
+    Tocar = abrir Reproductor.
+  - Pestañas: Inicio, Buscar, Biblioteca (ícono + texto 11 px).
+  - Aviso (toast): píldora clara arriba, 2,2 s.
+
+
+---------------------------------------------------------------------
+3. SISTEMA DE COLOR DINÁMICO
+---------------------------------------------------------------------
+
+3.1 ATMÓSFERA POR TEMPO (siempre se aplica)
+  Rango: BPM_LO = 72, BPM_HI = 138
+
+  energía  e = limitar((bpm - 72) / (138 - 72), 0, 1)
+  tono     h = 225 + e * 135        (225° azul -> 270° violeta -> 315° magenta -> 360° rojo)
+
+  Colores generados (HSL):
+    fondo  --bgc = hsl(h,      48%, 10%)
+    luz 1  --c1  = hsl(h,      85%, 62%)
+    luz 2  --c2  = hsl(h + 28, 90%, 64%)
+    luz 3  --c3  = hsl(h - 32, 80%, 58%)
+    énfasis de respaldo = hsl(h + 10, 95%, 67%)
+
+  Etiqueta de ánimo:
+    e < 0.34   "Tranquila"
+    e < 0.67   "Ritmo medio"
+    resto      "Movida"
+
+  Velocidad de animación --spd = 1.45 - e * 0.85
+    (1.45 en lentas = más pausado; 0.60 en movidas = más rápido)
+
+  Ejemplos del catálogo:
+    Papel y humo      70 BPM   Tranquila    azul
+    Ventana abierta   80 BPM   Tranquila    azul
+    Satélite          92 BPM   Tranquila    azul violáceo
+    Agua de coco     106 BPM   Ritmo medio  violeta
+    Kilómetro cero   112 BPM   Ritmo medio  violeta magenta
+    Neón en la piel  118 BPM   Movida       magenta
+    Fiebre lunar     128 BPM   Movida       rosa rojizo
+    Calle sin nombre 140 BPM   Movida       rojo
+
+3.2 ÉNFASIS POR PORTADA
+  Algoritmo (extractAccent):
+    1. Redimensionar la portada a 48 x 48.
+    2. Ignorar píxeles con luminosidad < 0.15 o > 0.92, o saturación < 0.25.
+    3. Agrupar por tono en 24 cajas de 15°.
+    4. Peso de cada píxel = saturación² x (1 - |luminosidad - 0.55|).
+    5. Elegir la caja de mayor peso (mínimo 4 de peso total) y promediar su RGB.
+    6. Ajustar para fondo oscuro: saturación mínima 65 %, luminosidad entre 58 % y 72 %.
+  Si no hay caja válida (portada gris, blanco y negro, muy oscura) -> null.
+
+3.3 REGLA FINAL
+  atmósfera = siempre del tempo
+  énfasis   = color de la portada  SI hay portada Y tiene color vivo
+            = énfasis del tempo    EN OTRO CASO
+  Sin portada: se muestra un degradado cónico con luz 1, 2 y 3 y una nota "♪".
+
+3.4 DÓNDE SE USA CADA VARIABLE
+  --bgc  fondo del teléfono, base del mini reproductor, pestañas, hoja de opciones,
+         color del ícono dentro del botón principal
+  --c1   luz superior izquierda, halo de la portada, inicio del degradado de progreso
+  --c2   luz inferior
+  --c3   luz derecha
+  --acc  final del degradado de progreso, bolita del progreso, halo del botón
+         principal, me gusta activo, aleatorio/repetir activos, canción actual,
+         ecualizador, brillo de la letra activa, onda reproducida, punto de ánimo
+  --spd  multiplica duraciones de luces, respiración de portada y ecualizador
+
+  Todas las variables de color están registradas con @property como <color>
+  y tienen transición de 1,2 s: al cambiar de canción el color se funde.
+
+
+---------------------------------------------------------------------
+4. PALETA BASE Y TOKENS
+---------------------------------------------------------------------
+  Noche (fondo por defecto)   #120E2B
+  Noche 2 (superficies)       #1B1640
+  Lila claro (texto, botón)   #F2EEFF
+  Texto atenuado              rgba(242,238,255,.62)
+  Rosa (énfasis por defecto)  #FF5FA2
+  Ámbar                       #FFB547
+  Azul                        #5B8CFF
+  Violeta                     #9B5CFF
+  Menta                       #38E1C6
+  Vidrio                      fondo rgba(255,255,255,.10)
+                              borde 1px rgba(255,255,255,.18)
+                              backdrop-filter: blur(20px) saturate(140%)
+  Fondo de hoja abierta       rgba(7,6,15,.55)
+  Curva de animación (--ease) cubic-bezier(.2,.8,.2,1)
+
+
+---------------------------------------------------------------------
+5. TIPOGRAFÍA
+---------------------------------------------------------------------
+  Display: Syne (Google Fonts) pesos 500, 700, 800
+  Texto:   DM Sans (Google Fonts) pesos 400, 500, 700
+  Respaldo: system-ui, sans-serif
+
+  Título de pantalla       Syne 800  30 px  interlineado 1.05  espaciado -0.02em
+  Título en reproductor    Syne 800  23 px  interlineado 1.1
+  Línea de letra           Syne 700  25 px  interlineado 1.18
+  Sección                  Syne 700  18 px
+  Subsección (info)        Syne 700  16 px
+  Fila de canción          DM Sans 500 15 px / artista 12.5 px atenuado
+  Texto general            DM Sans 400 14-15 px
+  Tiempos y datos          DM Sans 400 11-12 px, cifras tabulares
+  Pestañas                 DM Sans 11 px
+
+
+---------------------------------------------------------------------
+6. MEDIDAS Y COMPONENTES
+---------------------------------------------------------------------
+  Márgenes laterales de pantalla       18 px
+  Margen superior (bajo barra estado)  50 px
+  Botón ícono                          40 x 40, circular
+  Botón principal reproductor          72 px (58 en lista, 60 en letra)
+  Íconos                               22 px, trazo 2 px
+  Portadas:  40 (xs), 46 (fila), 96 (info), 138 (tarjeta), 190 (lista), 262 (reproductor)
+  Radios:    10 (xs), 12-14 (filas), 18 (mini, tarjeta letra), 22 (tarjetas),
+             24 (panel reproductor), 28 (hoja, portada lista), 30 (portada reproductor)
+  Mini reproductor   alto 62, a 84 px del borde inferior, márgenes 10
+  Pestañas           alto 80
+  Barra de progreso  área táctil 22 px, barra 5 px, bolita 14 px
+  Fila de canción    padding 7 x 6, separación 12
+  Chips              padding 7 x 14, radio 20
+  Ecualizador mini   3 barras de 3 x 14 px
+
+  Luces del fondo (desenfoque 56 px):
+    luz 1  260 px, arriba izquierda   (color --c1)
+    luz 2  240 px, centro derecha     (color --c3)
+    luz 3  220 px, abajo, opacidad .55 (color --c2)
+    Opacidad del conjunto: 0.5 en Inicio/Lista/Info, 1 en Reproductor/Letra.
+    En Letra se añade un velo del fondo al 40 % para legibilidad.
+
+
+---------------------------------------------------------------------
+7. ANIMACIONES Y MOVIMIENTO
+---------------------------------------------------------------------
+  (D x spd) = la duración se multiplica por --spd según el tempo.
+
+  Luces del fondo       desplazamiento y escala 1 -> 1.15 -> .95,
+                        18 / 22 / 26 s (x spd), ida y vuelta.
+                        Se pausan cuando la música se pausa.
+  Cambio de color       1,2 s al cambiar de canción (fondo, luces, énfasis).
+  Portada reproductor   pausa: escala 0.88. Al reproducir sube a 1 con rebote
+                        (700 ms, cubic-bezier(.34,1.4,.5,1)) y luego "respira"
+                        1 -> 1.025 cada 4 s (x spd).
+  Entrada de pantalla   opacidad 0 -> 1 y subir 14 px + escala .985 -> 1, 420 ms.
+  Entrada Reproductor/Letra  subir 60 px como una hoja, 500 ms.
+  Filas de lista        desde 16 px a la derecha, 450 ms, 40 ms entre filas
+                        (empieza a los 120 ms).
+  Letra                 desplazamiento 700 ms; cambio de estado de línea 500 ms.
+  Progreso              ancho con transición lineal de 0,9 s (avance continuo).
+  Me gusta              pulso 1 -> 1.45 -> .9 -> 1, 450 ms.
+  Hoja de opciones      sube 450 ms; opciones en cascada 30 ms (desde 80 ms).
+  Fondo de hoja         fundido 350 ms.
+  Mini y pestañas       se deslizan fuera hacia abajo, 450 ms.
+  Ecualizador           escala vertical .3 -> 1, 0.6 / 0.8 / 1 s (x spd).
+  Aviso (toast)         baja 20 px y aparece, 400 ms; visible 2,2 s.
+  Pulsación de botones  escala .9 (íconos) / .92 (principal).
+
+  Reducir movimiento: con prefers-reduced-motion se desactivan todas las
+  animaciones y transiciones.
+
+
+---------------------------------------------------------------------
+8. INTERACCIONES Y NAVEGACIÓN
+---------------------------------------------------------------------
+  Inicio  --tarjeta--> reproduce esa canción
+  Inicio  --mezcla---> Lista
+  Inicio/Lista --mini reproductor--> Reproductor
+  Pestañas: Inicio -> Inicio, Biblioteca -> Lista, Buscar -> (no incluida)
+  Lista   --fila-----> reproduce esa canción
+  Lista   --volver---> Inicio
+  Reproductor --cerrar--> vuelve a donde se abrió (Inicio o Lista)
+  Reproductor --tarjeta letra--> Letra
+  Reproductor --información----> Información
+  Letra / Información --cerrar/volver--> Reproductor
+  Tres puntos (cualquier pantalla o fila) --> Hoja de opciones
+
+  Reproducción:
+    - Avanza 1 s por segundo mientras suena.
+    - Al terminar: repite si "repetir" está activo; si no, siguiente.
+    - Anterior: si van más de 3 s reinicia la canción; si no, canción anterior.
+    - Aleatorio: la siguiente es al azar.
+    - Tocar barra de progreso u onda: salta a ese punto.
+    - Tocar línea de letra: salta a su segundo y reanuda.
+
+  Avisos que muestra la app:
+    Añadida a Me gusta / Quitada de Me gusta
+    Guardada en Mezcla nocturna
+    Añadida a la cola
+    Abriendo perfil de [artista]
+    Se pausará en 30 min
+    Enlace copiado
+    Aleatorio activado / desactivado
+    Repetir esta canción / Repetir desactivado
+    Énfasis tomado de tu portada
+    Sin color vivo: se usa el del tempo
+    Portada quitada: el color sale del tempo
+
+
+---------------------------------------------------------------------
+9. MODELO DE DATOS
+---------------------------------------------------------------------
+  Canción {
+    t      título
+    a      artista
+    al     álbum
+    d      duración en segundos
+    bpm    tempo (obligatorio: define la atmósfera)
+    k      tonalidad musical
+    g      género
+    y      fecha de lanzamiento
+    comp   compositores
+    prod   producción
+    mix    mezcla y máster
+    ol     oyentes mensuales del artista
+    cover  URL de la portada o null
+    coverAcc  {css, hex} énfasis calculado (puede guardarse en caché/servidor)
+  }
+
+  Línea de letra [segundo_inicio, texto]   ("♪" = instrumental)
+
+  Mezcla { n nombre, c [3 colores fijos] }
+
+  Estado del reproductor {
+    screen, base, playing, cur, t, liked, sheet, sheetSong,
+    shuffle, repeat, follow, chip
+  }
+
+
+---------------------------------------------------------------------
+10. ACCESIBILIDAD
+---------------------------------------------------------------------
+  - Todos los botones de ícono llevan aria-label en español.
+  - Filas y mini reproductor son role="button" con tabindex y responden a Enter/Espacio.
+  - Foco visible: contorno ámbar de 2 px con separación de 3 px.
+  - Respeta "reducir movimiento" del sistema.
+  - El énfasis extraído se fuerza a luminosidad 58-72 % para mantener
+    contraste sobre fondos oscuros.
+  - Aviso con role="status"; hoja con role="dialog".
+  - Pendiente en producción: atrapar el foco dentro de la hoja abierta,
+    cerrar con Escape, anunciar cambios de canción a lectores de pantalla,
+    soporte de teclado en la barra de progreso (flechas).
+
+
+---------------------------------------------------------------------
+11. NOTAS PARA PRODUCCIÓN
+---------------------------------------------------------------------
+  - Las portadas del prototipo se dibujan con canvas (paintCover).
+    Reemplazar por URLs reales.
+  - Para leer píxeles de una portada remota la imagen necesita CORS
+    (img.crossOrigin = "anonymous" y cabecera Access-Control-Allow-Origin),
+    o calcular el énfasis en el servidor al subir la portada y guardarlo
+    junto a la canción (recomendado: más rápido y sin parpadeo).
+  - El BPM debe venir en los metadatos (o calcularse con análisis de audio).
+    Si falta, usar 100 BPM (ritmo medio) como valor por defecto.
+  - Alternativas para extraer color: node-vibrant, color-thief, o en móvil
+    nativo Palette (Android) / análisis de UIImage (iOS).
+  - La forma de onda es decorativa; en producción usar datos reales de picos.
+  - El reloj de reproducción es simulado; conectarlo al reproductor real
+    (HTMLAudioElement timeupdate, o el reproductor nativo).
+  - backdrop-filter y color-mix requieren navegadores modernos
+    (Safari 16.4+, Chrome 111+). @property para transición de color:
+    Safari 16.4+, Chrome 85+, Firefox 128+.
+  - Para React Native / Flutter: replicar las luces con vistas circulares
+    desenfocadas (BlurView / ImageFiltered) y animar color con interpolación.
+
+
+---------------------------------------------------------------------
+12. INSTRUCCIONES SUGERIDAS PARA CLAUDE CODE
+---------------------------------------------------------------------
+  Ejemplo de mensaje para empezar:
+
+    "Usa aurora-app-musica.html como referencia visual y de comportamiento
+     y aurora-especificaciones.txt como especificación. Construye la app
+     en [React / React Native / Flutter / Swift, elige uno] con:
+       - las 6 pantallas descritas en la sección 2,
+       - el sistema de color de la sección 3 como un módulo aparte
+         (moodFromBpm, extractAccent, buildPalette) con pruebas unitarias,
+       - los tokens de las secciones 4 a 6 como tema,
+       - las animaciones de la sección 7,
+       - la navegación de la sección 8.
+     Mantén los textos en español."
+
+  Estructura de carpetas sugerida:
+    /theme        tokens, tipografía, paleta base
+    /color        mood.ts, extractAccent.ts, palette.ts (+ tests)
+    /components   Artwork, ProgressBar, SongRow, MiniPlayer, TabBar,
+                  OptionsSheet, Toast, GlassPanel, AmbientBackground, Equalizer
+    /screens      Home, Playlist, Player, Lyrics, TrackInfo
+    /state        estado del reproductor (cola, posición, me gusta)
+    /data         canciones y letras de ejemplo
+
+=====================================================================
+FIN
+=====================================================================
