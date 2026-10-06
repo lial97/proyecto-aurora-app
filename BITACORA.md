@@ -11,6 +11,34 @@ Formato de cada entrada:
 **Pendiente:** lo que queda abierto (opcional).
 ```
 
+## 2026-10-06 — Arranque rápido en Windows (VLC en segundo plano e índice de complementos)
+**Qué:**
+- `VlcEngine` arranca VLC en su propio hilo (`aurora-vlc-arranque`): la ventana ya no espera a VLC. Las órdenes que llegan antes (cargar, reproducir, volumen, ecualizador…) quedan en fila y se ejecutan en orden al terminar. `VlcVideoOutput` existe desde el principio y se conecta con `bind`.
+- Índice de complementos de VLC (`plugins.dat`): `preparar-vlc.ps1` lo generaba vacío (24 bytes; `vlc-cache-gen` con ruta relativa no encuentra nada). Ahora usa la ruta completa, pone a los complementos una fecha fija (2020-01-01 UTC) antes de generarlo y falla si sale vacío.
+- Gradle (y el instalador) cambian las fechas al copiar: `BundledVlc` restaura la fecha fija al arrancar (solo metadatos, instantáneo). Si no puede, VLC rehace el índice una vez (`--reset-plugins-cache`) con una marca por ubicación en la carpeta de ajustes.
+- Las miniaturas de video esperan a que el reproductor deje el índice listo (`BundledVlc.awaitCache`).
+**Por qué:** el primer arranque tardaba más de un minuto: `libvlc_new`, en el hilo de la interfaz, abría los 241 complementos (sin índice válido) y Windows Defender revisaba cada uno.
+**Archivos:** `desktopMain/player/VlcEngine.kt`, `desktopMain/player/BundledVlc.kt`, `desktopMain/platform/VideoThumbnailer.kt`, `scripts/windows/preparar-vlc.ps1`.
+**Pruebas (PC del usuario, copia nueva de la app):** antes, ventana a los 63 s; ahora la ventana sale a los 4–9 s aunque VLC tarde. Con el índice válido `libvlc_new` tarda 33 ms (antes ~57 s en frío) y el arranque en frío con índice válido fue de 4,7 s (ventana) y 5,9 s (VLC). `desktopTest` pasa.
+
+## 2026-10-06 — Escritorio más compacto (fase 2)
+**Qué:**
+- Escritorio (Windows y Linux) un 10 % más chico de base; "Compacta" quita otro 10 % encima (antes solo existía esta). El tipo de interfaz (escritorio o teléfono) se decide con el ancho que queda después de escalar.
+- Ventana inicial: 1280×800 o, si no cabe, el 85 % del área útil de la pantalla. Tamaño mínimo 800×540 (antes 960×600).
+- Ajustes: el contenido no pasaba de 760 dp porque `widthIn` iba después de `weight` (que fija el ancho) y se estiraba a toda la ventana. Ahora el desplazamiento ocupa todo el ancho y el contenido como mucho 760 dp. Menú de secciones 220 → 200 dp, separación 28 → 24 dp.
+**Por qué:** en la pantalla del usuario (1920×1080 al 125 % = 1536×864 dp) la ventana de 1280×800 la llenaba casi entera y Ajustes tenía mucho espacio vacío.
+**Archivos:** `commonMain/App.kt`, `commonMain/screens/SettingsScreen.kt`, `desktopMain/Main.kt`, `ARQUITECTURA.md`.
+**Pruebas:** capturas temporales con `ImageComposeScene` a 1920×1032 y 1600×866 px con densidad 1,25 (Inicio, Ajustes › Biblioteca y Apariencia): tres columnas completas y Ajustes en 760 dp. `desktopTest` pasa. Falta compilar y probar en Android (aquí no hay SDK): allí la escala no cambia, solo la decisión del tipo de interfaz con "Compacta".
+
+## 2026-10-06 — Escritorio en Windows: audio del video y CPU en reposo (fase 1)
+**Qué:**
+- VLC decodifica el video por CPU (`--avcodec-hw=none`, también en las miniaturas). Con la decodificación de la tarjeta gráfica (D3D11 en Windows) VLC no podía pasar los fotogramas a memoria ("Failed to create video converter"), reintentaba, se atrasaba y el audio se entrecortaba ("buffer too late: dropped", "playback too late: upsampling", "flushing buffers").
+- Animaciones infinitas que redibujaban la ventana sin parar aunque no sonara nada: ahora solo existen mientras se mueven. Barras de `Equalizer` (en pausa), "respiro" de `heroScale` (en pausa o en temas sin él) y fase de la onda de la barra de progreso (con amplitud 0).
+**Por qué:** primera prueba del instalador en Windows (Ryzen 5 7535HS, pantalla 1920×1080 al 125 %): el audio del video se trababa y la app se sentía pesada.
+**Archivos:** `desktopMain/player/VlcEngine.kt`, `desktopMain/platform/VideoThumbnailer.kt`, `commonMain/components/Controls.kt`, `commonMain/screens/PlayerScreen.kt`.
+**Pruebas:** video 720p30 de 25 s con el VLC empaquetado: antes 754 bloques descartados y 15 "upsampling"; ahora ninguno, 740 fotogramas. CPU en reposo: 1,73 s → 0,14 s cada 10 s; memoria 909 MB → 212 MB. `desktopTest` pasa.
+**Pendiente:** que el usuario pruebe el video en Windows. Fase 2: escritorio más compacto.
+
 ## 2026-10-06 — Instaladores de escritorio con VLC adentro (fase 2: Windows)
 **Qué:**
 - `scripts/windows/preparar-vlc.ps1`: descarga VLC 3.0.24 portable de 64 bits (ZIP oficial, comprobado con la huella SHA-256 de VideoLAN y guardado en `%LOCALAPPDATA%\Aurora-compilar` para la próxima vez), copia libvlc.dll, libvlccore.dll y solo los complementos que usa Aurora (sin interfaz, Lua, red, Blu-ray ni grabación) a `composeApp/resources/windows/vlc`, y genera `plugins.dat` con vlc-cache-gen.exe. 140 MB → 63 MB.

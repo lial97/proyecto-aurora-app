@@ -131,17 +131,20 @@ fun SettingsScreen(state: AppState, lib: LibraryState, onBack: (() -> Unit)?, co
     // Cada sección recuerda su propio desplazamiento (antes compartían uno y se abrían a media página).
     val scrolls = SettingsSection.entries.associateWith { rememberScrollState() }
     val content: @Composable (Modifier) -> Unit = { m ->
+        // El desplazamiento ocupa todo el ancho (la rueda funciona en cualquier parte); el contenido, como mucho 760 dp.
         Column(m.verticalScroll(scrolls.getValue(section))) {
-            when (section) {
-                SettingsSection.LIBRARY -> LibrarySection(state, lib, ctx)
-                SettingsSection.APPEARANCE -> AppearanceSection(state, ctx)
-                SettingsSection.SOUND -> SoundSection(state, ctx)
-                SettingsSection.PLAYBACK -> PlaybackSection(state, ctx)
-                SettingsSection.LYRICS -> LyricsSettingsSection(state, ctx)
-                SettingsSection.ACCESSIBILITY -> AccessibilitySection(state, ctx)
-                SettingsSection.ABOUT -> AboutSection(state)
+            Column(Modifier.widthIn(max = 760.dp)) {
+                when (section) {
+                    SettingsSection.LIBRARY -> LibrarySection(state, lib, ctx)
+                    SettingsSection.APPEARANCE -> AppearanceSection(state, ctx)
+                    SettingsSection.SOUND -> SoundSection(state, ctx)
+                    SettingsSection.PLAYBACK -> PlaybackSection(state, ctx)
+                    SettingsSection.LYRICS -> LyricsSettingsSection(state, ctx)
+                    SettingsSection.ACCESSIBILITY -> AccessibilitySection(state, ctx)
+                    SettingsSection.ABOUT -> AboutSection(state)
+                }
+                Spacer(Modifier.height(if (desk) 24.dp else 40.dp))
             }
-            Spacer(Modifier.height(40.dp))
         }
     }
 
@@ -164,7 +167,7 @@ fun SettingsScreen(state: AppState, lib: LibraryState, onBack: (() -> Unit)?, co
         Row(Modifier.fillMaxSize().padding(contentPadding)) {
             // Lista de secciones (↑ ↓ para moverse).
             Column(
-                Modifier.width(220.dp).fillMaxHeight()
+                Modifier.width(200.dp).fillMaxHeight()
                     .focusable()
                     .onKeyEvent { e ->
                         if (e.type != KeyEventType.KeyDown) return@onKeyEvent false
@@ -183,8 +186,8 @@ fun SettingsScreen(state: AppState, lib: LibraryState, onBack: (() -> Unit)?, co
                 SettingsSection.entries.forEach { s -> SectionItem(s, s == section) { section = s; help = null } }
                 BasicText("↑ ↓ para moverse", style = Ui.type.caption, modifier = Modifier.padding(start = 10.dp, top = 10.dp))
             }
-            Spacer(Modifier.width(28.dp))
-            content(Modifier.weight(1f).widthIn(max = 760.dp).fillMaxHeight())
+            Spacer(Modifier.width(24.dp))
+            content(Modifier.weight(1f).fillMaxHeight())
         }
     } else {
         // Móvil: lista de secciones con buscador; cada sección abre su subpágina.

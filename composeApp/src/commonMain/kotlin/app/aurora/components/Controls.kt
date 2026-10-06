@@ -166,7 +166,8 @@ fun ProgressBar(
     // Onda como la de Android 13+: solo en barras finas (en Póster, de 12 dp, no) y sin "Reducir movimiento".
     val wavy = wavePlaying != null && thinBar
     val amplitude by animateFloatAsState(if (wavy && wavePlaying == true && !Ui.reduceMotion) 1f else 0f, tween(450))
-    val phase = if (wavy) rememberInfiniteTransition().animateFloat(0f, 1f, infiniteRepeatable(tween(1600, easing = LinearEasing))).value else 0f
+    // La fase solo corre mientras la onda se ve (en pausa la amplitud es 0 y no hace falta redibujar).
+    val phase = if (wavy && amplitude > 0f) rememberInfiniteTransition().animateFloat(0f, 1f, infiniteRepeatable(tween(1600, easing = LinearEasing))).value else 0f
     fun seek(x: Float, width: Int) {
         if (durationSec > 0) onSeek(((x / width).coerceIn(0f, 1f) * durationSec).toInt())
     }
@@ -234,13 +235,16 @@ fun formatTime(sec: Int): String {
 @Composable
 fun Equalizer(playing: Boolean, modifier: Modifier = Modifier) {
     val c = Ui.colors
-    val t = rememberInfiniteTransition()
-    val bars = listOf(800, 600, 1000).map { d ->
-        t.animateFloat(.3f, 1f, infiniteRepeatable(tween((d * c.speed).toInt()), RepeatMode.Reverse))
-    }
+    // En pausa no se crea la animación: si no, la ventana se redibujaría sin parar aunque las barras estén quietas.
+    val bars: List<Float> = if (playing) {
+        val t = rememberInfiniteTransition()
+        listOf(800, 600, 1000).map { d ->
+            t.animateFloat(.3f, 1f, infiniteRepeatable(tween((d * c.speed).toInt()), RepeatMode.Reverse)).value
+        }
+    } else listOf(.35f, .35f, .35f)
     Row(modifier.height(14.dp), horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.Bottom) {
         bars.forEach { b ->
-            Box(Modifier.width(3.dp).height(14.dp * (if (playing) b.value else .35f)).background(c.accent))
+            Box(Modifier.width(3.dp).height(14.dp * b).background(c.accent))
         }
     }
 }

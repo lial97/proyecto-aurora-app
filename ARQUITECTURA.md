@@ -139,6 +139,9 @@ El módulo `androidApp` y el objetivo Android de `composeApp` solo se activan si
 | Móvil | < 1000 dp | Teléfono |
 | Móvil (tableta horizontal) | ≥ 1000 dp y alto ≥ 600 | Escritorio |
 
+Los anchos son los que quedan después de la escala de `App.kt`: en escritorio todo va al 90 % y "Compacta"
+quita otro 10 % (en móvil, solo "Compacta"). La ventana abre en 1280×800 o en el 85 % de la pantalla (`Main.kt`).
+
 Dentro del escritorio (`DesktopApp`): ≥ 1280 dp tres columnas; 1024–1279 el panel derecho flota y se abre
 con su botón; < 1024 el lateral se reduce a íconos (72 dp). Los tamaños de letra son distintos en móvil y
 escritorio (`TypeScale.h1` / `h1Desktop`, etc.).

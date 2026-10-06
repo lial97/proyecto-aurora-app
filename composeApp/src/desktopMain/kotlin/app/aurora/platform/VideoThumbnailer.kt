@@ -34,7 +34,8 @@ import java.util.concurrent.atomic.AtomicReference
 class VideoThumbnailer(private val cacheDir: File) {
     private val mutex = Mutex()
     private val factory: MediaPlayerFactory? by lazy {
-        runCatching { if (app.aurora.player.BundledVlc.discover()) MediaPlayerFactory("--quiet", "--no-audio", "--no-video-title-show", "--no-sub-autodetect-file") else null }.getOrNull()
+        // Se crea en un hilo de E/S: espera a que el reproductor deje al día el índice de complementos de VLC.
+        runCatching { if (app.aurora.player.BundledVlc.discover().also { app.aurora.player.BundledVlc.awaitCache() }) MediaPlayerFactory("--quiet", "--no-audio", "--avcodec-hw=none", "--no-video-title-show", "--no-sub-autodetect-file") else null }.getOrNull()
     }
 
     /** Fotogramas al 15, 35, 55 y 75 % del video. */

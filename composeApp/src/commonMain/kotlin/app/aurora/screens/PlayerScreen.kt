@@ -82,10 +82,11 @@ import app.aurora.theme.title
 fun heroScale(playing: Boolean): Float {
     val base by animateFloatAsState(if (playing) 1f else .9f, tween(700, easing = AuroraMotion.Bounce))
     val breathe = Ui.theme.hero == HeroStyle.GLOW && !Ui.reduceMotion
-    val breath by rememberInfiniteTransition().animateFloat(
+    // El "respiro" solo existe mientras suena y el tema lo usa: si no, redibujaría la ventana sin parar.
+    val breath = if (playing && breathe) rememberInfiniteTransition().animateFloat(
         1f, 1.025f, infiniteRepeatable(tween((2000 * Ui.colors.speed).toInt()), RepeatMode.Reverse),
-    )
-    return base * (if (playing && breathe) breath else 1f)
+    ).value else 1f
+    return base * breath
 }
 
 /** Línea de letra que suena ahora (o un aviso si no hay letra). */

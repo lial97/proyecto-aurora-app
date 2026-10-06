@@ -22,22 +22,29 @@ import java.util.concurrent.atomic.AtomicInteger
 /**
  * Audio y video con VLC (vlcj): el que viene con la app (ver [BundledVlc]) o el instalado; si no se encuentra, [available] es `false`
  * y la app sigue funcionando con el reloj simulado.
+ *
+ * VLC arranca en un hilo propio para que la ventana aparezca enseguida (la primera vez, o tras actualizar, puede
+ * tardar mientras rehace el índice de complementos). Las órdenes que llegan antes quedan en fila, en orden.
  */
 class VlcEngine : MediaEngine {
-    private val factory: MediaPlayerFactory? = runCatching {
-        if (BundledVlc.discover()) MediaPlayerFactory(*VLC_ARGS) else null
-    }.getOrNull()?.also { f ->
-        // Identidad propia ante PulseAudio/PipeWire: así el sistema no aplica a Aurora el volumen
-        // guardado para la app VLC (que puede estar por encima del 100 % y saturar el sonido).
-        runCatching {
-            f.application().setUserAgent("Aurora", "Aurora/0.3")
-            f.application().setApplicationId("app.aurora", "0.3", "audio-x-generic")
-        }
-    }
-    private val mp: EmbeddedMediaPlayer? = factory?.mediaPlayers()?.newEmbeddedMediaPlayer()
-    private val videoOut = mp?.let { VlcVideoOutput(it, factory!!) }
+    @Volatile private var factory: MediaPlayerFactory? = null
+    @Volatile private var mp: EmbeddedMediaPlayer? = null
+    private val videoOut = VlcVideoOutput()
+    private val started = java.util.concurrent.CountDownLatch(1)
+    /** Órdenes recibidas antes de que VLC esté listo; `null` cuando ya arrancó. */
+    private var queue: MutableList<() -> Unit>? = mutableListOf()
+    private val queueLock = Any()
 
-    override val available: Boolean get() = mp != null
+    /** Ejecuta [action] con VLC listo: ahora mismo o, si aún arranca, en cuanto termine. */
+    private fun whenReady(action: () -> Unit) {
+        synchronized(queueLock) { queue?.let { it += action; return } }
+        action()
+    }
+
+    /** Si VLC aún arranca y viene con la app, se da por disponible (las órdenes esperan en la fila). */
+    override val available: Boolean get() =
+        if (started.count == 0L) mp != null
+        else BundledVlc.dir != null || run { started.await(); mp != null }
     override val video: VideoOutput? get() = videoOut
 
     override var onPosition: (Long) -> Unit = {}
@@ -49,7 +56,36 @@ class VlcEngine : MediaEngine {
     private val checker = java.util.concurrent.Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "aurora-video-check").apply { isDaemon = true } }
 
     init {
-        mp?.events()?.addMediaPlayerEventListener(object : MediaPlayerEventAdapter() {
+        Thread({
+            try {
+                val f = runCatching {
+                    if (BundledVlc.discover()) MediaPlayerFactory(*VLC_ARGS, *BundledVlc.cacheArgs()) else null
+                }.getOrNull()?.also { f ->
+                    // Identidad propia ante PulseAudio/PipeWire: así el sistema no aplica a Aurora el volumen
+                    // guardado para la app VLC (que puede estar por encima del 100 % y saturar el sonido).
+                    runCatching {
+                        f.application().setUserAgent("Aurora", "Aurora/0.3")
+                        f.application().setApplicationId("app.aurora", "0.3", "audio-x-generic")
+                    }
+                }
+                val p = runCatching { f?.mediaPlayers()?.newEmbeddedMediaPlayer() }.getOrNull()
+                if (f != null && p != null) {
+                    listen(p)
+                    videoOut.bind(p, f)
+                }
+                factory = f
+                mp = p
+            } finally {
+                started.countDown()
+                BundledVlc.cacheDone()
+                // Dentro del candado: una orden nueva no puede adelantarse a las que esperaban.
+                synchronized(queueLock) { queue?.forEach { runCatching { it() } }; queue = null }
+            }
+        }, "aurora-vlc-arranque").apply { isDaemon = true; start() }
+    }
+
+    private fun listen(player: EmbeddedMediaPlayer) {
+        player.events().addMediaPlayerEventListener(object : MediaPlayerEventAdapter() {
             override fun timeChanged(mediaPlayer: MediaPlayer, newTime: Long) = onPosition(newTime)
             override fun lengthChanged(mediaPlayer: MediaPlayer, newLength: Long) = onDuration(newLength)
             override fun finished(mediaPlayer: MediaPlayer) = onEnded()
@@ -64,7 +100,7 @@ class VlcEngine : MediaEngine {
                 }
                 // Si hay pista de video pero VLC nunca pidió el formato de imagen, falta el decodificador.
                 checker.schedule({
-                    val out = videoOut ?: return@schedule
+                    val out = videoOut
                     val hasVideoTrack = runCatching { mediaPlayer.video().trackCount() > 0 }.getOrDefault(false)
                     onNotice(if (hasVideoTrack && !out.formatSeen && out.wanted) MISSING_DECODER else null)
                 }, 2500, java.util.concurrent.TimeUnit.MILLISECONDS)
@@ -76,10 +112,10 @@ class VlcEngine : MediaEngine {
 
     override fun setNormalize(on: Boolean) { normalize = on }
 
-    override fun setEqualizer(eq: app.aurora.audio.EqSettings?) {
-        val f = factory ?: return
-        val p = mp ?: return
-        if (eq == null || !eq.enabled) { p.audio().setEqualizer(null); return }
+    override fun setEqualizer(eq: app.aurora.audio.EqSettings?) = whenReady {
+        val f = factory ?: return@whenReady
+        val p = mp ?: return@whenReady
+        if (eq == null || !eq.enabled) { p.audio().setEqualizer(null); return@whenReady }
         val e = f.equalizer().newEqualizer()
         e.setPreamp(eq.vlcPreamp)
         eq.bands.forEachIndexed { i, v -> if (i < e.bandCount()) e.setAmp(i, v.coerceIn(-20f, 20f)) }
@@ -92,9 +128,9 @@ class VlcEngine : MediaEngine {
             // Normalizador de VLC: iguala el volumen entre canciones.
             if (normalize) add(":audio-filter=normvol")
         }.toTypedArray()
-        videoOut?.reset()
+        videoOut.reset()
         onNotice(null)
-        if (play) mp?.media()?.play(path, *opts) else mp?.media()?.startPaused(path, *opts)
+        whenReady { if (play) mp?.media()?.play(path, *opts) else mp?.media()?.startPaused(path, *opts) }
     }
 
     private fun applyVolume(p: MediaPlayer) {
@@ -103,17 +139,17 @@ class VlcEngine : MediaEngine {
         p.audio().setVolume(volume)
     }
 
-    override fun play() { mp?.controls()?.play() }
-    override fun pause() { mp?.controls()?.setPause(true) }
-    override fun seekTo(ms: Long) { mp?.controls()?.setTime(ms) }
-    override fun stop() { mp?.controls()?.stop(); videoOut?.reset() }
+    override fun play() = whenReady { mp?.controls()?.play() }
+    override fun pause() = whenReady { mp?.controls()?.setPause(true) }
+    override fun seekTo(ms: Long) = whenReady { mp?.controls()?.setTime(ms) }
+    override fun stop() { videoOut.reset(); whenReady { mp?.controls()?.stop() } }
 
     override fun setVolume(volume: Float) {
         this.volume = (volume.coerceIn(0f, 1f) * 100).toInt()
-        mp?.audio()?.setVolume(this.volume)
+        whenReady { mp?.audio()?.setVolume(this.volume) }
     }
 
-    override fun release() {
+    override fun release() = whenReady {
         checker.shutdownNow()
         runCatching { mp?.release() }
         runCatching { factory?.release() }
@@ -123,9 +159,14 @@ class VlcEngine : MediaEngine {
         const val MISSING_DECODER = "VLC no puede decodificar este video (falta el complemento ffmpeg). " +
             "En Arch: sudo pacman -S vlc-plugin-ffmpeg · En Debian/Ubuntu: sudo apt install vlc-plugin-base"
 
-        /** Calidad de audio: remuestreo de máxima calidad y sin estirar el tiempo (evita artefactos). */
+        /**
+         * Calidad de audio: remuestreo de máxima calidad y sin estirar el tiempo (evita artefactos).
+         * Decodificación por CPU: con la de la tarjeta gráfica (p. ej. D3D11 en Windows) VLC no logra pasar los
+         * fotogramas a memoria, reintenta sin parar, se atrasa y el audio se entrecorta.
+         */
         val VLC_ARGS = arrayOf(
             "--quiet",
+            "--avcodec-hw=none",
             "--no-video-title-show",
             "--no-audio-time-stretch",
             "--speex-resampler-quality=10",
@@ -139,7 +180,9 @@ class VlcEngine : MediaEngine {
  * Recibe los fotogramas de VLC en memoria (formato RV32/BGRA) y los publica como ImageBitmap.
  * Dibujarlos con Compose permite esquinas, recortes y controles del tema encima del video.
  */
-private class VlcVideoOutput(private val mp: EmbeddedMediaPlayer, factory: MediaPlayerFactory) : VideoOutput {
+/** Existe desde el principio; se conecta a VLC con [bind] cuando este termina de arrancar. */
+private class VlcVideoOutput : VideoOutput {
+    @Volatile private var mp: EmbeddedMediaPlayer? = null
     private val _frame = MutableStateFlow<ImageBitmap?>(null)
     override val frame: StateFlow<ImageBitmap?> = _frame
     private val viewers = AtomicInteger(0)
@@ -150,11 +193,12 @@ private class VlcVideoOutput(private val mp: EmbeddedMediaPlayer, factory: Media
     @Volatile var formatSeen = false
     private var bytes = ByteArray(0)
 
-    init {
+    fun bind(player: EmbeddedMediaPlayer, factory: MediaPlayerFactory) {
+        mp = player
         val format = object : BufferFormatCallback {
             override fun getBufferFormat(sourceWidth: Int, sourceHeight: Int): BufferFormat {
                 formatSeen = true
-                visible = runCatching { mp.video().videoDimension() }.getOrNull()
+                visible = runCatching { player.video().videoDimension() }.getOrNull()
                 info = ImageInfo(sourceWidth, sourceHeight, ColorType.BGRA_8888, ColorAlphaType.OPAQUE)
                 return RV32BufferFormat(sourceWidth, sourceHeight)
             }
@@ -181,7 +225,7 @@ private class VlcVideoOutput(private val mp: EmbeddedMediaPlayer, factory: Media
                 if (wanted && viewers.get() > 0) _frame.value = img
             }
         }
-        mp.videoSurface().set(factory.videoSurfaces().newVideoSurface(format, render, true))
+        player.videoSurface().set(factory.videoSurfaces().newVideoSurface(format, render, true))
     }
 
     fun reset() { _frame.value = null; formatSeen = false }
@@ -194,9 +238,10 @@ private class VlcVideoOutput(private val mp: EmbeddedMediaPlayer, factory: Media
 
     override fun setEnabled(enabled: Boolean) {
         wanted = enabled
-        mp.submit {
-            if (!enabled) mp.video().setTrack(-1)
-            else mp.video().trackDescriptions().firstOrNull { it.id() != -1 }?.let { mp.video().setTrack(it.id()) }
+        val p = mp
+        p?.submit {
+            if (!enabled) p.video().setTrack(-1)
+            else p.video().trackDescriptions().firstOrNull { it.id() != -1 }?.let { p.video().setTrack(it.id()) }
         }
         if (!enabled) reset()
     }

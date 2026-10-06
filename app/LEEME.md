@@ -9,7 +9,7 @@ Todos los archivos están en la página de descargas:
 | Sistema | Archivo | Cómo se instala |
 |---|---|---|
 | **Android** | [Aurora-0.3.0-android.apk](Aurora-0.3.0-android.apk) (está en esta carpeta) | Ábrelo en el celular y toca **Instalar**. Si el celular lo pide, permite "instalar apps de fuentes desconocidas". |
-| **Windows** | `Aurora-0.3.0.exe` *(próximamente)* | Doble clic → **Siguiente** → **Siguiente** → **Finalizar**. Si aparece "Windows protegió su PC", toca **Más información** → **Ejecutar de todas formas**. |
+| **Windows** | [Aurora-0.3.0.exe](https://github.com/lial97/proyecto-aurora-app/releases/download/v0.3.0/Aurora-0.3.0.exe) | Doble clic → **Siguiente** → **Siguiente** → **Finalizar**. Si aparece "Windows protegió su PC", toca **Más información** → **Ejecutar de todas formas**. |
 | **Ubuntu, Linux Mint, Debian** | [aurora_0.3.0_amd64.deb](https://github.com/lial97/proyecto-aurora-app/releases/download/v0.3.0/aurora_0.3.0_amd64.deb) | Doble clic → **Instalar**. Aurora aparece en el menú de aplicaciones. |
 | **Arch y cualquier otro Linux** | [Aurora-0.3.0-x86_64.AppImage](https://github.com/lial97/proyecto-aurora-app/releases/download/v0.3.0/Aurora-0.3.0-x86_64.AppImage) | Clic derecho → **Propiedades** → marca **Permitir ejecutar** → doble clic. La primera vez se agrega solo al menú de aplicaciones. |
 

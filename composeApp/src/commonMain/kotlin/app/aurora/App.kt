@@ -74,14 +74,14 @@ fun App(
     val palette = remember(current?.bpm, accent) { buildPalette(current?.bpm, accent) }
 
     BoxWithConstraints {
-        val form = FormFactorRules.decide(state.platform.isDesktop, maxWidth, maxHeight)
         val prefs by state.prefsRepo.prefs.collectAsState()
         val base = androidx.compose.ui.platform.LocalDensity.current
-        // Tamaño del texto (90-150 %) y densidad compacta (todo un 10 % más chico).
-        val density = androidx.compose.ui.unit.Density(
-            base.density * (if (prefs.compact) .9f else 1f),
-            base.fontScale * prefs.textScale,
-        )
+        // Escritorio un 10 % más chico de base (en pantallas con escala de Windows al 125 % o más, la interfaz
+        // ocupaba casi toda la pantalla); la densidad compacta quita otro 10 %. Tamaño del texto: 90-150 %.
+        val scale = (if (state.platform.isDesktop) .9f else 1f) * (if (prefs.compact) .9f else 1f)
+        val density = androidx.compose.ui.unit.Density(base.density * scale, base.fontScale * prefs.textScale)
+        // El tipo de interfaz se decide con el espacio real que queda después de escalar.
+        val form = FormFactorRules.decide(state.platform.isDesktop, maxWidth / scale, maxHeight / scale)
         androidx.compose.runtime.CompositionLocalProvider(
             androidx.compose.ui.platform.LocalDensity provides density,
             app.aurora.theme.LocalPrefs provides prefs,

@@ -46,8 +46,18 @@ $fuera = 'libx26*', 'libqsv*', 'libcrystalhd*', 'libzvbi*', 'libaribsub*', 'libk
     'librdp*', 'libvnc*', 'libscreen*', 'libshine*', 'libtwolame*', 'libsecret*', 'libdc1394*', 'libdv1394*', 'liblinsys*', 'liblibbluray*', 'libdcp*'
 Get-ChildItem $plugins -Recurse -File -Include $fuera | Remove-Item -Force
 
-# Indice de complementos (arranque mas rapido). vlc-cache-gen.exe solo funciona en Windows.
-if (-not $IsLinux -and -not $IsMacOS) { & (Join-Path $src 'vlc-cache-gen.exe') $plugins | Out-Null }
+# Indice de complementos (plugins.dat): sin el, VLC abre los ~240 complementos en cada arranque y la primera
+# vez el antivirus revisa cada uno (mas de un minuto). El indice guarda la fecha de cada complemento; se les pone
+# una fecha fija (la app la restaura si el empaquetado o el instalador la cambian, ver BundledVlc.kt).
+# vlc-cache-gen.exe solo funciona en Windows y necesita la ruta completa (con una relativa genera un indice vacio).
+if (-not $IsLinux -and -not $IsMacOS) {
+    $fija = [DateTime]::new(2020, 1, 1, 0, 0, 0, [DateTimeKind]::Utc)
+    Get-ChildItem $plugins -Recurse -File -Filter *.dll | ForEach-Object { $_.LastWriteTimeUtc = $fija }
+    $abs = (Resolve-Path $plugins).Path
+    & (Join-Path $src 'vlc-cache-gen.exe') $abs | Out-Null
+    $dat = Join-Path $abs 'plugins.dat'
+    if (-not (Test-Path $dat) -or (Get-Item $dat).Length -lt 10KB) { throw 'vlc-cache-gen no genero el indice de complementos.' }
+}
 
 $mb = [math]::Round(((Get-ChildItem $Out -Recurse -File | Measure-Object Length -Sum).Sum) / 1MB)
 $n = (Get-ChildItem $plugins -Recurse -File -Filter *.dll).Count
