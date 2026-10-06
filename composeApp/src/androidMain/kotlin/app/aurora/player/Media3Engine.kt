@@ -116,6 +116,22 @@ class Media3Engine(private val context: Context) : MediaEngine {
         }
     }
 
+    /** Nuevos datos (y portada) para la pista que suena, sin cortar el sonido ("Corregir datos"). */
+    override fun updateMeta(path: String, meta: MediaMeta) {
+        val loader = artworkLoader
+        artworkJob?.cancel()
+        artworkJob = scope.launch {
+            val art = loader?.let { runCatching { it(meta.trackId) }.getOrNull() }
+            withController { c ->
+                val item = c.currentMediaItem ?: return@withController
+                if (c.mediaItemCount == 0 || item.mediaId != path) return@withController
+                val md = MediaMetadata.Builder().setTitle(meta.title).setArtist(meta.artist.ifBlank { null }).setAlbumTitle(meta.album.ifBlank { null })
+                    .apply { if (meta.durationMs > 0) setDurationMs(meta.durationMs); if (art != null) setArtworkData(art, MediaMetadata.PICTURE_TYPE_FRONT_COVER) }.build()
+                c.replaceMediaItem(0, item.buildUpon().setMediaMetadata(md).build())
+            }
+        }
+    }
+
     private var playingListener: (Boolean) -> Unit = {}
     override fun setOnPlayingChanged(listener: (Boolean) -> Unit) { playingListener = listener }
 

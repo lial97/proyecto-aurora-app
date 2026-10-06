@@ -10,3 +10,7 @@ xcuserdata/
 iosApp/build/
 files.zip
 dist/
+
+# VLC que se mete en los instaladores (se descarga o se copia al empaquetar)
+composeApp/resources/linux/vlc/
+composeApp/resources/windows/vlc/

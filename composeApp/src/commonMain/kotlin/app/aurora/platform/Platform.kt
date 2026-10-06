@@ -71,6 +71,24 @@ data class HttpResponse(val code: Int, val body: String)
 /** Cliente HTTP para servicios abiertos (LRCLIB). `null` = sin conexión o error de red. */
 fun interface HttpClient {
     suspend fun get(url: String, headers: Map<String, String>): HttpResponse?
+
+    /** Descarga un archivo (portadas). `null` = error de red o respuesta distinta de 200. */
+    suspend fun getBytes(url: String, headers: Map<String, String>): ByteArray? = null
+}
+
+/** Archivos guardados por la app (portadas descargadas). Permanentes: no es una caché que el sistema pueda borrar. */
+interface BlobStore {
+    fun read(key: String): ByteArray?
+    fun write(key: String, bytes: ByteArray): Boolean
+    fun delete(key: String)
+
+    /** En memoria (pruebas y plataformas sin almacenamiento). */
+    class Memory : BlobStore {
+        private val map = mutableMapOf<String, ByteArray>()
+        override fun read(key: String) = map[key]
+        override fun write(key: String, bytes: ByteArray): Boolean { map[key] = bytes; return true }
+        override fun delete(key: String) { map.remove(key) }
+    }
 }
 
 /** Caché de textos pequeños en disco (letras descargadas). */
@@ -92,6 +110,7 @@ class PlatformServices(
     val mediaEngine: MediaEngine?,
     val http: HttpClient = HttpClient { _, _ -> null },
     val textCache: TextCache = MemoryTextCache(),
+    val files: BlobStore = BlobStore.Memory(),
 )
 
 class MemoryTextCache : TextCache {

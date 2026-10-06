@@ -72,12 +72,7 @@ class DefaultPlayerController(
         }
         ticker?.cancel()
         if (real) {
-            engine!!.load(t.filePath!!, play, startSec * 1000L, MediaMeta(
-                t.title,
-                // Un video sin artista muestra solo su nombre (sin "Artista desconocido").
-                if (t.hasKnownArtist) t.artist else "", t.album.takeUnless { it == app.aurora.domain.UNKNOWN_ALBUM }.orEmpty(),
-                t.coverUri?.takeIf { it.startsWith("content://") }, trackId = t.id, durationMs = t.durationSec * 1000L,
-            ))
+            engine!!.load(t.filePath!!, play, startSec * 1000L, metaOf(t))
         } else {
             engine?.stop()
             if (play) startTicker()
@@ -215,6 +210,20 @@ class DefaultPlayerController(
     override fun setVideoEnabled(enabled: Boolean) {
         _state.update { it.copy(videoEnabled = enabled) }
         engine?.video?.setEnabled(enabled)
+    }
+
+    private fun metaOf(t: Track) = MediaMeta(
+        t.title,
+        // Un video sin artista muestra solo su nombre (sin "Artista desconocido").
+        if (t.hasKnownArtist) t.artist else "", t.album.takeUnless { it == app.aurora.domain.UNKNOWN_ALBUM }.orEmpty(),
+        t.coverUri?.takeIf { it.startsWith("content://") }, trackId = t.id, durationMs = t.durationSec * 1000L,
+    )
+
+    override fun updateTrack(track: Track) {
+        val before = _state.value
+        if (before.queue.none { it.id == track.id }) return
+        _state.update { s -> s.copy(queue = s.queue.map { if (it.id == track.id) track else it }) }
+        if (before.current?.id == track.id && before.realAudio) track.filePath?.let { engine?.updateMeta(it, metaOf(track)) }
     }
 
     override fun release() {

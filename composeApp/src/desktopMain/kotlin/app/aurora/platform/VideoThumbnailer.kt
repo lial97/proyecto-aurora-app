@@ -15,7 +15,6 @@ import org.jetbrains.skia.Rect
 import org.jetbrains.skia.SamplingMode
 import org.jetbrains.skia.Surface
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory
-import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery
 import uk.co.caprica.vlcj.player.base.MediaPlayer
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.BufferFormat
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.BufferFormatCallback
@@ -35,7 +34,7 @@ import java.util.concurrent.atomic.AtomicReference
 class VideoThumbnailer(private val cacheDir: File) {
     private val mutex = Mutex()
     private val factory: MediaPlayerFactory? by lazy {
-        runCatching { if (NativeDiscovery().discover()) MediaPlayerFactory("--quiet", "--no-audio", "--no-video-title-show", "--no-sub-autodetect-file") else null }.getOrNull()
+        runCatching { if (app.aurora.player.BundledVlc.discover()) MediaPlayerFactory("--quiet", "--no-audio", "--no-video-title-show", "--no-sub-autodetect-file") else null }.getOrNull()
     }
 
     /** Fotogramas al 15, 35, 55 y 75 % del video. */

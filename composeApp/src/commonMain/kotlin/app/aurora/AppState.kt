@@ -1,6 +1,8 @@
 package app.aurora
 
 import kotlinx.coroutines.flow.first
+import org.jetbrains.compose.resources.decodeToImageBitmap
+import app.aurora.domain.needsCorrection
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -33,6 +35,10 @@ sealed interface AppDialog {
     data class TrackDetails(val track: Track) : AppDialog
     /** Editar título, artista, álbum, año y género. */
     data class EditTrack(val track: Track) : AppDialog
+    /** Corregir datos con MusicBrainz (F5). */
+    data class FixMetadata(val track: Track) : AppDialog
+    /** Lista de canciones con datos dudosos. */
+    data object TracksToFix : AppDialog
     data class AddToPlaylist(val tracks: List<Track>) : AppDialog
     /** Crear lista (opcionalmente con canciones ya elegidas). */
     data class NewPlaylist(val tracks: List<Track> = emptyList()) : AppDialog
@@ -58,10 +64,12 @@ class AppState(private val scope: CoroutineScope, val platform: PlatformServices
     private val offsets = app.aurora.data.LyricsOffsetRepository(platform.store)
     val library = LibraryRepository(scope, platform.media, settings, edits)
     val player = DefaultPlayerController(scope, platform.mediaEngine, settings.volume)
-    val covers = CoverCache { platform.media.loadCover(it) }
+    // La portada descargada con "Corregir datos" tiene prioridad sobre la del archivo.
+    val covers = CoverCache { t -> customCover(t.id) ?: platform.media.loadCover(t) }
     val previews = app.aurora.components.PreviewCache { platform.media.loadPreviewFrames(it) }
     private val lists = PlaylistRepository(platform.store)
     val lyricsRepo = app.aurora.data.LyricsRepository(platform.http, platform.textCache, platform.store)
+    val metadata = app.aurora.data.MetadataRepository(platform.http)
 
     /** Letra de la pista actual (archivo, caché o LRCLIB). */
     var lyrics by mutableStateOf<app.aurora.data.LyricsState>(app.aurora.data.LyricsState.None)
@@ -273,14 +281,52 @@ class AppState(private val scope: CoroutineScope, val platform: PlatformServices
     // --- Editar datos ---
 
     fun editTrack(track: Track, e: app.aurora.domain.TrackEdit, writeToFile: Boolean) {
-        edits.set(track.id, e)
+        // Se suma a lo corregido antes (si no, al volver a escanear se perdía lo anterior).
+        edits.set(track.id, e.mergedOnto(edits.get(track.id)))
         library.applyEdit(track.id, e)
+        player.updateTrack(e.applyTo(track))
         statsVersion++
         scope.launch {
             val ok = writeToFile && platform.media.writeTags(track, e)
             show(if (writeToFile) (if (ok) "Datos guardados en la app y en el archivo" else "Guardado en la app (no se pudo escribir el archivo)") else "Datos guardados")
             loadLyrics(e.applyTo(track), force = true)
         }
+    }
+
+    /**
+     * Aplica un resultado de MusicBrainz: título, artista, álbum, año y género (y vuelve a buscar la letra).
+     * Con [withCover], descarga además la portada del disco (Cover Art Archive) y la guarda para esta canción.
+     */
+    fun applyMetadata(track: Track, c: app.aurora.data.MetadataCandidate, writeToFile: Boolean, withCover: Boolean) {
+        fun ch(new: String?, old: String?) = new?.trim()?.takeIf { it.isNotEmpty() && it != old }
+        val edit = app.aurora.domain.TrackEdit(
+            title = ch(c.title, track.title), artist = ch(c.artist, track.artist), album = ch(c.album, track.album),
+            year = c.year?.takeIf { it != track.year }, genre = ch(c.genre, track.genre),
+        )
+        if (!withCover || c.releaseId == null) { editTrack(track, edit, writeToFile); return }
+        scope.launch {
+            val bytes = metadata.cover(c.releaseId)
+            val saved = bytes != null && platform.files.write(coverKey(track.id), bytes)
+            editTrack(track, edit.copy(customCover = saved), writeToFile)
+            if (saved) covers.invalidate(track.id) else show("Datos guardados (no se pudo descargar la portada)")
+        }
+    }
+
+    /** Miniatura de la portada de un disco para los resultados de "Corregir datos" (`null` = no tiene). */
+    suspend fun coverThumbnail(releaseId: String): androidx.compose.ui.graphics.ImageBitmap? =
+        metadata.cover(releaseId, small = true)?.let { decodeImage(it) }
+
+    private fun coverKey(trackId: String) = "portada_" + trackId.hashCode().toUInt().toString(16) + "_" + trackId.length
+
+    private suspend fun customCover(trackId: String): androidx.compose.ui.graphics.ImageBitmap? =
+        if (edits.get(trackId)?.customCover == true) platform.files.read(coverKey(trackId))?.let { decodeImage(it) } else null
+
+    private suspend fun decodeImage(bytes: ByteArray): androidx.compose.ui.graphics.ImageBitmap? =
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { runCatching { bytes.decodeToImageBitmap() }.getOrNull() }
+
+    /** Canciones con datos dudosos ("00000.mp3", sin artista…), candidatas a "Corregir datos". */
+    fun tracksNeedingFix(): List<Track> = library.state.value.tracks.filter {
+        it.mediaType == MediaType.AUDIO && it.filePath != null && it.needsCorrection()
     }
 
     fun show(message: String) { toast = message }

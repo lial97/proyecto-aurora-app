@@ -1,0 +1,6 @@
+# Scripts de Windows con fin de línea de Windows (cmd falla con "goto" si no).
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+# Scripts de Linux con fin de línea de Linux.
+*.sh text eol=lf
+gradlew text eol=lf

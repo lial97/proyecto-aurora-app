@@ -1,6 +1,11 @@
 package app.aurora.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.draw.clip
+import androidx.compose.runtime.mutableIntStateOf
+import app.aurora.domain.needsCorrection
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -106,6 +111,26 @@ fun DialogHost(state: AppState, tracks: List<Track>) {
                 is AppDialog.TrackMenu -> TrackMenu(state, dlg, dismiss)
                 is AppDialog.TrackDetails -> TrackDetails(state, dlg.track, dismiss)
                 is AppDialog.EditTrack -> EditTrackDialog(state, dlg.track, dismiss)
+                is AppDialog.FixMetadata -> FixMetadataDialog(state, dlg.track, dismiss)
+                AppDialog.TracksToFix -> Card(maxHeight = 640.dp) {
+                    val list = remember(state.statsVersion) { state.tracksNeedingFix() }
+                    Title("Canciones con datos dudosos")
+                    BasicText(if (list.isEmpty()) "No queda ninguna. ¡Todo en orden!" else "Toca una para corregirla.", style = Ui.type.rowSubtitle, modifier = Modifier.padding(bottom = 8.dp))
+                    list.forEach { t ->
+                        Row(
+                            Modifier.fillMaxWidth().pressable(t.title, .99f, hoverBg = true) { state.dialog = AppDialog.FixMetadata(t) }.padding(vertical = 7.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RowArt(t, 40.dp)
+                            Column(Modifier.padding(start = 12.dp).weight(1f)) {
+                                BasicText(t.title, style = Ui.type.rowTitle, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                BasicText(t.filePath?.substringAfterLast('/') ?: t.artist, style = Ui.type.rowSubtitle, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                            Icon(AuroraIcon.Sparkle, Ui.colors.accent, size = 18.dp)
+                        }
+                    }
+                    Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) { Chip("Cerrar", false, dismiss) }
+                }
                 is AppDialog.AddToPlaylist -> AddToPlaylist(state, dlg.tracks, dismiss)
                 is AppDialog.NewPlaylist -> NameDialog("Nueva lista", "Crear", "", dismiss) { name ->
                     state.createPlaylist(name, dlg.tracks); dismiss()
@@ -198,6 +223,10 @@ private fun TrackOptions(state: AppState, d: AppDialog.TrackMenu, dismiss: () ->
     }
     sep()
     Option(AuroraIcon.Info, "Ver detalles", compact = compact) { state.dialog = AppDialog.TrackDetails(t) }
+    if (t.filePath != null && t.mediaType == app.aurora.domain.MediaType.AUDIO) {
+        Option(AuroraIcon.Sparkle, "Corregir datos…", if (t.needsCorrection()) Ui.colors.accent else Ui.colors.ink, compact = compact) { state.dialog = AppDialog.FixMetadata(t) }
+        Option(AuroraIcon.Edit, "Editar datos…", compact = compact) { state.dialog = AppDialog.EditTrack(t) }
+    }
     if (desk && t.filePath != null) Option(AuroraIcon.Folder, "Mostrar en la carpeta", compact = compact) { state.revealInFolder(t); dismiss() }
 }
 
@@ -426,6 +455,112 @@ private fun BoxScope.EditTrackDialog(state: AppState, t: Track, dismiss: () -> U
             ), writeFile)
             dismiss()
         }
+    }
+}
+
+/**
+ * Corregir datos (F5): se escribe (o se acepta la sugerencia) el título y el artista, se busca en MusicBrainz
+ * y se elige el resultado correcto. Se guarda en la app y, si se elige, en las etiquetas del archivo.
+ */
+@Composable
+private fun BoxScope.FixMetadataDialog(state: AppState, t: Track, dismiss: () -> Unit) {
+    val c = Ui.colors
+    // Datos dudosos: la sugerencia sale del nombre del archivo ("Título - Artista (320).mp3").
+    val guess = remember(t.id) {
+        if (t.needsCorrection()) app.aurora.domain.guessFromFileName(t.filePath?.substringAfterLast('/') ?: t.title).let { it.title to it.artist.orEmpty() }
+        else t.title to t.artist.takeUnless { it == app.aurora.domain.UNKNOWN_ARTIST }.orEmpty()
+    }
+    var title by remember { mutableStateOf(guess.first) }
+    var artist by remember { mutableStateOf(guess.second) }
+    var searching by remember { mutableStateOf(false) }
+    var result by remember { mutableStateOf<app.aurora.data.MetadataSearch?>(null) }
+    var selected by remember { mutableStateOf<app.aurora.data.MetadataCandidate?>(null) }
+    var query by remember { mutableIntStateOf(0) }
+    val canWrite = state.platform.isDesktop && t.mediaType == app.aurora.domain.MediaType.AUDIO
+    var writeFile by remember { mutableStateOf(false) }
+    var useCover by remember { mutableStateOf(true) }
+    // Miniaturas ya descargadas (por disco), para no pedirlas otra vez al volver a dibujar.
+    val thumbs = remember { androidx.compose.runtime.mutableStateMapOf<String, androidx.compose.ui.graphics.ImageBitmap?>() }
+    // Busca al abrir y cada vez que se pulsa "Buscar".
+    LaunchedEffect(query) {
+        if (title.isBlank()) return@LaunchedEffect
+        searching = true; selected = null
+        result = state.metadata.search(title, artist.ifBlank { null }, t.durationSec)
+        selected = result?.candidates?.firstOrNull()
+        searching = false
+    }
+    Card(width = 560.dp, maxHeight = 640.dp) {
+        Title("Corregir datos")
+        BasicText("¿Cómo se llama esta canción y quién la canta? Aurora busca los datos correctos en MusicBrainz.", style = Ui.type.rowSubtitle)
+        t.filePath?.let { BasicText("Archivo: " + it.substringAfterLast('/'), style = Ui.type.caption, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp)) }
+        Field("Título", title) { title = it }
+        Field("Artista (opcional, mejora la búsqueda)", artist) { artist = it }
+        Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.End) {
+            Chip(if (searching) "Buscando…" else "Buscar", false, { if (!searching && title.isNotBlank()) query++ }, icon = AuroraIcon.Search)
+        }
+        val list = result?.candidates
+        when {
+            searching -> BasicText("Buscando en MusicBrainz…", style = Ui.type.caption, modifier = Modifier.padding(vertical = 14.dp))
+            result == null -> Unit
+            list == null -> BasicText("No hay conexión con MusicBrainz. Inténtalo de nuevo en un momento.", style = Ui.type.caption.copy(color = c.accent), modifier = Modifier.padding(vertical = 14.dp))
+            list.isEmpty() -> BasicText("No se encontró nada. Revisa el título o prueba sin el artista.", style = Ui.type.caption, modifier = Modifier.padding(vertical = 14.dp))
+            else -> {
+                BasicText(Ui.theme.label("Elige el correcto"), style = Ui.type.caption.copy(fontWeight = FontWeight.Bold), modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
+                list.forEach { m ->
+                    val on = m == selected
+                    Row(
+                        Modifier.fillMaxWidth().padding(vertical = 2.dp).clip(Ui.shapes.chip)
+                            .background(if (on) c.accent.copy(alpha = .14f) else Color.Transparent)
+                            .semantics { role = Role.RadioButton }
+                            .pressable("${m.title}, ${m.artist}", .99f, hoverBg = true) { selected = m }
+                            .padding(horizontal = 10.dp, vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        // Portada del disco (Cover Art Archive); un recuadro con ♪ si no tiene.
+                        val rid = m.releaseId
+                        if (rid != null && rid !in thumbs) LaunchedEffect(rid) { thumbs[rid] = state.coverThumbnail(rid) }
+                        val img = rid?.let { thumbs[it] }
+                        Box(Modifier.size(44.dp).clip(Ui.shapes.artSmall).background(c.surface), contentAlignment = Alignment.Center) {
+                            if (img != null) androidx.compose.foundation.Image(img, "Portada de ${m.album ?: m.title}", Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                            else Icon(AuroraIcon.Music, c.mute, size = 18.dp)
+                        }
+                        Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                            BasicText(m.title, style = Ui.type.rowTitle, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            BasicText(listOfNotNull(m.artist, m.album, m.year?.toString()).joinToString(" · "), style = Ui.type.rowSubtitle, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        }
+                        m.durationSec?.let { d ->
+                            // La duración ayuda a distinguir versiones (en vivo, remix…).
+                            val near = t.durationSec <= 0 || kotlin.math.abs(d - t.durationSec) <= 5
+                            BasicText(formatTime(d), style = Ui.type.caption.copy(color = if (near) c.ink else c.mute), modifier = Modifier.padding(start = 8.dp))
+                        }
+                        if (on) Icon(AuroraIcon.Check, c.accent, size = 18.dp, modifier = Modifier.padding(start = 8.dp))
+                    }
+                }
+            }
+        }
+        // La portada solo se ofrece si el resultado elegido tiene una (ya se ve su miniatura).
+        val selectedCover = selected?.releaseId?.let { thumbs[it] } != null
+        if (selectedCover) Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Switch(useCover, "Usar la portada del disco", { useCover = it })
+            Column(Modifier.padding(start = 10.dp)) {
+                BasicText("Usar la portada del disco", style = Ui.type.rowTitle)
+                BasicText("Se descarga y se ve en la app, los widgets y la notificación", style = Ui.type.caption)
+            }
+        }
+        if (canWrite) Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Switch(writeFile, "Guardar también en el archivo", { writeFile = it })
+            Column(Modifier.padding(start = 10.dp)) {
+                BasicText("Guardar también en el archivo", style = Ui.type.rowTitle)
+                BasicText("Así otros reproductores verán los cambios", style = Ui.type.caption)
+            }
+        }
+        Row(Modifier.fillMaxWidth().padding(top = 18.dp), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End), verticalAlignment = Alignment.CenterVertically) {
+            Chip("Editar a mano", false, { state.dialog = AppDialog.EditTrack(t) }, icon = AuroraIcon.Edit)
+            Spacer(Modifier.weight(1f))
+            Chip("Cancelar", false, dismiss)
+            Chip("Aplicar", true, { selected?.let { state.applyMetadata(t, it, writeFile, withCover = useCover && selectedCover); dismiss() } })
+        }
+        BasicText("Datos de MusicBrainz y portadas de Cover Art Archive. Solo se envían el título y el artista.", style = Ui.type.caption.copy(color = c.mute), modifier = Modifier.padding(top = 10.dp))
     }
 }
 

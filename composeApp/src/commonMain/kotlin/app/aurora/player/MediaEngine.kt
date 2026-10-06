@@ -44,6 +44,9 @@ interface MediaEngine {
      * botones de la pantalla de bloqueo). Por defecto no avisa.
      */
     fun setOnPlayingChanged(listener: (Boolean) -> Unit) {}
+
+    /** Cambiaron los datos de la pista que suena (p. ej. "Corregir datos"): notificación y bloqueo se actualizan sin cortar el sonido. */
+    fun updateMeta(path: String, meta: MediaMeta) {}
 }
 
 /** Título, artista y portada que muestra el sistema (notificación, pantalla de bloqueo, auriculares). */

@@ -421,6 +421,14 @@ private fun LibrarySection(state: AppState, lib: LibraryState, ctx: SettingsCtx)
             }
         }
     }
+    // Corrección inteligente de datos (F5).
+    val toFix = remember(lib.tracks, state.statsVersion) { state.tracksNeedingFix() }
+    Group("Datos de las canciones") {
+        SettingRow(ctx, AuroraIcon.Sparkle, "Corregir datos", if (toFix.isEmpty()) "Todas tus canciones tienen título y artista" else "${toFix.size} con datos dudosos (\"00000.mp3\", sin artista…)",
+            help = "Aurora busca el nombre correcto en MusicBrainz y actualiza título, artista, álbum, año y género. También puedes hacerlo desde el menú de cada canción.") {
+            if (toFix.isNotEmpty()) Chip("Revisar", false, { state.dialog = app.aurora.AppDialog.TracksToFix })
+        }
+    }
 }
 
 /** Carpetas de un tipo: nombre, ruta y cuántos archivos encontró; añadir, escribir ruta y sugeridas. */

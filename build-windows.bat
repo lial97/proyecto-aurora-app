@@ -23,22 +23,29 @@ if errorlevel 1 (
   exit /b 1
 )
 
-echo  [1/2] Version portable ^(carpeta con Aurora.exe, sin instalar^)...
-call gradlew.bat :composeApp:createDistributable --console=plain
+echo  [1/3] Preparando VLC ^(va dentro del instalador: no hay que instalarlo aparte^)...
+powershell -NoProfile -ExecutionPolicy Bypass -File "scripts\windows\preparar-vlc.ps1" -Out "composeApp\resources\windows\vlc"
 if errorlevel 1 goto error
 
 echo.
-echo  [2/2] Instalador .exe ^(descarga WiX automaticamente la primera vez^)...
-call gradlew.bat :composeApp:packageExe --console=plain
+echo  [2/3] Version portable ^(carpeta con Aurora.exe, sin instalar^)...
+call gradlew.bat :composeApp:createReleaseDistributable --console=plain
 if errorlevel 1 goto error
+
+echo.
+echo  [3/3] Instalador .exe ^(descarga WiX automaticamente la primera vez^)...
+call gradlew.bat :composeApp:packageReleaseExe --console=plain
+if errorlevel 1 goto error
+
+if not exist dist mkdir dist
+copy /y "composeApp\build\compose\binaries\main-release\exe\*.exe" dist\ >nul
 
 echo.
 echo  ===  Listo  ===
-echo  Portable:   composeApp\build\compose\binaries\main\app\Aurora\Aurora.exe
-echo  Instalador: composeApp\build\compose\binaries\main\exe\
+echo  Instalador: dist\  ^(Aurora-^<version^>.exe: siguiente, siguiente y listo; VLC ya va adentro^)
+echo  Portable:   composeApp\build\compose\binaries\main-release\app\Aurora\Aurora.exe
 echo.
-echo  Recuerda: para escuchar musica y ver videos instala VLC de 64 bits: https://www.videolan.org/vlc/
-explorer "composeApp\build\compose\binaries\main\exe"
+explorer dist
 pause
 exit /b 0
 

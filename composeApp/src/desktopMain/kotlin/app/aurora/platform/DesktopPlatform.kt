@@ -12,6 +12,7 @@ actual fun createPlatformServices(): PlatformServices = PlatformServices(
     mediaEngine = VlcEngine(),
     http = JavaHttp(),
     textCache = FileTextCache(File(cacheDir(), "letras")),
+    files = FileBlobStore(File(configDir(), "portadas")),
 )
 
 /** HTTP con el cliente de Java (sigue redirecciones, 12 s de espera). */
@@ -29,6 +30,24 @@ class JavaHttp : HttpClient {
                 HttpResponse(res.statusCode(), res.body())
             }.getOrNull()
         }
+
+    override suspend fun getBytes(url: String, headers: Map<String, String>): ByteArray? =
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching {
+                val req = java.net.http.HttpRequest.newBuilder(java.net.URI(url)).timeout(java.time.Duration.ofSeconds(15)).GET()
+                headers.forEach { (k, v) -> req.header(k, v) }
+                val res = client.send(req.build(), java.net.http.HttpResponse.BodyHandlers.ofByteArray())
+                res.body().takeIf { res.statusCode() == 200 }
+            }.getOrNull()
+        }
+}
+
+/** Portadas descargadas: un archivo por clave, en la carpeta de configuración (no se borra con la caché). */
+class FileBlobStore(private val dir: File) : app.aurora.platform.BlobStore {
+    private fun f(key: String) = File(dir, key.filter { it.isLetterOrDigit() || it == '_' })
+    override fun read(key: String) = runCatching { f(key).takeIf { it.isFile }?.readBytes() }.getOrNull()
+    override fun write(key: String, bytes: ByteArray) = runCatching { dir.mkdirs(); f(key).writeBytes(bytes); true }.getOrDefault(false)
+    override fun delete(key: String) { f(key).delete() }
 }
 
 /** Un archivo por clave (nombre seguro derivado de la clave). */

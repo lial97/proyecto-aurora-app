@@ -16,6 +16,7 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -69,6 +70,16 @@ class CoverCache(private val capacity: Int = 80, private val loader: suspend (Tr
     private val map = LinkedHashMap<String, ImageBitmap?>()
     private val lock = kotlinx.coroutines.sync.Mutex()
 
+    /** Aumenta al cambiar la portada de alguna pista: las portadas en pantalla se vuelven a cargar. */
+    var version by androidx.compose.runtime.mutableIntStateOf(0)
+        private set
+
+    /** Olvida la portada de [id] (se descargó una nueva). */
+    suspend fun invalidate(id: String) {
+        lock.withLock { map.remove(id) }
+        version++
+    }
+
     suspend fun get(track: Track): ImageBitmap? {
         if (track.coverUri == null) return null
         lock.withLock {
@@ -121,7 +132,7 @@ fun rememberPreviewFrames(track: Track, active: Boolean): List<ImageBitmap> {
 @Composable
 fun rememberCover(track: Track?): ImageBitmap? {
     val cache = LocalCoverCache.current
-    val img by produceState<ImageBitmap?>(null, track?.id, cache) {
+    val img by produceState<ImageBitmap?>(null, track?.id, track?.coverUri, cache, cache?.version) {
         value = if (track?.coverUri != null && cache != null) cache.get(track) else null
     }
     return img

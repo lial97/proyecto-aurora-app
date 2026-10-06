@@ -84,6 +84,9 @@ compose.desktop {
         mainClass = "app.aurora.MainKt"
         nativeDistributions {
             targetFormats(TargetFormat.Exe, TargetFormat.Msi, TargetFormat.Deb, TargetFormat.Rpm, TargetFormat.Dmg)
+            // VLC va dentro del instalador (resources/linux/vlc y resources/windows/vlc): no hay que instalarlo aparte.
+            // Lo preparan scripts/empaquetar-linux.sh y build-windows.bat; la app lo busca con BundledVlc.
+            appResourcesRootDir.set(project.layout.projectDirectory.dir("resources"))
             packageName = "Aurora"
             packageVersion = "0.3.0"
             description = "Reproductor de música y video de código abierto"

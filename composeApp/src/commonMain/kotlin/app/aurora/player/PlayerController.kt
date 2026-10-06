@@ -60,4 +60,7 @@ interface PlayerController {
     /** Fotogramas del video actual (null si el motor no hace video). */
     val video: VideoOutput?
     fun release()
+
+    /** Se corrigieron los datos de una pista: se reemplaza en la cola (y en la notificación si es la que suena). */
+    fun updateTrack(track: Track) {}
 }

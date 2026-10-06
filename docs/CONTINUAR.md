@@ -40,7 +40,7 @@ cp androidApp/build/outputs/apk/debug/androidApp-debug.apk dist/Aurora-0.3.0-deb
   - la notificación tiene Me gusta y Aleatorio, portada de 512 px y modo privado en el bloqueo.
 - **Widgets:** **fases 2 a 5 hechas** (en `androidMain/widget/`); el usuario confirmó la 2, 3 y 4. Falta que haga las pruebas finales de la fase 5 (lista abajo).
 - **Arreglado y confirmado:** la app se congelaba al usar el widget con la app cerrada (bucle entre la sesión y la app; ver la bitácora).
-- **Barra del widget:** ahora el tiempo es un Chronometer (avanza solo) y la barra se mueve cada 5 s; los widgets se dibujan en segundo plano con caché de imágenes. Falta medir con logcat, con música sonando, que la app ya no se traba.
+- **Barra del widget:** ahora el tiempo es un Chronometer (avanza solo) y la barra se mueve cada 5 s; los widgets se dibujan en segundo plano con caché de imágenes. Confirmado por el usuario.
 - **Onda en la barra del reproductor de la app:** hecha y confirmada por el usuario (no en Póster ni con "Reducir movimiento").
 - **Pendiente del usuario:** el celular se desconectó a mitad de una prueba.
   - Hay que volver a encender Ajustes › Reproducción › "Mostrar controles en la pantalla de bloqueo".
@@ -101,10 +101,15 @@ cp androidApp/build/outputs/apk/debug/androidApp-debug.apk dist/Aurora-0.3.0-deb
 
 ## Otros pendientes conocidos
 
-- **F5, corrección inteligente de datos:** un archivo como `00000.mp3` se busca en la web y se actualizan título, artista, carátula y letra.
+- **F5, corrección inteligente de datos (en curso):**
+  - Fase 1 HECHA y probada: diálogo "Corregir datos" con MusicBrainz (`data/MetadataRepository.kt`), opción en el menú de cada canción y Ajustes › Biblioteca › "Datos de las canciones".
+  - Fase 2 HECHA y probada: portadas de Cover Art Archive (miniaturas en los resultados, "Usar la portada del disco", `BlobStore`, `CoverCache.invalidate`) y la canción que suena se actualiza al corregirla.
+  - Fase 3: escribir las etiquetas en el archivo también en Android (jaudiotagger con copia temporal y SAF) y "Corregir todas" en lote.
 - **"Vigilar cambios" en Android:** no funciona con las carpetas elegidas con el selector del sistema.
-- **Commit en git:** el repositorio todavía no tiene ninguno; se ofreció varias veces y el usuario no lo confirmó.
-- **El `.exe` de Windows:** lo compila el usuario en su PC con `build-windows.bat`.
+- **Git:** primer commit hecho y subido a https://github.com/lial97/proyecto-aurora-app (público, rama `main`). Revisar antes de subir que no entren datos privados.
+- **Instaladores de escritorio con VLC adentro (en curso):**
+  - Linux HECHO: `bash scripts/empaquetar-linux.sh` (Docker) → `dist/Aurora-<versión>-x86_64.AppImage` (se agrega solo al menú al abrirlo) y `dist/aurora_<versión>_amd64.deb`.
+  - Windows HECHO (falta probar en Windows): `build-windows.bat` prepara VLC 3.0.24 (`scripts/windows/preparar-vlc.ps1`), arma el instalador y lo deja en `dist\`. El `.exe` solo se puede compilar en Windows.
 
 ## Piezas clave del código (para no buscarlas)
 

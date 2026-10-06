@@ -45,17 +45,36 @@ actual fun createPlatformServices(): PlatformServices = PlatformServices(
     store = AndroidPlatform.store,
     media = MediaStoreSource(AndroidPlatform.context),
     mediaEngine = app.aurora.player.Media3Engine(AndroidPlatform.context),
-    http = HttpClient { url, headers ->
-        withContext(Dispatchers.IO) {
+    http = object : HttpClient {
+        private fun open(url: String, headers: Map<String, String>) = (java.net.URL(url).openConnection() as java.net.HttpURLConnection).apply {
+            connectTimeout = 8000; readTimeout = 12000; instanceFollowRedirects = true
+            headers.forEach { (k, v) -> setRequestProperty(k, v) }
+        }
+
+        override suspend fun get(url: String, headers: Map<String, String>) = withContext(Dispatchers.IO) {
             runCatching {
-                val c = java.net.URL(url).openConnection() as java.net.HttpURLConnection
-                c.connectTimeout = 8000; c.readTimeout = 12000
-                headers.forEach { (k, v) -> c.setRequestProperty(k, v) }
+                val c = open(url, headers)
                 val code = c.responseCode
                 val body = (if (code in 200..299) c.inputStream else c.errorStream)?.bufferedReader()?.readText().orEmpty()
                 HttpResponse(code, body)
             }.getOrNull()
         }
+
+        override suspend fun getBytes(url: String, headers: Map<String, String>) = withContext(Dispatchers.IO) {
+            runCatching {
+                var c = open(url, headers)
+                // Cover Art Archive redirige a archive.org (a veces de https a http y viceversa): se sigue a mano.
+                repeat(5) { if (c.responseCode in 300..399) c = open(c.getHeaderField("Location") ?: return@runCatching null, headers) }
+                if (c.responseCode == 200) c.inputStream.use { it.readBytes() } else null
+            }.getOrNull()
+        }
+    },
+    files = object : BlobStore {
+        private val dir = File(AndroidPlatform.context.filesDir, "portadas")
+        private fun f(key: String) = File(dir, key.filter { it.isLetterOrDigit() || it == '_' })
+        override fun read(key: String) = runCatching { f(key).takeIf { it.isFile }?.readBytes() }.getOrNull()
+        override fun write(key: String, bytes: ByteArray) = runCatching { dir.mkdirs(); f(key).writeBytes(bytes); true }.getOrDefault(false)
+        override fun delete(key: String) { f(key).delete() }
     },
     textCache = object : TextCache {
         // En filesDir, no en cacheDir: Android borra la caché cuando falta espacio y las letras se volvían a descargar.

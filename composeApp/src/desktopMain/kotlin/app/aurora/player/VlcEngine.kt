@@ -9,7 +9,6 @@ import org.jetbrains.skia.ColorType
 import org.jetbrains.skia.Image
 import org.jetbrains.skia.ImageInfo
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory
-import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery
 import uk.co.caprica.vlcj.player.base.MediaPlayer
 import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter
 import uk.co.caprica.vlcj.player.embedded.EmbeddedMediaPlayer
@@ -21,12 +20,12 @@ import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * Audio y video con VLC (vlcj). Requiere VLC instalado; si no se encuentra, [available] es `false`
+ * Audio y video con VLC (vlcj): el que viene con la app (ver [BundledVlc]) o el instalado; si no se encuentra, [available] es `false`
  * y la app sigue funcionando con el reloj simulado.
  */
 class VlcEngine : MediaEngine {
     private val factory: MediaPlayerFactory? = runCatching {
-        if (NativeDiscovery().discover()) MediaPlayerFactory(*VLC_ARGS) else null
+        if (BundledVlc.discover()) MediaPlayerFactory(*VLC_ARGS) else null
     }.getOrNull()?.also { f ->
         // Identidad propia ante PulseAudio/PipeWire: así el sistema no aplica a Aurora el volumen
         // guardado para la app VLC (que puede estar por encima del 100 % y saturar el sonido).

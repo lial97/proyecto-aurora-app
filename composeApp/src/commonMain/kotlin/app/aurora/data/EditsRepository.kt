@@ -12,12 +12,12 @@ class EditsRepository(private val store: KeyValueStore) {
     fun get(id: String): TrackEdit? {
         val f = store.get("edit|$id")?.split('\t') ?: return null
         fun v(i: Int) = f.getOrNull(i)?.takeIf { it.isNotEmpty() }?.let(::unesc)
-        return TrackEdit(v(0), v(1), v(2), v(3)?.toIntOrNull(), v(4))
+        return TrackEdit(v(0), v(1), v(2), v(3)?.toIntOrNull(), v(4), v(5) == "1")
     }
 
     fun set(id: String, e: TrackEdit) = store.put(
         "edit|$id",
-        listOf(e.title, e.artist, e.album, e.year?.toString(), e.genre).joinToString("\t") { esc(it.orEmpty()) },
+        listOf(e.title, e.artist, e.album, e.year?.toString(), e.genre, if (e.customCover) "1" else null).joinToString("\t") { esc(it.orEmpty()) },
     )
 
     fun apply(tracks: List<Track>): List<Track> = tracks.map { t -> get(t.id)?.applyTo(t) ?: t }

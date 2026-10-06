@@ -39,11 +39,12 @@ object WidgetUpdater {
     private const val PROGRESS_EVERY_MS = 5_000L
 
     /** Lo que, si cambia, obliga a dibujar de nuevo (la posición no: va por tiempo). */
-    private data class Key(val trackId: String?, val durationKnown: Boolean, val playing: Boolean, val shuffle: Boolean, val liked: Boolean, val next: List<String>, val theme: String, val wallpaper: Boolean)
+    private data class Key(val trackId: String?, val durationKnown: Boolean, val playing: Boolean, val shuffle: Boolean, val liked: Boolean, val next: List<String>, val theme: String, val wallpaper: Boolean, val covers: Int, val names: String?)
 
     private var app: AppState? = null
     private var context: Context? = null
     private var coverFor: String? = null
+    private var lastCovers = 0
 
     /** Los tres widgets: Reproductor (4×2 y 4×3), Barra (4×1) y Portada (2×2). */
     private val WIDGETS = listOf(PlayerWidget(), BarWidget(), CoverWidget())
@@ -88,12 +89,19 @@ object WidgetUpdater {
             app.player.state
                 .combine(snapshotFlow { app.liked }) { p, liked -> p to liked }
                 .combine(app.settings.theme) { (p, liked), theme -> Triple(p, liked, theme) }
-                .combine(app.prefsRepo.prefs.map { it.widgetsWallpaper }.distinctUntilChanged()) { (p, liked, theme), wallpaper ->
+                .combine(app.prefsRepo.prefs.map { it.widgetsWallpaper }.distinctUntilChanged()) { (p, liked, theme), wallpaper -> Pair(Triple(p, liked, theme), wallpaper) }
+                // Una portada nueva ("Corregir datos") también obliga a redibujar.
+                .combine(snapshotFlow { app.covers.version }) { (a, wallpaper), covers -> val (p, liked, theme) = a
                     Key(p.current?.id, p.durationSec > 0, p.isPlaying, p.shuffle, p.current?.id?.let { it in liked } == true,
-                        listOfNotNull(p.queue.getOrNull(p.index + 1)?.id, p.queue.getOrNull(p.index + 2)?.id), theme.id.name, wallpaper)
+                        listOfNotNull(p.queue.getOrNull(p.index + 1)?.id, p.queue.getOrNull(p.index + 2)?.id), theme.id.name, wallpaper, covers, p.current?.let { it.title + "\u001F" + it.artist })
                 }
                 .distinctUntilChanged()
                 .collectLatest { k ->
+                    if (k.covers != lastCovers) {
+                        // Cambió alguna portada: se vuelven a guardar la grande y las de "A continuación".
+                        lastCovers = k.covers; coverFor = null
+                        context.filesDir.listFiles { f -> f.name.startsWith("widget_siguiente_") }?.forEach { it.delete() }
+                    }
                     push()
                     val power = context.getSystemService(android.os.PowerManager::class.java)
                     while (k.playing) { delay(PROGRESS_EVERY_MS); if (power?.isInteractive != false) push() }

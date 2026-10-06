@@ -11,6 +11,46 @@ Formato de cada entrada:
 **Pendiente:** lo que queda abierto (opcional).
 ```
 
+## 2026-10-06 — Instaladores de escritorio con VLC adentro (fase 2: Windows)
+**Qué:**
+- `scripts/windows/preparar-vlc.ps1`: descarga VLC 3.0.24 portable de 64 bits (ZIP oficial, comprobado con la huella SHA-256 de VideoLAN y guardado en `%LOCALAPPDATA%\Aurora-compilar` para la próxima vez), copia libvlc.dll, libvlccore.dll y solo los complementos que usa Aurora (sin interfaz, Lua, red, Blu-ray ni grabación) a `composeApp/resources/windows/vlc`, y genera `plugins.dat` con vlc-cache-gen.exe. 140 MB → 63 MB.
+- `build-windows.bat`: [1/3] prepara VLC, [2/3] versión portable (`createReleaseDistributable`), [3/3] instalador (`packageReleaseExe`) y lo copia a `dist\`. Ya no pide instalar VLC.
+- `.gitattributes`: `.bat` y `.ps1` con fin de línea de Windows (cmd falla en los `goto` con LF), `.sh` y `gradlew` con LF. El `.ps1` lleva marca UTF-8 (PowerShell 5.1).
+**Archivos:** `scripts/windows/preparar-vlc.ps1` (nuevo), `build-windows.bat`, `.gitattributes`.
+**Pruebas:** el ZIP coincide con la SHA-256 publicada; el script probado con PowerShell en Docker (63 MB, 241 complementos). Falta: compilar y probar el instalador en Windows (jpackage solo arma el .exe en Windows).
+
+## 2026-10-06 — Instaladores de escritorio con VLC adentro (fase 1: Linux)
+**Qué:**
+- La app busca primero el VLC que viene dentro del instalador (`BundledVlc`: carpeta `vlc` de los recursos de la app, `compose.application.resources.dir`) y, si no está, el del sistema. Fija `VLC_PLUGIN_PATH` en el propio proceso (setenv/_putenv con JNA). Lo usan `VlcEngine` y `VideoThumbnailer`.
+- `appResourcesRootDir = composeApp/resources` (`linux/vlc` y `windows/vlc`, fuera de git).
+- `scripts/empaquetar-linux.sh` (Docker, Ubuntu 22.04 / glibc 2.35): copia libvlc, los complementos necesarios (sin interfaz Qt, Lua, codificadores, hardware ni red) y todas sus dependencias, menos glibc, gráficos, X11, sonido del sistema y D-Bus; ajusta RUNPATH (`$ORIGIN`) con patchelf, genera `plugins.dat` y arma `dist/aurora_<versión>_amd64.deb` y `dist/Aurora-<versión>-x86_64.AppImage`.
+**Archivos:** `desktopMain/player/BundledVlc.kt` (nuevo), `desktopMain/player/VlcEngine.kt`, `desktopMain/platform/VideoThumbnailer.kt`, `composeApp/build.gradle.kts`, `.gitignore`, `scripts/empaquetar-linux.sh`, `scripts/linux/Dockerfile`, `scripts/linux/copiar-vlc.sh`, `scripts/linux/dentro.sh` (nuevos).
+**Pruebas:** AppImage (126 MB) y .deb (112 MB) armados; en un contenedor Debian 12 sin VLC, Aurora arranca y carga libvlccore, libavcodec, libFLAC… desde la carpeta de la app.
+- El AppImage se agrega solo al menú de aplicaciones al abrirlo (AppRun escribe `~/.local/share/applications/aurora.desktop` con la ruta del AppImage y el ícono en `~/.local/share/aurora/`; se actualiza si el archivo cambia de lugar). `StartupWMClass=app-aurora-MainKt` (comprobado con hyprctl).
+**Pruebas en el PC del usuario (Arch + Hyprland):** el AppImage usa el VLC de adentro (`/tmp/.mount_Aurora…/vlc/libvlc.so`, `libvlccore.so.9`, `libvlc_pulse.so.0`) y aparece en el lanzador.
+**Pendiente:** probar reproducción real en el escritorio del usuario; fase 2 (Windows: VLC portable dentro del .exe); se puede achicar VLC (163 MB) quitando más complementos.
+
+## 2026-10-06 — Corregir datos: portadas de Cover Art Archive (F5, fase 2 de 3)
+**Qué:**
+- Los resultados de "Corregir datos" muestran la miniatura del disco (Cover Art Archive, 250 px). Si el elegido tiene portada, aparece "Usar la portada del disco" (activado): al aplicar se descarga a 500 px, se guarda para esa canción y se ve en la app, los widgets y la notificación.
+- Portadas guardadas en `BlobStore` (Android: `filesDir/portadas`; escritorio: `~/.config/aurora/portadas`), marcadas con `TrackEdit.customCover` y `Track.coverUri = "aurora:portada"`; `CoverCache` las usa antes que la del archivo. `CoverCache.invalidate()` + `version`: las portadas en pantalla se vuelven a cargar.
+- `HttpClient.getBytes` (Android sigue a mano las redirecciones a archive.org; escritorio con `java.net.http`).
+- La canción que suena se actualiza al corregirla (`PlayerController.updateTrack`, `MediaEngine.updateMeta`): título, artista, álbum y portada cambian en el reproductor, la notificación y el bloqueo sin cortar el sonido. Los widgets se redibujan al cambiar una portada o el título.
+- Arreglo: una corrección nueva borraba la anterior al volver a escanear (`edits.set` reemplazaba todo); ahora se suman (`TrackEdit.mergedOnto`).
+**Archivos:** `platform/Platform.kt` (`getBytes`, `BlobStore`, `files`), `data/MetadataRepository.kt` (`cover`), `data/EditsRepository.kt`, `domain/Models.kt` (`TrackEdit`), `components/Cover.kt`, `components/Dialogs.kt`, `AppState.kt`, `player/*` (`updateTrack`, `updateMeta`), `androidMain/platform/AndroidPlatform.kt`, `androidMain/player/Media3Engine.kt`, `androidMain/widget/WidgetUpdater.kt`, `desktopMain/platform/DesktopPlatform.kt`, `desktopTest/CustomCoverTest.kt` (nueva).
+**Pruebas:** `CustomCoverTest` (las correcciones se suman y recuerdan la portada; aplicar descarga `front-500`, la guarda y la caché la devuelve); descarga real de Cover Art Archive (redirección a archive.org, JPEG 250×250); APK instalado.
+
+## 2026-10-06 — Corregir datos con MusicBrainz (F5, fase 1 de 3)
+**Qué:**
+- Diálogo "Corregir datos" (`AppDialog.FixMetadata`): título y artista con la sugerencia del nombre del archivo si los datos son dudosos ("Título - Artista (320).mp3"), búsqueda en MusicBrainz al abrir y con "Buscar", hasta 8 resultados (título, artista · álbum · año, duración; la duración se atenúa si no se parece a la del archivo) y "Aplicar" → título, artista, álbum, año y género con `editTrack` (se guardan aunque se vuelva a escanear y se vuelve a buscar la letra). En escritorio, opción de guardarlo también en el archivo. "Editar a mano" abre "Editar datos".
+- `MetadataRepository`: búsqueda `recording:"…" AND artist:"…"` (sin "(320)", "(En Vivo)", etc.), User-Agent propio, como mucho 1 petición por segundo y reintentos si el servicio está ocupado. Elige el disco más "original" (oficial, álbum, no recopilatorio ni en vivo, el más antiguo) y ordena por coincidencia y por duración parecida (±5 s).
+- Menú de cada canción: "Corregir datos…" (resaltado si los datos son dudosos) y "Editar datos…" (antes solo estaba en el escritorio).
+- Ajustes › Biblioteca › "Datos de las canciones": cuántas tienen datos dudosos y "Revisar" (lista para corregirlas una por una).
+**Notas:** la búsqueda de MusicBrainz casi nunca trae el género: en ese caso no se cambia.
+**Archivos:** `data/MetadataRepository.kt` (nuevo), `AppState.kt` (`metadata`, `applyMetadata`, `tracksNeedingFix`, `FixMetadata`, `TracksToFix`), `components/Dialogs.kt`, `screens/SettingsScreen.kt`, `commonTest/MetadataRepositoryTest.kt` (nueva).
+**Pruebas:** `MetadataRepositoryTest` (5: lectura de una respuesta real, disco original, orden por duración, sin conexión ≠ sin resultados, la búsqueda no envía "(320)"); consulta real a MusicBrainz; captura del diálogo a 400 dp.
+**Pendiente:** fase 2 (portadas de Cover Art Archive) y fase 3 (escribir en el archivo en Android y corregir en lote).
+
 ## 2026-10-06 — Letras: descarga automática al sonar, guardado como .lrc y arreglos en Android
 **Qué:**
 - La letra se busca al empezar cada canción desde `AppState` (antes desde la pantalla, `App.kt`): también con la app cerrada (widgets, notificación).
@@ -19,7 +59,7 @@ Formato de cada entrada:
 - Las carpetas se guardaban con permiso solo de lectura (`persisted=0x1` en el celular, aunque el sistema ofrecía lectura y escritura). Ahora se pide lectura y escritura; para las carpetas ya elegidas aparece "Permiso para guardar" › "Dar permiso" (volver a elegir la carpeta) y, si falla un guardado, un aviso una sola vez.
 - Las letras descargadas se guardan en `filesDir/letras` (antes `cacheDir`, que Android puede borrar cuando falta espacio); las que había se mudan solas.
 **Archivos:** `platform/Platform.kt` (`foldersWithoutWrite`), `androidMain/platform/AndroidPlatform.kt`, `AppState.kt` (`autoSaveLrc`, `grantLyricsWrite`), `App.kt`, `data/Prefs.kt`, `screens/SettingsScreen.kt`.
-**Pruebas:** `desktopTest` pasa; APK instalado. Falta: dar permiso a la carpeta en el celular y comprobar que aparece el .lrc.
+**Pruebas:** `desktopTest` pasa; en el celular, tras "Dar permiso" (Music/Telegram queda con `persisted=0x3`), al sonar "Arbol Sin Hojas" se creó "Arbol Sin Hojas - Dread Mar I (320).lrc" junto al .mp3 (39 líneas sincronizadas).
 
 ## 2026-10-06 — Reproductor: barra de progreso con onda (como la de Android 13+)
 **Qué:** en el reproductor del móvil, la parte ya escuchada de la barra es una onda (≈28 dp de largo, 3 dp de alto, como en la maqueta) que avanza mientras suena, con una marca vertical en la posición; el resto sigue recto. Al pausar, la onda se aplana en 450 ms y vuelve la barra recta con la bolita. Usa el degradado de relleno de cada tema; en Carbono las puntas son rectas. No se usa en Póster (su barra es un bloque de 12 dp) ni con Accesibilidad › "Reducir movimiento".

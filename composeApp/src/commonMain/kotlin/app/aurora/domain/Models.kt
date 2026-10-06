@@ -86,10 +86,23 @@ data class TrackEdit(
     val album: String? = null,
     val year: Int? = null,
     val genre: String? = null,
+    /** Hay una portada descargada para esta pista ("Corregir datos"). */
+    val customCover: Boolean = false,
 ) {
     fun applyTo(t: Track) = t.copy(
         title = title ?: t.title, artist = artist ?: t.artist, album = album ?: t.album,
         year = year ?: t.year, genre = genre ?: t.genre,
+        coverUri = if (customCover) CUSTOM_COVER else t.coverUri,
         metadataSource = if (title != null || artist != null) MetadataSource.USER else t.metadataSource,
     )
+
+    /** Una corrección nueva sobre otra anterior: lo nuevo manda y lo anterior se conserva. */
+    fun mergedOnto(old: TrackEdit?): TrackEdit = if (old == null) this else TrackEdit(
+        title ?: old.title, artist ?: old.artist, album ?: old.album, year ?: old.year, genre ?: old.genre, customCover || old.customCover,
+    )
+
+    companion object {
+        /** Marca de `Track.coverUri`: la portada es una descargada y guardada por la app. */
+        const val CUSTOM_COVER = "aurora:portada"
+    }
 }
