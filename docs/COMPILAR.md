@@ -16,13 +16,13 @@ El instalador de Windows **solo se puede generar en Windows** (lo hace `jpackage
    (comprobando su huella SHA-256) y lo mete dentro del instalador. La primera vez tarda unos minutos
    (descarga Gradle, VLC y WiX).
 4. Resultado:
-   - **Instalador**: `AURORA-APP\Aurora-0.3.0.exe` (junto al APK; crea accesos en el escritorio y el menú Inicio).
+   - **Instalador**: `AURORA-APP\Aurora-0.3.0.exe` (junto al APK; crea accesos en el escritorio y el menú Inicio). Al desinstalarlo se borran la configuración y la caché, así que reinstalar deja la app como nueva; actualizar a otra versión las conserva. La plantilla del instalador es `composeApp\windows\main.wxs`.
    - **Portable**: `composeApp\build\compose\binaries\main-release\app\Aurora\Aurora.exe` (no se instala; copia la carpeta entera).
 
 Comandos equivalentes en una terminal:
 ```bat
 gradlew.bat :composeApp:createReleaseDistributable
-gradlew.bat :composeApp:packageReleaseExe
+gradlew.bat :composeApp:packageWindowsExe
 ```
 
 Para probar sin instalar (modo de depuración, con "Repetir configuración inicial" en Ajustes › Acerca de):

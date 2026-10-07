@@ -11,6 +11,18 @@ Formato de cada entrada:
 **Pendiente:** lo que queda abierto (opcional).
 ```
 
+## 2026-10-06 — Windows: desinstalar borra la configuración
+**Qué:** al desinstalar y volver a instalar, la app quedaba con la configuración anterior: el instalador no tocaba `%APPDATA%\Aurora` (ajustes, carpetas, portadas) ni `%LOCALAPPDATA%\Aurora\cache` (letras, miniaturas). Ahora:
+- `composeApp/windows/main.wxs` es la plantilla de jpackage (JDK 21) con la acción `AuroraBorrarDatos`. Usa `WixQuietExec64`, así que no abre ninguna ventana. Corre después de `RemoveFiles` solo con `REMOVE="ALL" AND NOT UPGRADINGPRODUCTCODE`: borra al desinstalar y no al actualizar.
+- Tarea nueva `packageWindowsExe` en `build.gradle.kts`: jpackage arma el .exe desde la versión portable (`--app-image`) con esa plantilla. `packageReleaseExe` de Compose no sirve: vacía su carpeta de recursos y la pasa al final, y jpackage usa la última `--resource-dir`. `build-windows.bat` usa la tarea nueva.
+**Archivos:** `composeApp/windows/main.wxs`, `composeApp/build.gradle.kts`, `build-windows.bat`, `docs/COMPILAR.md`.
+**Pruebas (instalación real con msiexec y un .msi de la misma plantilla):**
+- Desinstalar la versión vieja: la configuración quedaba (el error).
+- Instalar la nueva, abrirla y desinstalarla: se borran `%APPDATA%\Aurora` y `%LOCALAPPDATA%\Aurora`. El registro de MSI muestra `AuroraBorrarDatos`.
+- Instalar 0.3.0, abrirla y actualizar a 0.3.1: la configuración se conserva y queda una sola entrada en Programas.
+- Se respaldó y restauró la configuración del usuario.
+**Ojo:** la versión 0.3.0 vieja (la de la Release actual) no tiene esta acción. Quien la tenga instalada debe borrar `%APPDATA%\Aurora` a mano una vez, o instalar la nueva y desinstalarla.
+
 ## 2026-10-06 — Windows: el audio se trababa al adelantar o atrasar
 **Qué:** al saltar con la barra, la canción se entrecortaba solo en Windows. Con el VLC incluido y el registro detallado se vio que, tras cada salto, la salida WASAPI quedaba ~1,3 s atrasada ("playback way too late: flushing buffers" y decenas de "buffer too late: dropped" cada ~1,3 s). La tarjeta de este equipo trabaja a 192 kHz (búfer de 384 000 cuadros para 2 s) y VLC corrige el desfase remuestreando con speex. Comparación con 5 saltos por prueba:
 - speex calidad 10: 351 avisos de "tarde" y 327 descartes.

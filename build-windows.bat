@@ -34,11 +34,11 @@ if errorlevel 1 goto error
 
 echo.
 echo  [3/3] Instalador .exe ^(descarga WiX automaticamente la primera vez^)...
-call "%~dp0gradlew.bat" :composeApp:packageReleaseExe --console=plain
+call "%~dp0gradlew.bat" :composeApp:packageWindowsExe --console=plain
 if errorlevel 1 goto error
 
 if not exist AURORA-APP mkdir AURORA-APP
-copy /y "composeApp\build\compose\binaries\main-release\exe\*.exe" AURORA-APP\ >nul
+copy /y "composeApp\build\compose\binaries\main-release\exe-limpio\*.exe" AURORA-APP\ >nul
 
 echo.
 echo  ===  Listo  ===

@@ -90,7 +90,7 @@ compose.desktop {
             // Lo preparan scripts/empaquetar-linux.sh y build-windows.bat; la app lo busca con BundledVlc.
             appResourcesRootDir.set(project.layout.projectDirectory.dir("resources"))
             packageName = "Aurora"
-            packageVersion = "0.3.0"
+            packageVersion = "0.3.0" // también en packageWindowsExe (auroraVersion), abajo
             description = "Reproductor de música y video de código abierto"
             vendor = "Aurora"
             copyright = "GPL-3.0"
@@ -121,6 +121,36 @@ compose.desktop {
 // Pruebas con capturas: AURORA_SHOTS=/ruta guarda las imágenes que generan.
 tasks.withType<Test>().configureEach {
     System.getenv("AURORA_SHOTS")?.let { systemProperty("aurora.shots", it) }
+}
+
+// Instalador de Windows (build-windows.bat): jpackage arma el .exe desde la versión portable con windows/main.wxs,
+// que al desinstalar borra la configuración y la caché (no al actualizar). No se usa packageReleaseExe de Compose
+// porque vacía y pasa su propia carpeta de recursos al final, y jpackage se queda con la última.
+val auroraVersion = "0.3.0"
+tasks.register<Exec>("packageWindowsExe") {
+    group = "compose desktop"
+    description = "Instalador .exe de Windows que borra los datos al desinstalar."
+    dependsOn("createReleaseDistributable", ":unzipWix")
+    val appImage = layout.buildDirectory.dir("compose/binaries/main-release/app/Aurora")
+    val dest = layout.buildDirectory.dir("compose/binaries/main-release/exe-limpio")
+    val wix = rootProject.layout.buildDirectory.dir("wix311")
+    inputs.dir(appImage); inputs.dir("windows"); outputs.dir(dest)
+    val jpackage = File(System.getProperty("java.home"), "bin/jpackage.exe")
+    doFirst {
+        dest.get().asFile.deleteRecursively()
+        environment("PATH", wix.get().asFile.absolutePath + File.pathSeparator + System.getenv("PATH"))
+    }
+    commandLine(
+        jpackage.absolutePath, "--type", "exe",
+        "--app-image", appImage.get().asFile.absolutePath,
+        "--dest", dest.get().asFile.absolutePath,
+        "--resource-dir", file("windows").absolutePath,
+        "--name", "Aurora", "--app-version", auroraVersion, "--vendor", "Aurora",
+        "--description", "Reproductor de música y video de código abierto", "--copyright", "GPL-3.0",
+        "--license-file", rootProject.file("LICENSE").absolutePath,
+        "--win-dir-chooser", "--win-per-user-install", "--win-shortcut", "--win-menu", "--win-menu-group", "Aurora",
+        "--win-upgrade-uuid", "6f1b8a52-3c0e-4e7a-9d0b-a1b2c3d4e5f6",
+    )
 }
 
 // `./gradlew :composeApp:run` es una compilación de depuración: muestra las opciones de prueba (Ajustes › Acerca de).
