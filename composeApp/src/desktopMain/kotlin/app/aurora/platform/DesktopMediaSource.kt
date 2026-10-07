@@ -73,6 +73,12 @@ class DesktopMediaSource(
     private val tempo = TempoDecoder()
     override val canDecodeForTempo: Boolean get() = tempo.available
 
+    /**
+     * VLC decodifica a ×3 al ritmo del reloj: casi todo el tiempo espera, así que varias canciones a la vez
+     * multiplican la velocidad sin cargar el procesador (la mitad de los núcleos, entre 2 y 4).
+     */
+    override val tempoParallelism: Int = (Runtime.getRuntime().availableProcessors() / 2).coerceIn(2, 4)
+
     override suspend fun decodeForTempo(track: Track): app.aurora.domain.Pcm? = withContext(Dispatchers.IO) {
         val f = track.filePath?.let(::File)?.takeIf { it.isFile } ?: return@withContext null
         tempo.decode(f, track.durationSec)

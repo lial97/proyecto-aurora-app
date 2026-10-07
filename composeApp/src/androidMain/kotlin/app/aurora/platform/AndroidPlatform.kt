@@ -187,6 +187,9 @@ class MediaStoreSource(private val context: Context) : MediaSource {
 
     override val canDecodeForTempo: Boolean = true
 
+    /** Dos a la vez: el decodificador del sistema es rápido y así no le quita núcleos a la interfaz ni al audio. */
+    override val tempoParallelism: Int = 2
+
     /**
      * Unos 20 s del medio de la canción, decodificados con el decodificador del sistema (rápido y sin sonar),
      * en mono y reducidos a ~11 kHz: suficiente para el tempo. Como mucho 6 s de trabajo por canción.

@@ -1,0 +1,29 @@
+#!/bin/sh
+# postrm de Aurora (lo mete scripts/linux/dentro.sh en el .deb en lugar del de jpackage, que no hacía nada).
+# Al desinstalar (remove o purge) borra la configuración y la caché de Aurora de cada usuario:
+#   ~/.config/aurora  (ajustes, carpetas, portadas, tempos, índice de VLC)
+#   ~/.cache/aurora   (letras y miniaturas de video)
+# Al actualizar a otra versión (upgrade) no toca nada: dpkg llama con "upgrade" y la configuración se conserva.
+set -e
+
+case "$1" in
+    remove|purge)
+        # dpkg corre como root: se recorren los usuarios normales (uid >= 1000) con carpeta personal.
+        getent passwd | while IFS=: read -r _user _x uid _gid _info home _shell; do
+            [ "$uid" -ge 1000 ] 2>/dev/null || continue
+            [ "$uid" -lt 65534 ] || continue
+            [ -n "$home" ] && [ "$home" != "/" ] && [ -d "$home" ] || continue
+            rm -rf "$home/.config/aurora" "$home/.cache/aurora" || true
+        done
+    ;;
+
+    upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
+    ;;
+
+    *)
+        echo "postrm called with unknown argument \`$1'" >&2
+        exit 1
+    ;;
+esac
+
+exit 0

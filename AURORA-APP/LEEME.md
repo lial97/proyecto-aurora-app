@@ -20,8 +20,8 @@ esta carpeta. Al compilarlos en tu equipo (ver abajo) sí quedan aquí, en `AURO
 
 Todos los instaladores quedan en esta carpeta, `AURORA-APP/`:
 
-- Android: `./gradlew :androidApp:assembleDebug` y copiar
-  `androidApp/build/outputs/apk/debug/androidApp-debug.apk` aquí como `Aurora-<versión>-android.apk`.
+- Android: `./gradlew :androidApp:assembleRelease` y copiar
+  `androidApp/build/outputs/apk/release/androidApp-release.apk` aquí como `Aurora-<versión>-android.apk`.
 - Linux (.deb y AppImage, con Docker): `bash scripts/empaquetar-linux.sh`.
 - Windows (.exe, en un PC con Windows y Java 21): doble clic en `build-windows.bat`.
 

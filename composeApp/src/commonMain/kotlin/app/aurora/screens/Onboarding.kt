@@ -589,7 +589,10 @@ private fun DoneStep(state: AppState, model: OnboardingModel) {
     val name = SettingsRepository.cleanName(model.name)
     val mobile = !Ui.isDesktop
     if (mobile) { CoverFan(); Spacer(Modifier.height(28.dp)) }
-    StepTitle("TODO LISTO", if (name.isEmpty()) "¡Todo listo!" else "¡Listo, $name!", "Estamos terminando de preparar tu biblioteca.", centered = mobile)
+    // El tempo sigue en segundo plano: no hace falta esperarlo para entrar.
+    val subtitle = if (lib.stage == ScanStage.TEMPO) "Ya puedes entrar: el tempo se sigue calculando en segundo plano."
+        else "Estamos terminando de preparar tu biblioteca."
+    StepTitle("TODO LISTO", if (name.isEmpty()) "¡Todo listo!" else "¡Listo, $name!", subtitle, centered = mobile)
     // Resumen en 4 tarjetas.
     val cards = listOf("${lib.songCount}" to "canciones", "${lib.videoCount}" to "videos") +
         (folders + videoFolders).distinct().size.let { n -> listOf("$n" to if (n == 1) "carpeta" else "carpetas", theme.displayName to "tema") }
@@ -625,7 +628,7 @@ private fun DoneStep(state: AppState, model: OnboardingModel) {
     val message = when (stage) {
         ScanStage.READING -> "Leyendo portadas y letras…"
         ScanStage.SORTING -> "Ordenando por artista y álbum…"
-        ScanStage.TEMPO -> "Calculando el tempo de cada canción…"
+        ScanStage.TEMPO -> "Calculando el tempo en segundo plano…"
         null -> "Listo."
     }
     // El lector de pantalla anuncia cada etapa (no cada número).

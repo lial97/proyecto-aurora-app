@@ -406,6 +406,8 @@ private fun LibrarySection(state: AppState, lib: LibraryState, ctx: SettingsCtx)
     val status = when {
         lib.scanning -> lib.progress?.let { pr -> if (pr.total != null) "buscando ${pr.done} de ${pr.total}" else "buscando…" }
         lib.error != null -> lib.error
+        // El tempo se calcula en segundo plano: solo se informa el avance.
+        lib.stage == app.aurora.data.ScanStage.TEMPO && lib.stageTotal > 0 -> "tempo ${lib.stageDone} de ${lib.stageTotal}"
         else -> null
     }
     FolderGroup(state, MediaType.AUDIO, "Carpetas de música", status, folders)

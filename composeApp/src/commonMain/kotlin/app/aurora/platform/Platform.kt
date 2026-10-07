@@ -64,6 +64,9 @@ interface MediaSource {
     /** Un fragmento de la canción (unos 20 s del medio) en mono, para calcular su tempo; `null` si no se pudo. */
     suspend fun decodeForTempo(track: Track): app.aurora.domain.Pcm? = null
 
+    /** Canciones que se analizan a la vez para el tempo (en segundo plano). */
+    val tempoParallelism: Int get() = 1
+
     /** Avisa cuando cambian archivos multimedia dentro de [folders] (para "Vigilar cambios"). */
     fun watch(folders: List<String>): kotlinx.coroutines.flow.Flow<Unit> = kotlinx.coroutines.flow.emptyFlow()
 

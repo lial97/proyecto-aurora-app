@@ -37,13 +37,15 @@ Se necesita el SDK de Android (las herramientas nuevas ya no piden aceptar licen
 ~/Android/Sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/Android/Sdk "platform-tools" "build-tools;36.0.0"
 ~/Android/Sdk/cmdline-tools/latest/bin/android --sdk=$HOME/Android/Sdk sdk install "platforms/android-37.0"
 echo "sdk.dir=$HOME/Android/Sdk" > local.properties
-./gradlew :androidApp:assembleDebug
+./gradlew :androidApp:assembleRelease
 ```
-El APK queda en `androidApp/build/outputs/apk/debug/androidApp-debug.apk`.
+El APK queda en `androidApp/build/outputs/apk/release/androidApp-release.apk` (~6 MB). Es la versión optimizada con
+R8: más fluida y con menos memoria que la de depuración (`assembleDebug`, ~23 MB), que solo sirve para depurar.
+Va firmada con la clave de depuración del equipo, así que se instala encima de una de depuración sin perder datos.
 
 Para instalarlo en el celular:
 - **Con cable**: activa *Opciones de desarrollador → Depuración USB* y ejecuta
-  `~/Android/Sdk/platform-tools/adb install -r androidApp/build/outputs/apk/debug/androidApp-debug.apk`
+  `~/Android/Sdk/platform-tools/adb install -r androidApp/build/outputs/apk/release/androidApp-release.apk`
 - **Sin cable**: copia el APK al celular y ábrelo (Android pedirá permitir "instalar apps desconocidas").
 
 ## Linux

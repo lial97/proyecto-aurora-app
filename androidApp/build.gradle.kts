@@ -18,9 +18,19 @@ android {
 
     buildTypes {
         release {
+            // R8 reduce y optimiza el código: la app arranca antes, va más fluida y ocupa menos memoria que la de depuración.
             isMinifyEnabled = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // Firmada con la clave de depuración de este equipo: se instala encima de la de depuración sin perder datos.
+            // Cambiar por una clave propia antes de publicar en Play Store.
+            signingConfig = signingConfigs.getByName("debug")
         }
+    }
+
+    lint {
+        // Los receptores de los widgets (Glance) están en :composeApp y lint no ve que extienden BroadcastReceiver.
+        disable += "Instantiatable"
     }
 
     compileOptions {

@@ -59,6 +59,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         AndroidPlatform.init(this)
+        // Animaciones continuas (fondo, onda, ecualizador, karaoke) a ~60 fps: en pantallas de 120 Hz se ven igual
+        // y cuestan la mitad de batería.
+        app.aurora.components.animationFrameIntervalMs = 16
         AndroidPlatform.folderPicker = { initial ->
             pendingFolder?.complete(null)
             val d = kotlinx.coroutines.CompletableDeferred<android.net.Uri?>()

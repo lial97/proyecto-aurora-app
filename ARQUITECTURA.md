@@ -340,5 +340,5 @@ Se puede añadir desenfoque real con la librería *Haze* en F3 si hace falta.
 
 - `./gradlew :composeApp:desktopTest` — pruebas de color, biblioteca, letras y cola (deben pasar siempre).
 - `./gradlew :composeApp:run` — app de escritorio.
-- `./gradlew :androidApp:assembleDebug` — APK (requiere SDK de Android).
+- `./gradlew :androidApp:assembleRelease` — APK optimizado con R8 (requiere SDK de Android).
 - Pendiente F7: GitHub Actions (pruebas + APK + paquetes de escritorio en cada push).

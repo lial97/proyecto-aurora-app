@@ -14,8 +14,8 @@ Este archivo sirve para retomar el trabajo en una conversación nueva. La histor
 
 ```bash
 ./gradlew :composeApp:desktopTest            # pruebas
-./gradlew :androidApp:assembleDebug          # APK → androidApp/build/outputs/apk/debug/androidApp-debug.apk
-cp androidApp/build/outputs/apk/debug/androidApp-debug.apk AURORA-APP/Aurora-0.3.0-android.apk
+./gradlew :androidApp:assembleRelease        # APK optimizado → androidApp/build/outputs/apk/release/androidApp-release.apk
+cp androidApp/build/outputs/apk/release/androidApp-release.apk AURORA-APP/Aurora-0.3.0-android.apk
 ~/Android/Sdk/platform-tools/adb install -r AURORA-APP/Aurora-0.3.0-android.apk
 ~/Android/Sdk/platform-tools/adb exec-out screencap -p > captura.png
 ```
@@ -25,7 +25,11 @@ cp androidApp/build/outputs/apk/debug/androidApp-debug.apk AURORA-APP/Aurora-0.3
   - El usuario usa el celular mientras se prueba. Mirar la pantalla antes de tocar, no cambiar sus ajustes sin devolverlos y avisar de cualquier toque equivocado.
 - **Capturas sin el celular:** pruebas temporales en `composeApp/src/desktopTest`, con `ImageComposeScene` de 360–420 dp. La variable `AURORA_SHOTS=/ruta` guarda las imágenes. Ejemplos: `ScrollMemoryTest.kt` y `ContextMenuTest.kt`.
 
-## Estado actual (2026-10-06)
+## Estado actual (2026-10-07)
+
+- **App ligera en Linux y Android (HECHA, sin commit):** cola con `LazyColumn` (abría lento y retenía 727 MB de portadas), tempo en paralelo y en segundo plano, APK de release con R8, sin respaldo de Android, `postrm` del .deb y `--desinstalar` del AppImage. Detalle en la bitácora. Falta que el usuario lo pruebe.
+
+## Estado anterior (2026-10-06)
 
 - **Configuración inicial nueva (HECHA, fases 1 a 6):** maqueta en `files/Aurora · Configuración inicial.html`; detalle de cada fase en la bitácora. Falta que el usuario la pruebe en el celular y en el PC (ventana 1000×700 y selector de FileKit). Siguiente pedido del usuario: app más ligera (medir primero CPU, memoria y arranque; el tempo de la primera vez en escritorio tarda ~6 s por canción) y después Windows.
 - **Barra de progreso:** arreglado el bloqueo en Windows (un solo salto al soltar); falta que el usuario lo pruebe en Windows.

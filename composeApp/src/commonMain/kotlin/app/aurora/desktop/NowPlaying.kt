@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
@@ -350,38 +351,51 @@ private fun RightTabs(state: AppState, playback: PlaybackState, tracks: List<Tra
     }
 }
 
+/**
+ * Cola: la actual y "A continuación". Es una lista perezosa: con una cola de miles de canciones (reproducir desde
+ * la biblioteca) solo se componen las filas visibles, así el panel abre al instante.
+ */
 @Composable
 internal fun QueueTab(state: AppState, playback: PlaybackState, modifier: Modifier) {
     val c = Ui.colors
     val q = playback.queue
     val cur = playback.index
-    Column(modifier.verticalScroll(rememberScrollState())) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
-            BasicText("Desde ", style = Ui.type.caption)
-            BasicText(state.source, style = Ui.type.caption.copy(color = c.ink, fontWeight = FontWeight.Bold), modifier = Modifier.weight(1f), maxLines = 1)
-            if (q.size > cur + 1) BasicText("Limpiar", style = Ui.type.caption.copy(color = c.accent, fontWeight = FontWeight.Bold),
-                modifier = Modifier.pressable("Limpiar la cola", .95f) { state.player.clearUpcoming(); state.show("Cola limpiada") })
-        }
-        playback.current?.let { t ->
-            Row(Modifier.fillMaxWidth().clip(Ui.shapes.card).background(c.ink.copy(alpha = .07f)).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                RowArt(t, 40.dp)
-                Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
-                    BasicText(t.title, style = Ui.type.rowTitle.copy(color = c.accent, fontSize = 13.5.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    BasicText(t.artist, style = Ui.type.caption, maxLines = 1)
-                }
-                Equalizer(playback.isPlaying)
+    val upcoming = (q.size - cur - 1).coerceAtLeast(0)
+    val rowH = 56.dp
+    var dragging by remember { mutableIntStateOf(-1) }
+    var dy by remember { mutableFloatStateOf(0f) }
+    LazyColumn(modifier) {
+        item(key = "cabecera") {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
+                BasicText("Desde ", style = Ui.type.caption)
+                BasicText(state.source, style = Ui.type.caption.copy(color = c.ink, fontWeight = FontWeight.Bold), modifier = Modifier.weight(1f), maxLines = 1)
+                if (upcoming > 0) BasicText("Limpiar", style = Ui.type.caption.copy(color = c.accent, fontWeight = FontWeight.Bold),
+                    modifier = Modifier.pressable("Limpiar la cola", .95f) { state.player.clearUpcoming(); state.show("Cola limpiada") })
             }
         }
-        val upcoming = (cur + 1 until q.size).toList()
-        BasicText(Ui.theme.label("A continuación · ${upcoming.size}"), style = Ui.type.caption.copy(fontWeight = FontWeight.Bold), modifier = Modifier.padding(top = 14.dp, bottom = 6.dp))
-        if (upcoming.isEmpty()) BasicText(
-            if (state.prefsRepo.prefs.value.endOfQueue == app.aurora.data.EndOfQueue.REPEAT) "La cola está vacía. Al terminar vuelve a empezar." else "La cola está vacía. Al terminar se detiene.",
-            style = Ui.type.rowSubtitle, modifier = Modifier.padding(6.dp),
-        )
-        val rowH = 56.dp
-        var dragging by remember { mutableIntStateOf(-1) }
-        var dy by remember { mutableFloatStateOf(0f) }
-        upcoming.forEach { abs ->
+        playback.current?.let { t ->
+            item(key = "actual") {
+                Row(Modifier.fillMaxWidth().clip(Ui.shapes.card).background(c.ink.copy(alpha = .07f)).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    RowArt(t, 40.dp)
+                    Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
+                        BasicText(t.title, style = Ui.type.rowTitle.copy(color = c.accent, fontSize = 13.5.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        BasicText(t.artist, style = Ui.type.caption, maxLines = 1)
+                    }
+                    Equalizer(playback.isPlaying)
+                }
+            }
+        }
+        item(key = "titulo") {
+            Column {
+                BasicText(Ui.theme.label("A continuación · $upcoming"), style = Ui.type.caption.copy(fontWeight = FontWeight.Bold), modifier = Modifier.padding(top = 14.dp, bottom = 6.dp))
+                if (upcoming == 0) BasicText(
+                    if (state.prefsRepo.prefs.value.endOfQueue == app.aurora.data.EndOfQueue.REPEAT) "La cola está vacía. Al terminar vuelve a empezar." else "La cola está vacía. Al terminar se detiene.",
+                    style = Ui.type.rowSubtitle, modifier = Modifier.padding(6.dp),
+                )
+            }
+        }
+        items(upcoming) { k ->
+            val abs = cur + 1 + k
             val t = q[abs]
             val isDrag = dragging == abs
             Row(
@@ -395,7 +409,7 @@ internal fun QueueTab(state: AppState, playback: PlaybackState, modifier: Modifi
             ) {
                 // Asa para arrastrar y reordenar.
                 Box(
-                    Modifier.size(24.dp, 40.dp).pointerInput(abs) {
+                    Modifier.size(24.dp, 40.dp).pointerInput(abs, cur, q.size) {
                         detectDragGestures(
                             onDragStart = { dragging = abs; dy = 0f },
                             onDragEnd = {

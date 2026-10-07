@@ -32,7 +32,7 @@ depende del tempo y el color de énfasis sale de la portada.
 ```sh
 ./gradlew :composeApp:run            # app de escritorio
 ./gradlew :composeApp:desktopTest    # pruebas
-./gradlew :androidApp:assembleDebug  # APK (si hay SDK de Android)
+./gradlew :androidApp:assembleRelease  # APK optimizado (si hay SDK de Android)
 ./gradlew :composeApp:packageDistributionForCurrentOS   # instalador de escritorio
 ```
 

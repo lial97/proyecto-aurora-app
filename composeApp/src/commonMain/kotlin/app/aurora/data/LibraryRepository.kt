@@ -168,8 +168,10 @@ class LibraryRepository(
     }
 
     /**
-     * Calcula, una por una y con poca prioridad, el tempo de las canciones que no lo traen. Lo ya calculado se
-     * guarda y no se repite. Si la plataforma no sabe decodificar audio, se salta.
+     * Calcula en segundo plano el tempo de las canciones que no lo traen, de a [MediaSource.tempoParallelism] a la
+     * vez y con poca prioridad: la app se usa normalmente mientras tanto. Lo calculado se guarda cada 20 canciones
+     * y no se repite (si se cierra la app, sigue donde quedó la próxima vez). Si la plataforma no sabe decodificar
+     * audio, se salta.
      */
     private fun startTempo() {
         tempoJob?.cancel()
@@ -182,6 +184,8 @@ class LibraryRepository(
             if (todo.isEmpty()) { _state.update { it.copy(stage = null, stageDone = 0, stageTotal = 0) }; return@launch }
             _state.update { it.copy(stage = ScanStage.TEMPO, stageDone = 0, stageTotal = todo.size) }
             val found = HashMap<String, Int>()
+            val book = kotlinx.coroutines.sync.Mutex()
+            var done = 0
             fun flush() {
                 if (found.isEmpty()) return
                 val batch = HashMap(found); found.clear()
@@ -190,18 +194,33 @@ class LibraryRepository(
                 if (good.isNotEmpty()) _state.update { s -> s.copy(scanned = s.scanned.map { t -> good[t.id]?.let { b -> t.copy(bpm = b) } ?: t }) }
             }
             try {
-                todo.forEachIndexed { i, t ->
-                    val bpm = withContext(tempoDispatcher) {
-                        runCatching { media.decodeForTempo(t)?.let { pcm -> app.aurora.domain.estimateBpm(pcm) } }
-                            .getOrElse { if (it is kotlinx.coroutines.CancellationException) throw it; null } ?: 0
+                // Cada trabajador toma la siguiente canción de la lista hasta que no quede ninguna.
+                var next = 0
+                kotlinx.coroutines.coroutineScope {
+                    repeat(media.tempoParallelism.coerceAtLeast(1)) {
+                        launch {
+                            while (true) {
+                                val t = book.withLock { todo.getOrNull(next++) } ?: break
+                                val bpm = withContext(tempoDispatcher) {
+                                    runCatching { media.decodeForTempo(t)?.let { pcm -> app.aurora.domain.estimateBpm(pcm) } }
+                                        .getOrElse { if (it is kotlinx.coroutines.CancellationException) throw it; null } ?: 0
+                                }
+                                val save = book.withLock {
+                                    found[t.id] = bpm
+                                    done++
+                                    _state.update { it.copy(stageDone = done) }
+                                    (done % 20 == 0).also { if (it) flush() }
+                                }
+                                if (save) withContext(Dispatchers.Default) { saveTempos() }
+                            }
+                        }
                     }
-                    found[t.id] = bpm
-                    _state.update { it.copy(stageDone = i + 1) }
-                    if ((i + 1) % 20 == 0) { flush(); withContext(Dispatchers.Default) { saveTempos() } }
                 }
             } finally {
-                flush()
-                withContext(kotlinx.coroutines.NonCancellable + Dispatchers.Default) { saveTempos() }
+                withContext(kotlinx.coroutines.NonCancellable) {
+                    book.withLock { flush() }
+                    withContext(Dispatchers.Default) { saveTempos() }
+                }
             }
             _state.update { it.copy(stage = null, stageDone = 0, stageTotal = 0) }
         }
@@ -268,9 +287,9 @@ class LibraryRepository(
 
     private companion object {
         const val TEMPO_KEY = "tempos"
-        /** El tempo se calcula de a una canción, para no competir con la interfaz ni con la reproducción. */
+        /** Hilos para el tempo: pocos, para no competir con la interfaz ni con la reproducción. */
         @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-        val tempoDispatcher = Dispatchers.Default.limitedParallelism(1)
+        val tempoDispatcher = Dispatchers.Default.limitedParallelism(4)
     }
 }
 
