@@ -84,6 +84,16 @@ compose.resources {
 compose.desktop {
     application {
         mainClass = "app.aurora.MainKt"
+        // Memoria de Java: sin esto la JVM se reserva hasta 1/4 de la RAM y casi no la devuelve al sistema.
+        // - Tope de 1 GB (sobra incluso con bibliotecas grandes; las imágenes van fuera de esta memoria).
+        // - G1 hace una limpieza cada 15 s si la app está tranquila y devuelve lo que sobra a Windows.
+        // - Deduplicar textos: artistas, álbumes y géneros se repiten en miles de pistas.
+        jvmArgs += listOf(
+            "-Xms64m", "-Xmx1g",
+            "-XX:+UseG1GC", "-XX:G1PeriodicGCInterval=15000",
+            "-XX:MinHeapFreeRatio=10", "-XX:MaxHeapFreeRatio=30",
+            "-XX:+UseStringDeduplication",
+        )
         nativeDistributions {
             targetFormats(TargetFormat.Exe, TargetFormat.Msi, TargetFormat.Deb, TargetFormat.Rpm, TargetFormat.Dmg)
             // VLC va dentro del instalador (resources/linux/vlc y resources/windows/vlc): no hay que instalarlo aparte.

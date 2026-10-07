@@ -94,6 +94,8 @@ fun VideoSurface(
             .clickable(interactionSource = hover, indication = null) { onTap?.invoke() ?: player.togglePlay() },
     ) {
         val img = frame
+        // Cada fotograma ocupa varios MB fuera de la memoria de Java: se libera en cuanto se deja de mostrar.
+        if (img != null) DisposableEffect(img) { onDispose { output?.recycle(img) } }
         if (output?.native == true && playback.hasVideo && playback.videoEnabled) {
             // Android: el video lo dibuja la vista nativa de Media3.
             NativeVideoView(output, Modifier.matchParentSize())

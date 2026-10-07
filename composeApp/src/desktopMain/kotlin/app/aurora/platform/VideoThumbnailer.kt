@@ -33,10 +33,7 @@ import java.util.concurrent.atomic.AtomicReference
  */
 class VideoThumbnailer(private val cacheDir: File) {
     private val mutex = Mutex()
-    private val factory: MediaPlayerFactory? by lazy {
-        // Se crea en un hilo de E/S: espera a que el reproductor deje al día el índice de complementos de VLC.
-        runCatching { if (app.aurora.player.BundledVlc.discover().also { app.aurora.player.BundledVlc.awaitCache() }) MediaPlayerFactory("--quiet", "--no-audio", "--avcodec-hw=none", "--no-video-title-show", "--no-sub-autodetect-file") else null }.getOrNull()
-    }
+    private val factory: MediaPlayerFactory? get() = app.aurora.player.BundledVlc.backgroundFactory
 
     /** Fotogramas al 15, 35, 55 y 75 % del video. */
     suspend fun frames(video: File, durationSec: Int): List<ImageBitmap> = withContext(Dispatchers.IO) {
@@ -59,7 +56,7 @@ class VideoThumbnailer(private val cacheDir: File) {
         return files.mapNotNull { decode(it.readBytes()) }.takeIf { it.isNotEmpty() }
     }
 
-    private fun decode(bytes: ByteArray) = runCatching { Image.makeFromEncoded(bytes).toComposeImageBitmap() }.getOrNull()
+    private fun decode(bytes: ByteArray) = runCatching { Image.makeFromEncoded(bytes).use { it.toComposeImageBitmap() } }.getOrNull()
 
     /** El nombre de caché cambia si el archivo cambia (ruta, tamaño o fecha). */
     private fun key(f: File): String {
@@ -76,7 +73,9 @@ class VideoThumbnailer(private val cacheDir: File) {
         val firstFrame = CountDownLatch(1)
         try {
             mp.videoSurface().set(f.videoSurfaces().newVideoSurface(object : BufferFormatCallback {
-                override fun getBufferFormat(w: Int, h: Int): BufferFormat = RV32BufferFormat(w, h)
+                // VLC entrega la imagen ya reducida a [WIDTH] px: cada fotograma copiado ocupa ~0,5 MB y no 8 MB.
+                override fun getBufferFormat(w: Int, h: Int): BufferFormat =
+                    if (w > WIDTH) RV32BufferFormat(WIDTH, ((h.toLong() * WIDTH / w).toInt() and 1.inv()).coerceAtLeast(2)) else RV32BufferFormat(w, h)
                 override fun newFormatSize(bw: Int, bh: Int, dw: Int, dh: Int) {}
                 override fun allocatedBuffers(buffers: Array<out ByteBuffer>) {}
             }, object : RenderCallback {
@@ -114,7 +113,7 @@ class VideoThumbnailer(private val cacheDir: File) {
                 }
                 val raw = latest.get() ?: return@forEachIndexed
                 val i0 = info.get() ?: return@forEachIndexed
-                encodeSmall(Image.makeRaster(i0, raw, rowBytes.get()))?.let { out += it }
+                Image.makeRaster(i0, raw, rowBytes.get()).use { encodeSmall(it) }?.let { out += it }
             }
             return out
         } finally {
@@ -126,9 +125,10 @@ class VideoThumbnailer(private val cacheDir: File) {
     private fun encodeSmall(img: Image): ByteArray? {
         val w = WIDTH
         val h = (img.height * WIDTH.toFloat() / img.width).toInt().coerceAtLeast(1)
-        val s = Surface.makeRasterN32Premul(w, h)
-        s.canvas.drawImageRect(img, Rect.makeWH(img.width.toFloat(), img.height.toFloat()), Rect.makeWH(w.toFloat(), h.toFloat()), SamplingMode.LINEAR, null, true)
-        return s.makeImageSnapshot().encodeToData(EncodedImageFormat.JPEG, 82)?.bytes
+        return Surface.makeRasterN32Premul(w, h).use { s ->
+            s.canvas.drawImageRect(img, Rect.makeWH(img.width.toFloat(), img.height.toFloat()), Rect.makeWH(w.toFloat(), h.toFloat()), SamplingMode.LINEAR, null, true)
+            s.makeImageSnapshot().use { it.encodeToData(EncodedImageFormat.JPEG, 82)?.use { d -> d.bytes } }
+        }
     }
 
     companion object {

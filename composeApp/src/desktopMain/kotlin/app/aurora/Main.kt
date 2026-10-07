@@ -35,7 +35,13 @@ private fun initialSize(): DpSize = runCatching {
 /** Ventana de la configuración inicial (la primera vez que se abre la app). */
 private val SetupSize = DpSize(1000.dp, 700.dp)
 
-fun main() = application {
+fun main() {
+    // Animaciones continuas (fondo, onda, ecualizador, karaoke) a ~30 fps en lugar de la frecuencia del monitor.
+    app.aurora.components.animationFrameIntervalMs = 33
+    runApp()
+}
+
+private fun runApp() = application {
     val platform = remember { app.aurora.platform.createPlatformServices() }
     val firstRun = remember { !app.aurora.data.SettingsRepository(platform.store, emptyList()).onboardingDone }
     val window = rememberWindowState(size = if (firstRun) SetupSize else initialSize(), position = WindowPosition.Aligned(Alignment.Center))

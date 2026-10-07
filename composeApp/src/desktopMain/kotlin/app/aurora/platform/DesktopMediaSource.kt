@@ -148,7 +148,13 @@ class DesktopMediaSource(
             if (uri == EMBEDDED) AudioFileIO.read(File(track.filePath!!)).tag?.firstArtwork?.binaryData
             else File(uri).readBytes()
         }.getOrNull() ?: return@withContext null
-        runCatching { downscale(Image.makeFromEncoded(bytes), MAX_COVER_PX).toComposeImageBitmap() }.getOrNull()
+        // Las imágenes intermedias se cierran ya: viven fuera de la memoria de Java y el recolector tarda en verlas.
+        runCatching {
+            Image.makeFromEncoded(bytes).use { src ->
+                val img = downscale(src, MAX_COVER_PX)
+                try { img.toComposeImageBitmap() } finally { if (img !== src) img.close() }
+            }
+        }.getOrNull()
     }
 
     override fun watch(folders: List<String>): kotlinx.coroutines.flow.Flow<Unit> = kotlinx.coroutines.flow.callbackFlow {
@@ -217,10 +223,11 @@ class DesktopMediaSource(
         val k = max.toFloat() / maxOf(img.width, img.height)
         val w = (img.width * k).toInt()
         val h = (img.height * k).toInt()
-        val surface = Surface.makeRasterN32Premul(w, h)
-        surface.canvas.drawImageRect(img, Rect.makeWH(img.width.toFloat(), img.height.toFloat()), Rect.makeWH(w.toFloat(), h.toFloat()),
-            SamplingMode.LINEAR, null, true)
-        return surface.makeImageSnapshot()
+        return Surface.makeRasterN32Premul(w, h).use { surface ->
+            surface.canvas.drawImageRect(img, Rect.makeWH(img.width.toFloat(), img.height.toFloat()), Rect.makeWH(w.toFloat(), h.toFloat()),
+                SamplingMode.LINEAR, null, true)
+            surface.makeImageSnapshot()
+        }
     }
 
     private fun readTrack(f: File): Track {

@@ -1,11 +1,7 @@
 package app.aurora.components
 
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -173,7 +169,8 @@ fun ProgressBar(
     val wavy = wavePlaying != null && thinBar
     val amplitude by animateFloatAsState(if (wavy && wavePlaying == true && !Ui.reduceMotion) 1f else 0f, tween(450))
     // La fase solo corre mientras la onda se ve (en pausa la amplitud es 0 y no hace falta redibujar).
-    val phase = if (wavy && amplitude > 0f) rememberInfiniteTransition().animateFloat(0f, 1f, infiniteRepeatable(tween(1600, easing = LinearEasing))).value else 0f
+    // Se lee al dibujar: la onda avanza sin recomponer la barra.
+    val waveClock = rememberAnimationSeconds(wavy && amplitude > 0f)
     fun at(x: Float, width: Int) = (x / width).coerceIn(0f, 1f)
     fun seek(f: Float) {
         if (durationSec > 0) onSeek((f * durationSec).toInt())
@@ -198,6 +195,7 @@ fun ProgressBar(
         val r = if (square) CornerRadius.Zero else CornerRadius(h)
         val w = size.width * fraction
         if (wavy && amplitude > 0f) {
+            val phase = waveClock.value / 1.6f % 1f
             drawWave(w, h, amplitude, phase, Brush.horizontalGradient(c.fill, endX = w.coerceAtLeast(1f)), c.track, square)
             // Marca vertical en la posición, como la de Android.
             val tw = 4.dp.toPx(); val th = 16.dp.toPx()
@@ -244,20 +242,25 @@ fun formatTime(sec: Int): String {
     return if (s >= 3600) "${s / 3600}:${mm.padStart(2, '0')}:$ss" else "${s / 60}:$ss"
 }
 
+/** Segundos de subida (y de bajada) de cada barra del ecualizador mini, a velocidad 1. */
+private val EqBarSeconds = floatArrayOf(.8f, .6f, 1f)
+
 /** Ecualizador mini de 3 barras de 3 x 14 dp (spec §6). */
 @Composable
 fun Equalizer(playing: Boolean, modifier: Modifier = Modifier) {
     val c = Ui.colors
-    // En pausa no se crea la animación: si no, la ventana se redibujaría sin parar aunque las barras estén quietas.
-    val bars: List<Float> = if (playing) {
-        val t = rememberInfiniteTransition()
-        listOf(800, 600, 1000).map { d ->
-            t.animateFloat(.3f, 1f, infiniteRepeatable(tween((d * c.speed).toInt()), RepeatMode.Reverse)).value
-        }
-    } else listOf(.35f, .35f, .35f)
-    Row(modifier.height(14.dp), horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.Bottom) {
-        bars.forEach { b ->
-            Box(Modifier.width(3.dp).height(14.dp * b).background(c.accent))
+    // En pausa el reloj se detiene: si no, la ventana se redibujaría sin parar aunque las barras estén quietas.
+    // Las barras leen el reloj al dibujar, sin recomponer.
+    val clock = rememberAnimationSeconds(playing)
+    val speed = c.speed
+    Canvas(modifier.width(13.dp).height(14.dp)) {
+        val w = 3.dp.toPx()
+        val gap = 2.dp.toPx()
+        EqBarSeconds.forEachIndexed { i, d ->
+            // Sube y baja entre 0,3 y 1: d × velocidad segundos en cada sentido.
+            val b = if (playing) .3f + .7f * (.5f - .5f * kotlin.math.cos(kotlin.math.PI.toFloat() * clock.value / (d * speed))) else .35f
+            val h = size.height * b
+            drawRect(c.accent, Offset(i * (w + gap), size.height - h), Size(w, h))
         }
     }
 }

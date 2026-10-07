@@ -64,6 +64,9 @@ interface VideoOutput {
     /** Último fotograma, o `null` si no hay video. */
     val frame: StateFlow<ImageBitmap?>
 
+    /** La superficie ya no muestra [frame]: se puede liberar su memoria sin esperar al recolector. */
+    fun recycle(frame: ImageBitmap) {}
+
     /** Una superficie empieza a mostrar el video (solo entonces se copian fotogramas). */
     fun attach()
     fun detach()

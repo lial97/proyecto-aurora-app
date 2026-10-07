@@ -1,10 +1,7 @@
 package app.aurora.screens
 
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
+import app.aurora.components.rememberAnimationSeconds
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -83,9 +80,9 @@ fun heroScale(playing: Boolean): Float {
     val base by animateFloatAsState(if (playing) 1f else .9f, tween(700, easing = AuroraMotion.Bounce))
     val breathe = Ui.theme.hero == HeroStyle.GLOW && !Ui.reduceMotion
     // El "respiro" solo existe mientras suena y el tema lo usa: si no, redibujaría la ventana sin parar.
-    val breath = if (playing && breathe) rememberInfiniteTransition().animateFloat(
-        1f, 1.025f, infiniteRepeatable(tween((2000 * Ui.colors.speed).toInt()), RepeatMode.Reverse),
-    ).value else 1f
+    // Va al ritmo de las animaciones continuas (en escritorio, ~30 fps): sube 2,5 % en 2 s × velocidad y baja.
+    val clock = rememberAnimationSeconds(playing && breathe)
+    val breath = if (playing && breathe) 1f + .0125f * (1f - kotlin.math.cos(kotlin.math.PI.toFloat() * clock.value / (2f * Ui.colors.speed))) else 1f
     return base * breath
 }
 

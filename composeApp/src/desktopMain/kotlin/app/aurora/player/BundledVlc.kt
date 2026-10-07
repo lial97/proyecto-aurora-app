@@ -77,6 +77,19 @@ object BundledVlc {
     /** Espera a que el reproductor deje listo el índice (para no abrir todos los complementos dos veces a la vez). */
     fun awaitCache() { runCatching { cacheReady.await(3, java.util.concurrent.TimeUnit.MINUTES) } }
 
+    /**
+     * VLC para el trabajo en segundo plano (miniaturas de video y tempo): uno solo para ambos, así sus complementos
+     * se cargan y ocupan memoria una vez. Cada uno quita lo que no usa al abrir el archivo (`:no-audio` / `:no-video`).
+     * Se crea la primera vez que se pide, en un hilo de E/S: espera a que el reproductor deje al día el índice.
+     */
+    val backgroundFactory: uk.co.caprica.vlcj.factory.MediaPlayerFactory? by lazy {
+        runCatching {
+            if (discover().also { awaitCache() }) uk.co.caprica.vlcj.factory.MediaPlayerFactory(
+                "--quiet", "--avcodec-hw=none", "--no-video-title-show", "--no-sub-autodetect-file", "--no-audio-time-stretch",
+            ) else null
+        }.getOrNull()
+    }
+
     private class Strategy : BaseNativeDiscoveryStrategy(
         if (windows) arrayOf("libvlc\\.dll", "libvlccore\\.dll") else arrayOf("libvlc\\.so(?:\\.\\d)*", "libvlccore\\.so(?:\\.\\d)*"),
         arrayOf("%s/plugins"),

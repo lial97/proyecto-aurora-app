@@ -16,13 +16,7 @@ import java.util.concurrent.TimeUnit
  * [RATE] / [SPEED] (≈10,7 kHz), suficiente para encontrar los golpes.
  */
 class TempoDecoder(private val speed: Float = SPEED) {
-    private val factory: MediaPlayerFactory? by lazy {
-        runCatching {
-            if (app.aurora.player.BundledVlc.discover().also { app.aurora.player.BundledVlc.awaitCache() })
-                MediaPlayerFactory("--quiet", "--no-video", "--no-audio-time-stretch", "--avcodec-hw=none", "--no-sub-autodetect-file")
-            else null
-        }.getOrNull()
-    }
+    private val factory: MediaPlayerFactory? get() = app.aurora.player.BundledVlc.backgroundFactory
 
     val available: Boolean get() = factory != null
 
