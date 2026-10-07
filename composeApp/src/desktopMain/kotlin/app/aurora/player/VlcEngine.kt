@@ -90,9 +90,12 @@ class VlcEngine : MediaEngine {
         player.events().addMediaPlayerEventListener(object : MediaPlayerEventAdapter() {
             override fun timeChanged(mediaPlayer: MediaPlayer, newTime: Long) = onPosition(newTime)
             override fun lengthChanged(mediaPlayer: MediaPlayer, newLength: Long) = onDuration(newLength)
-            override fun finished(mediaPlayer: MediaPlayer) = onEnded()
+            override fun finished(mediaPlayer: MediaPlayer) { SoundCardWake.mark(false); onEnded() }
+            override fun paused(mediaPlayer: MediaPlayer) = SoundCardWake.mark(false)
+            override fun stopped(mediaPlayer: MediaPlayer) = SoundCardWake.mark(false)
             override fun error(mediaPlayer: MediaPlayer) = onError("VLC no pudo reproducir este archivo")
             override fun playing(mediaPlayer: MediaPlayer) {
+                SoundCardWake.mark(true)
                 // VLC olvida el volumen al cambiar de archivo; nunca se pasa de 100 (sin ganancia).
                 // El sistema de sonido puede restaurar otro volumen al crear el flujo y VLC no lo reenvía
                 // si cree que ya es el mismo: se fuerza con un valor distinto y luego el real.
@@ -132,7 +135,9 @@ class VlcEngine : MediaEngine {
         }.toTypedArray()
         videoOut.reset()
         onNotice(null)
-        whenReady { if (play) mp?.media()?.play(path, *opts) else mp?.media()?.startPaused(path, *opts) }
+        onVlc { p ->
+            if (play) { SoundCardWake.wakeIfIdle(); p.media().play(path, *opts) } else p.media().startPaused(path, *opts)
+        }
     }
 
     private fun applyVolume(p: MediaPlayer) {
@@ -141,8 +146,14 @@ class VlcEngine : MediaEngine {
         p.audio().setVolume(volume)
     }
 
-    override fun play() = whenReady { mp?.controls()?.play() }
-    override fun pause() = whenReady { mp?.controls()?.setPause(true) }
+    /**
+     * Órdenes de reproducción en el hilo de VLC, en el orden en que llegan: despertar la tarjeta de sonido
+     * ([SoundCardWake]) tarda ~0,5 s y no debe trabar la ventana, y una pausa no puede adelantarse a un "reproducir".
+     */
+    private fun onVlc(action: (EmbeddedMediaPlayer) -> Unit) = whenReady { mp?.let { p -> p.submit { action(p) } } }
+
+    override fun play() = onVlc { p -> SoundCardWake.wakeIfIdle(); p.controls().play() }
+    override fun pause() = onVlc { p -> p.controls().setPause(true) }
     /** Último salto pedido; si llegan varios seguidos, solo se ejecuta el más nuevo. */
     private val pendingSeek = java.util.concurrent.atomic.AtomicLong(-1)
 
@@ -151,7 +162,7 @@ class VlcEngine : MediaEngine {
         val p = mp ?: return@whenReady
         if (pendingSeek.getAndSet(ms) == -1L) p.submit { p.controls().setTime(pendingSeek.getAndSet(-1)) }
     }
-    override fun stop() { videoOut.reset(); whenReady { mp?.controls()?.stop() } }
+    override fun stop() { videoOut.reset(); onVlc { p -> p.controls().stop() } }
 
     override fun setVolume(volume: Float) {
         this.volume = (volume.coerceIn(0f, 1f) * 100).toInt()

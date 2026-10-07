@@ -60,6 +60,9 @@ object BundledVlc {
 
     /** Opciones extra para el primer `MediaPlayerFactory`: regenerar el índice solo si hace falta. */
     fun cacheArgs(): Array<String> {
+        // AppImage: se monta en una carpeta distinta cada vez y es de solo lectura (VLC no puede guardar el índice):
+        // pedir que lo rehaga solo hacía más lento cada arranque y dejaba una marca nueva por cada apertura.
+        if (System.getenv("APPIMAGE") != null) return emptyArray()
         if (runCatching { restoreFixedDates() }.getOrDefault(false)) return emptyArray()
         val s = stamp() ?: return emptyArray()
         val saved = runCatching { stampFile.readText() }.getOrNull()
@@ -70,7 +73,7 @@ object BundledVlc {
     private val cacheReady = java.util.concurrent.CountDownLatch(1)
 
     fun cacheDone() {
-        stamp()?.let { s -> runCatching { stampFile.parentFile.mkdirs(); stampFile.writeText(s) } }
+        if (System.getenv("APPIMAGE") == null) stamp()?.let { s -> runCatching { stampFile.parentFile.mkdirs(); stampFile.writeText(s) } }
         cacheReady.countDown()
     }
 
