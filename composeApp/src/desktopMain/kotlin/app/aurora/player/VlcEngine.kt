@@ -170,6 +170,10 @@ class VlcEngine : MediaEngine {
          * Calidad de audio: remuestreo de máxima calidad y sin estirar el tiempo (evita artefactos).
          * Decodificación por CPU: con la de la tarjeta gráfica (p. ej. D3D11 en Windows) VLC no logra pasar los
          * fotogramas a memoria, reintenta sin parar, se atrasa y el audio se entrecorta.
+         *
+         * Remuestreador: en Windows, samplerate. Allí la tarjeta suele ir a 96 o 192 kHz y, tras cada salto, VLC
+         * corrige el desfase cambiando la frecuencia; con speex la salida (WASAPI) quedaba ~1,3 s atrasada, VLC
+         * vaciaba el búfer y descartaba audio una y otra vez (la canción "se trababa"). Con samplerate, ninguno.
          */
         val VLC_ARGS = arrayOf(
             "--quiet",
@@ -177,7 +181,8 @@ class VlcEngine : MediaEngine {
             "--no-video-title-show",
             "--no-audio-time-stretch",
             "--speex-resampler-quality=10",
-            "--audio-resampler=speex_resampler",
+            if (System.getProperty("os.name").orEmpty().lowercase().contains("win")) "--audio-resampler=samplerate,any"
+            else "--audio-resampler=speex_resampler",
             "--no-sub-autodetect-file",
         )
     }

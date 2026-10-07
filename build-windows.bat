@@ -14,7 +14,7 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
-java -version 2>&1 | findstr /c:"version \"21" >nul
+java -version 2>&1 | findstr /r /c:"version .21\." >nul
 if errorlevel 1 (
   echo  [!] Se necesita Java 21. Esta es la version instalada:
   java -version
@@ -29,12 +29,12 @@ if errorlevel 1 goto error
 
 echo.
 echo  [2/3] Version portable ^(carpeta con Aurora.exe, sin instalar^)...
-call gradlew.bat :composeApp:createReleaseDistributable --console=plain
+call "%~dp0gradlew.bat" :composeApp:createReleaseDistributable --console=plain
 if errorlevel 1 goto error
 
 echo.
 echo  [3/3] Instalador .exe ^(descarga WiX automaticamente la primera vez^)...
-call gradlew.bat :composeApp:packageReleaseExe --console=plain
+call "%~dp0gradlew.bat" :composeApp:packageReleaseExe --console=plain
 if errorlevel 1 goto error
 
 if not exist AURORA-APP mkdir AURORA-APP

@@ -11,6 +11,29 @@ Formato de cada entrada:
 **Pendiente:** lo que queda abierto (opcional).
 ```
 
+## 2026-10-06 — Windows: el audio se trababa al adelantar o atrasar
+**Qué:** al saltar con la barra, la canción se entrecortaba solo en Windows. Con el VLC incluido y el registro detallado se vio que, tras cada salto, la salida WASAPI quedaba ~1,3 s atrasada ("playback way too late: flushing buffers" y decenas de "buffer too late: dropped" cada ~1,3 s). La tarjeta de este equipo trabaja a 192 kHz (búfer de 384 000 cuadros para 2 s) y VLC corrige el desfase remuestreando con speex. Comparación con 5 saltos por prueba:
+- speex calidad 10: 351 avisos de "tarde" y 327 descartes.
+- speex calidad 3: 552 avisos y 444 descartes.
+- DirectSound y waveOut: también fallan.
+- samplerate: 0 avisos y 0 descartes, con dos canciones distintas. Además, es el que VLC elige por defecto.
+Ahora en Windows se usa `--audio-resampler=samplerate,any`; en Linux sigue speex (ahí no pasaba).
+**Archivos:** `desktopMain/player/VlcEngine.kt`.
+**Pruebas:** 107 pruebas pasan; instalador `AURORA-APP\Aurora-0.3.0.exe` rearmado.
+**Pendiente:** que el usuario lo confirme de oído en Windows.
+
+## 2026-10-06 — Compilación y prueba en Windows (commit 20c2484)
+**Qué:**
+- Arreglo en `build-windows.bat`: la comprobación de Java (`findstr /c:"version \"21" >nul`) fallaba siempre, incluso con Java 21. cmd no entiende `\"`, así que `>nul` quedaba dentro de las comillas y findstr lo tomaba como archivo. Ahora usa `findstr /r /c:"version .21\." >nul`.
+- `build-windows.bat` llama a `"%~dp0gradlew.bat"` con la ruta completa. Así funciona aunque cmd no busque en la carpeta actual (`NoDefaultCurrentDirectoryInExePath`).
+**Pruebas (Windows 11, 1920×1080 al 125 %, Temurin 21.0.12):**
+- `desktopTest`: 107 pruebas, 0 fallos.
+- `build-windows.bat` genera `AURORA-APP\Aurora-0.3.0.exe` (99,4 MB). La versión portable lleva VLC con `libvlc.dll`, `libvlccore.dll`, 241 complementos y `plugins.dat`.
+- Primera vez (`APPDATA` vacío): la ventana abre en 1000×700 dp centrada, en el paso "Bienvenida", en 2,4 s.
+- Ya configurada: la ventana abre en 1280×734 dp (85 % del alto útil) en 3,2 s y muestra la biblioteca y la letra.
+- La app carga el `libvlc.dll` de `app\resources\vlc` aunque el equipo tenga VLC instalado en `Program Files`.
+**Pendiente (lo prueba el usuario):** recorrer la configuración con el selector nativo de FileKit y ver "Todo listo" con el cálculo del tempo; arrastrar la barra de progreso sin que la app se trabe; reproducir audio y video.
+
 ## 2026-10-06 — Configuración inicial nueva (fase 6: pulido, accesibilidad y pruebas)
 **Qué:**
 - Foco al título de cada paso al llegar (`FocusRequester` + `focusable` + `heading`): los lectores de pantalla lo anuncian y en escritorio el teclado funciona sin hacer clic antes.
