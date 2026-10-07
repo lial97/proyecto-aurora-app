@@ -71,5 +71,7 @@ Icon=aurora
 Categories=AudioVideo;Audio;Video;Player;
 Terminal=false
 DESK
-ARCH=x86_64 appimagetool --appimage-extract-and-run --no-appstream "$APPDIR" "AURORA-APP/Aurora-$VERSION-x86_64.AppImage" >/dev/null
+# Se arma con otro nombre y se renombra: así funciona aunque el AppImage anterior esté abierto ("Text file busy").
+ARCH=x86_64 appimagetool --appimage-extract-and-run --no-appstream "$APPDIR" "AURORA-APP/.Aurora-$VERSION-x86_64.AppImage.nuevo" >/dev/null
+mv -f "AURORA-APP/.Aurora-$VERSION-x86_64.AppImage.nuevo" "AURORA-APP/Aurora-$VERSION-x86_64.AppImage"
 echo "AppImage y .deb en AURORA-APP/"
