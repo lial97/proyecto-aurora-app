@@ -100,7 +100,7 @@ compose.desktop {
             // Lo preparan scripts/empaquetar-linux.sh y build-windows.bat; la app lo busca con BundledVlc.
             appResourcesRootDir.set(project.layout.projectDirectory.dir("resources"))
             packageName = "Aurora"
-            packageVersion = "0.3.0" // también en packageWindowsExe (auroraVersion), abajo
+            packageVersion = "0.3.1" // también en packageWindowsExe (auroraVersion), abajo
             description = "Reproductor de música y video de código abierto"
             vendor = "Aurora"
             copyright = "GPL-3.0"
@@ -136,7 +136,7 @@ tasks.withType<Test>().configureEach {
 // Instalador de Windows (build-windows.bat): jpackage arma el .exe desde la versión portable con windows/main.wxs,
 // que al desinstalar borra la configuración y la caché (no al actualizar). No se usa packageReleaseExe de Compose
 // porque vacía y pasa su propia carpeta de recursos al final, y jpackage se queda con la última.
-val auroraVersion = "0.3.0"
+val auroraVersion = "0.3.1"
 tasks.register<Exec>("packageWindowsExe") {
     group = "compose desktop"
     description = "Instalador .exe de Windows que borra los datos al desinstalar."

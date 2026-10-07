@@ -11,6 +11,23 @@ Formato de cada entrada:
 **Pendiente:** lo que queda abierto (opcional).
 ```
 
+## 2026-10-07 — Bug conocido: los widgets traban la app en el Moto G84 (sin resolver)
+**Qué:** reporte del usuario: en el Moto G84 (Android), si hay un widget de Aurora en la pantalla de inicio, la app se traba y no funciona. Sin widgets funciona.
+**Por qué:** aún no se sabe; no se ha reproducido ni hay registro (`adb logcat`) del G84. En el A35 los widgets funcionan tras el arreglo del mismo día ("Widgets: desaparecían…"). Sospechas a revisar: el redibujo de los widgets (`WidgetUpdater.push`, con candado y `NonCancellable`) bloqueando o compitiendo con el hilo principal, la sesión de Glance/WorkManager y la frecuencia de actualización del progreso.
+**Archivos:** `widget/WidgetUpdater.kt`, `widget/WidgetUi.kt`, `widget/PlayerWidget.kt`, `widget/BarWidget.kt`, `widget/CoverWidget.kt`.
+**Pendiente:** conectar el G84, reproducir con un widget puesto y capturar `adb logcat` y un volcado de hilos (ANR en `/data/anr`). Mientras tanto: quitar los widgets de Aurora de la pantalla de inicio (anotado en el README).
+
+## 2026-10-07 — Windows: menos CPU mientras suena (ritmo estricto de animaciones)
+**Qué:** con música sonando la app gastaba ~88 % de un núcleo en la PC del usuario (Ryzen 5 7535HS, pantalla de **165 Hz**); casi todo era redibujar la ventana. Se midió con una prueba nueva (`desktopTest/CpuProbe.kt`: ventana real con Direct3D, VLC en silencio, sin análisis de tempo; `AURORA_FPS` cuenta fotogramas y `AURORA_TRACE` dice qué estados cambian y quién los escribe). Dos causas:
+- **Barra de progreso:** `animateFloatAsState(tween(900))` por cada segundo de canción corre casi siempre que suena y va a la frecuencia del monitor, no a los 30 fps de `animationFrameIntervalMs`. Ahora avanza con `animatePacedFloat` (mismo movimiento lineal, al ritmo de `awaitAnimationFrame`) y el valor se lee al dibujar.
+- **Animaciones "a 30 fps" desalineadas:** fondo, ecualizador, onda y karaoke esperaban cada una con su propio `delay`. En Windows los temporizadores tienen ~15 ms de precisión: despertaban en momentos distintos y cada una caía en su propio fotograma (116 cambios por segundo). Ahora comparten un único temporizador (`tick` en `FramePacing.kt`).
+- Los relojes de animación cambian su estado **dentro** del fotograma (`awaitAnimationFrame { … }`): antes lo hacían al reanudarse, después de dibujar, y pedían un fotograma más.
+- **Versión 0.3.1** (`build.gradle.kts` y Ajustes › Acerca de). Un instalador con la misma versión que la instalada no actualiza: Windows Installer lo toma como el mismo producto, intenta repararlo y falla sin avisar (error 1638); la ventana solo desaparece. Cada instalador nuevo necesita una versión mayor.
+- Todo se activa con `strictPacing = true`, solo en Windows (`Main.kt`, `configureDesktop()`). En Linux, macOS y Android la barra sigue con `animateFloatAsState` y las esperas no cambian; lo único común es leer el progreso al dibujar y cambiar los relojes dentro del fotograma (se ve igual).
+**Archivos:** `commonMain/components/FramePacing.kt`, `components/Controls.kt`, `components/Backdrop.kt`, `screens/LyricsScreen.kt`, `desktopMain/Main.kt`, `desktopTest/CpuProbe.kt` (nuevo).
+**Pruebas (`CpuProbe`, 1280×800, tema Aurora, 15 s por pantalla):** Inicio 88 % → ~40 % de un núcleo; reproductor 87 % → ~30 %; dibujo (ventana + render) ~60 % → ~19 %; pausa sigue en ~0,5 %. Fotogramas: ~112 por segundo solo con el arreglo de la barra, ~58 con todo. `desktopTest`: 112 pruebas pasan.
+**Pendiente:** queda ~1 fotograma extra por cada tick: las animaciones de opacidad de la mini-letra del panel derecho (`MiniKaraoke`, `animateFloatAsState` por línea) siguen activas casi todo el tiempo. Es código común: revisarlo también para Linux y Android.
+
 ## 2026-10-07 — Linux: la primera canción se cortaba unos 5 s
 **Qué:** al abrir la app y reproducir la primera canción, el sonido se cortaba varias veces durante ~5 s. Se midió con una prueba de diagnóstico (`desktopTest/VlcStartupProbe.kt`) que usa el VLC del AppImage, PipeWire y una canción real:
 - No era el tempo ni el índice de complementos: sin análisis de tempo pasaba igual y crear los VLC tarda 171 ms y 1 ms.

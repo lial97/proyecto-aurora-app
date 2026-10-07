@@ -87,8 +87,9 @@ fun rememberSmoothPositionMs(playback: PlaybackState): State<Long> {
         if (!playback.isPlaying) return@LaunchedEffect
         val t0 = withFrameNanos { it }
         while (true) {
-            val t = app.aurora.components.awaitAnimationFrame()
-            now.longValue = anchor + ((t - t0) / 1_000_000).coerceAtMost(1500)
+            app.aurora.components.awaitAnimationFrame { t ->
+                now.longValue = anchor + ((t - t0) / 1_000_000).coerceAtMost(1500)
+            }
         }
     }
     return now

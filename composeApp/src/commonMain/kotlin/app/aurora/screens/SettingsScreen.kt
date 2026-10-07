@@ -241,7 +241,7 @@ fun SettingsScreen(state: AppState, lib: LibraryState, onBack: (() -> Unit)?, co
                         SettingsSection.APPEARANCE -> themeName
                         SettingsSection.SOUND -> if (prefs.eq.enabled) "EQ " + (if (prefs.eq.isCustom) "propio" else Eq.presets[prefs.eq.preset].name) else "EQ apagado"
                         SettingsSection.LYRICS -> "LRCLIB"
-                        SettingsSection.ABOUT -> "v0.3.0"
+                        SettingsSection.ABOUT -> "v0.3.1"
                         else -> null
                     }
                 }

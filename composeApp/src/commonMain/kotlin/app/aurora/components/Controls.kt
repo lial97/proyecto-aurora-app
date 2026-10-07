@@ -230,10 +230,9 @@ fun ProgressBar(
     // Mientras se arrastra, la barra sigue al dedo/cursor y el salto se hace una sola vez al soltar:
     // saltar en cada movimiento (60–120 veces por segundo) trababa VLC y la ventana, sobre todo en Windows.
     var dragFraction by remember { mutableStateOf<Float?>(null) }
-    val animated by animateFloatAsState(
-        if (durationSec > 0) positionSec.toFloat() / durationSec else 0f, tween(900, easing = LinearEasing),
-    )
-    val fraction = dragFraction ?: animated
+    val target = if (durationSec > 0) positionSec.toFloat() / durationSec else 0f
+    // Se lee al dibujar: la barra avanza sin recomponer.
+    val animated = if (strictPacing) animatePacedFloat(target, 900) else animateFloatAsState(target, tween(900, easing = LinearEasing))
     val desk = Ui.isDesktop
     val showThumb = !desk || hovered
     val thinBar = Ui.theme.progressHeight < 8f
@@ -265,7 +264,7 @@ fun ProgressBar(
         val h = barHeight.toPx()
         val y = size.height / 2 - h / 2
         val r = if (square) CornerRadius.Zero else CornerRadius(h)
-        val w = size.width * fraction
+        val w = size.width * (dragFraction ?: animated.value)
         if (wavy && amplitude > 0f) {
             val phase = waveClock.value / 1.6f % 1f
             drawWave(w, h, amplitude, phase, Brush.horizontalGradient(c.fill, endX = w.coerceAtLeast(1f)), c.track, square)

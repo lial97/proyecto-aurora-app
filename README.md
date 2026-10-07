@@ -50,6 +50,12 @@ Más detalles en [docs/COMPILAR.md](docs/COMPILAR.md).
 Si tienes el SDK de Android, crea `local.properties` con `sdk.dir=/ruta/al/Android/Sdk`
 (o define `ANDROID_HOME`) para activar el módulo Android.
 
+## Problemas conocidos
+
+- **Android, Moto G84: los widgets traban la app.** Si hay un widget de Aurora en la pantalla de inicio, la app
+  se traba y deja de funcionar. Mientras se corrige, quita los widgets de Aurora de la pantalla de inicio.
+  Detalles en [BITACORA.md](BITACORA.md).
+
 ## Licencia
 
 [GPL-3.0](LICENSE). Todas las fuentes (Syne, DM Sans, Archivo, Fraunces, Nunito, Cormorant, Jost, Chakra Petch, Inter, Bebas Neue, Barlow, Manrope, Shrikhand, DM Serif Display, Quicksand, Zilla Slab, IBM Plex Sans, Figtree, Lobster y Rubik) son de Google Fonts, bajo la [SIL Open Font License](docs/licencias/).

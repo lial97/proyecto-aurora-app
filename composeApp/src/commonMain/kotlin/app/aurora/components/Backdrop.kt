@@ -44,9 +44,10 @@ fun rememberPlayClock(playing: Boolean, speed: Float): State<Float> {
         if (!playing) return@LaunchedEffect
         var last = withFrameNanos { it }
         while (true) {
-            val now = awaitAnimationFrame()
-            seconds.floatValue += (now - last) / 1e9f / speed
-            last = now
+            awaitAnimationFrame { now ->
+                seconds.floatValue += (now - last) / 1e9f / speed
+                last = now
+            }
         }
     }
     return seconds

@@ -36,9 +36,18 @@ private fun initialSize(): DpSize = runCatching {
 private val SetupSize = DpSize(1000.dp, 700.dp)
 
 fun main() {
+    configureDesktop()
+    runApp()
+}
+
+/** Ajustes de rendimiento del escritorio; van antes de abrir la ventana (también los usa `CpuProbe`). */
+internal fun configureDesktop() {
     // Animaciones continuas (fondo, onda, ecualizador, karaoke) a ~30 fps en lugar de la frecuencia del monitor.
     app.aurora.components.animationFrameIntervalMs = 33
-    runApp()
+    if (System.getProperty("os.name").orEmpty().lowercase().contains("win")) {
+        // Temporizadores imprecisos y pantallas de 120–165 Hz: sin esto la ventana se redibujaba ~120 veces por segundo.
+        app.aurora.components.strictPacing = true
+    }
 }
 
 private fun runApp() = application {
