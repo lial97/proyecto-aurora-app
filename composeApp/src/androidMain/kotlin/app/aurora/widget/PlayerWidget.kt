@@ -6,8 +6,6 @@ import android.widget.RemoteViews
 import androidx.compose.ui.graphics.toArgb
 import androidx.glance.appwidget.AndroidRemoteViews
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -51,11 +49,9 @@ class PlayerWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Exact
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val flow = WidgetStore.flow(context)
-        provideContent {
-            val snap by flow.collectAsState()
-            Content(snap ?: WidgetSnapshot())
-        }
+        // Se lee el estado al dibujar, sin escucharlo: los cambios los dibuja solo WidgetUpdater (si la sesión de
+        // Glance también se redibujaba sola, las dos versiones competían y el widget cambiaba o quedaba vacío).
+        provideContent { Content(WidgetStore.current(context)) }
     }
 
     /** Vista previa del selector de widgets (Android 15+): el widget real con una canción de ejemplo. */
@@ -95,11 +91,9 @@ class PlayerWidget : GlanceAppWidget() {
                 Spacer(GlanceModifier.defaultWeight())
                 Progress(s, st, playing)
                 Spacer(GlanceModifier.defaultWeight())
-                if (s.restingNow) Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    LikeButton(s, st)
-                    Spacer(GlanceModifier.defaultWeight())
-                    ContinueButton(st)
-                } else Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                // Columna angosta (~144 dp): "Continuar" ocupa toda la fila (con Me gusta al lado no entraba).
+                if (s.restingNow) ContinueButton(st, modifier = GlanceModifier.fillMaxWidth())
+                else Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     LikeButton(s, st)
                     Spacer(GlanceModifier.defaultWeight())
                     IconButton(R.drawable.widget_ic_prev, "Canción anterior", st.ink, widgetAction(WidgetAction.PREVIOUS))

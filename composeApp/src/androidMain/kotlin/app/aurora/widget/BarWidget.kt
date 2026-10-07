@@ -2,8 +2,6 @@ package app.aurora.widget
 
 import android.content.Context
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
@@ -33,11 +31,8 @@ class BarWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Exact
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val flow = WidgetStore.flow(context)
-        provideContent {
-            val s by flow.collectAsState()
-            Content(s ?: WidgetSnapshot())
-        }
+        // Se lee el estado al dibujar, sin escucharlo (los cambios los dibuja WidgetUpdater; ver PlayerWidget).
+        provideContent { Content(WidgetStore.current(context)) }
     }
 
     /** Vista previa del selector de widgets (Android 15+): el widget real con una canción de ejemplo. */

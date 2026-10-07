@@ -39,7 +39,9 @@ import androidx.glance.layout.ContentScale
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.padding
 import androidx.glance.layout.size
+import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
+import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import app.aurora.AuroraRuntime
 import app.aurora.shared.R
@@ -101,15 +103,16 @@ internal fun IconButton(icon: Int, description: String, tint: ColorProvider, act
 
 /** "Continuar": vuelve a sonar la última canción (y su cola, si se guardó) sin abrir la app. */
 @Composable
-internal fun ContinueButton(st: WidgetStyle, height: Dp = 40.dp) {
+internal fun ContinueButton(st: WidgetStyle, height: Dp = 40.dp, modifier: GlanceModifier = GlanceModifier) {
     Row(
-        GlanceModifier.height(height).cornerRadius(minOf(st.corner, height / 2)).background(st.play)
+        modifier.height(height).cornerRadius(minOf(st.corner, height / 2)).background(st.play)
             .padding(start = 12.dp, end = 16.dp).clickable(widgetAction(WidgetAction.TOGGLE)),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalAlignment = Alignment.CenterVertically, horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Image(ImageProvider(R.drawable.widget_ic_play), null, GlanceModifier.size(20.dp), colorFilter = ColorFilter.tint(st.playInk))
         Spacer(GlanceModifier.width(6.dp))
-        Text("Continuar", maxLines = 1, style = st.titleStyle(14.sp, st.playInk))
+        // Fuente del sistema (no la del tema): en serif o cursiva la palabra no entraba en el botón.
+        Text("Continuar", maxLines = 1, style = TextStyle(color = st.playInk, fontSize = 14.sp, fontWeight = FontWeight.Bold))
     }
 }
 
@@ -231,6 +234,7 @@ class CoverWidgetReceiver : AuroraWidgetReceiver() { override val glanceAppWidge
 class WidgetAction : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: androidx.glance.GlanceId, parameters: ActionParameters) {
         val what = parameters[KEY] ?: return
+        WidgetUpdater.reshow(context, glanceId)
         withContext(Dispatchers.Main) {
             val app = AuroraRuntime.get(context.applicationContext)
             if (app.player.state.value.current == null) {

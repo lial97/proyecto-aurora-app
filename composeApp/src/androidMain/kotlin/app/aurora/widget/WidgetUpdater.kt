@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
@@ -109,8 +110,28 @@ object WidgetUpdater {
         }
     }
 
+    /** Última vista entregada a cada widget (por `appWidgetId`), para volver a mostrarla al instante. */
+    private val lastViews = java.util.concurrent.ConcurrentHashMap<Int, RemoteViews>()
+
+    /**
+     * El launcher de Samsung oculta el widget al tocarlo (prepara la animación de abrir una app, aunque el botón no
+     * abre ninguna) y lo vuelve a mostrar recién cuando el widget recibe una vista. Dibujar la nueva tarda 1–2 s: en
+     * ese rato el widget desaparecía y los toques se perdían. Se reenvía enseguida la última vista ya armada.
+     */
+    fun reshow(context: Context, id: androidx.glance.GlanceId) {
+        runCatching {
+            val appWidgetId = GlanceAppWidgetManager(context).getAppWidgetId(id)
+            lastViews[appWidgetId]?.let { AppWidgetManager.getInstance(context).updateAppWidget(appWidgetId, it) }
+        }
+    }
+
+    /** Un dibujo a la vez: dos a la vez (receptor y cambio de estado) podían dejar cada widget con un tema distinto. */
+    private val lock = kotlinx.coroutines.sync.Mutex()
+
     /** Se llama también al poner un widget nuevo (si la app ya está abierta). */
-    suspend fun push() {
+    suspend fun push() = lock.withLock { pushLocked() }
+
+    private suspend fun pushLocked() {
         val ctx = context ?: return
         val app = app ?: return
         val glance = GlanceAppWidgetManager(ctx)
@@ -152,7 +173,8 @@ object WidgetUpdater {
             wallpaper = app.prefsRepo.prefs.value.widgetsWallpaper,
             accent = accent, deep = deep, coverVersion = version,
         ))
-        render(ctx)
+        // Un dibujo empezado termina para todos los widgets aunque llegue otro cambio (si no, quedaban mezclados).
+        withContext(kotlinx.coroutines.NonCancellable) { render(ctx) }
     }
 
     /**
@@ -180,7 +202,7 @@ object WidgetUpdater {
                 } else widget.compose(ctx, id, options, portrait)
             }.getOrNull()
             // Si algo falla, la sesión normal de Glance (más lenta pero segura).
-            if (views != null) manager.updateAppWidget(appWidgetId, views) else widget.update(ctx, id)
+            if (views != null) { lastViews[appWidgetId] = views; manager.updateAppWidget(appWidgetId, views) } else widget.update(ctx, id)
         }
     }
 }
