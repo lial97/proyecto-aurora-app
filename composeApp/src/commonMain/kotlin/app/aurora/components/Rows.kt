@@ -7,6 +7,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +25,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -106,7 +110,8 @@ fun MiniPlayer(
                 BasicText(track.artist, style = type.rowSubtitle, maxLines = 1)
             }
             if (onOpenVideo != null) IconButton(AuroraIcon.Video, "Ver video", onOpenVideo)
-            IconButton(if (playing) AuroraIcon.Pause else AuroraIcon.Play, if (playing) "Pausar" else "Reproducir", onToggle)
+            if (Ui.theme.controlStyle == app.aurora.theme.ControlStyle.KEYS) PlayButton(playing, 36.dp, onToggle, width = 40.dp)
+            else IconButton(if (playing) AuroraIcon.Pause else AuroraIcon.Play, if (playing) "Pausar" else "Reproducir", onToggle)
         }
         Box(Modifier.align(Alignment.BottomStart).fillMaxWidth(progress.coerceIn(0f, 1f)).height(2.dp).background(c.accent))
     }
@@ -126,15 +131,24 @@ fun TabBar(selected: Tab?, onSelect: (Tab) -> Unit, modifier: Modifier = Modifie
     val c = Ui.colors
     val theme = Ui.theme
     Column(modifier.fillMaxWidth().background(c.background).background(c.barBg)) {
+        // Rockola: franja de cuadros negro y crema justo encima de las pestañas.
+        if (theme.backdrop == app.aurora.theme.BackdropStyle.CHECKER_BAND) CheckerBand(8.dp)
         if (Ui.shapes.borderWidth > 0.dp) Box(Modifier.fillMaxWidth().height(3.dp).background(c.ink))
         Row(
             Modifier.fillMaxWidth().navigationBarsPadding().height(64.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            val keys = theme.controlStyle == app.aurora.theme.ControlStyle.KEYS
             Tab.entries.forEach { tab ->
-                val tint = if (tab == selected) c.accent else c.mute
-                Column(Modifier.weight(1f).pressable(tab.label) { onSelect(tab) }, horizontalAlignment = Alignment.CenterHorizontally) {
+                val on = tab == selected
+                val tint = if (on) (if (keys) c.ink else c.accent) else c.mute
+                Column(
+                    Modifier.weight(1f).pressable(tab.label) { onSelect(tab) }
+                        // Casete: la pestaña activa es una tecla crema con borde y sombra dura.
+                        .then(if (keys && on) Modifier.padding(horizontal = 3.dp).keyFace(c.surface, c.ink, RoundedCornerShape(10.dp)).padding(vertical = 5.dp) else Modifier),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
                     Icon(tab.icon, tint)
                     // Siempre en una línea: con texto grande se achica un poco en vez de partirse ("BIBLIOTE CA").
                     FitText(theme.label(tab.label), Ui.type.tab.copy(color = tint), Modifier.padding(top = 4.dp, start = 2.dp, end = 2.dp).fillMaxWidth())
@@ -159,5 +173,24 @@ fun Toast(message: String?, modifier: Modifier = Modifier) {
             style = Ui.type.body.copy(color = c.background, fontWeight = FontWeight.SemiBold),
             modifier = Modifier.clip(Ui.shapes.chip).background(c.ink).padding(horizontal = 18.dp, vertical = 10.dp),
         )
+    }
+}
+
+/** Rockola: franja de cuadros negro y crema de [height] de alto. */
+@Composable
+fun CheckerBand(height: Dp, modifier: Modifier = Modifier) {
+    val ink = Ui.colors.ink
+    androidx.compose.foundation.Canvas(modifier.fillMaxWidth().height(height)) { drawChecker(ink, this.size.height) }
+}
+
+/** Dos filas de cuadros negro y crema (de [band] / 2 de lado) en el borde superior. */
+fun androidx.compose.ui.graphics.drawscope.DrawScope.drawChecker(ink: Color, band: Float) {
+    val s = band / 2
+    drawRect(Color(0xFFFFF4E2), size = Size(size.width, band))
+    var x = 0f
+    var i = 0
+    while (x < size.width) {
+        drawRect(ink.copy(alpha = .9f), Offset(x, if (i % 2 == 0) 0f else s), Size(s, s))
+        x += s; i++
     }
 }

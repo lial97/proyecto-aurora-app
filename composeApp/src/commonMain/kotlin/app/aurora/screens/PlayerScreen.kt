@@ -44,6 +44,11 @@ import app.aurora.components.Icon
 import app.aurora.theme.label
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
@@ -153,12 +158,7 @@ fun PlayerScreen(
     @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
     androidx.compose.ui.backhandler.BackHandler(enabled = panel != null) { panel = null }
     val duration = playback.durationSec.takeIf { it > 0 } ?: track.durationSec
-    val heroSize: Dp = when (theme.id) {
-        ThemeId.POSTER -> 200.dp
-        ThemeId.SEDA -> 236.dp
-        ThemeId.PETALO -> 232.dp
-        else -> 268.dp
-    }
+    val heroSize: Dp = theme.heroSizes.player.dp
 
     Box(Modifier.fillMaxSize()) {
         Column(
@@ -176,7 +176,7 @@ fun PlayerScreen(
             Box(
                 Modifier.fillMaxWidth().padding(top = 22.dp),
                 contentAlignment = if (theme.leftAlignedHero) Alignment.TopStart else Alignment.TopCenter,
-            ) { Hero(track, heroSize, scale = heroScale(playback.isPlaying)) }
+            ) { Hero(track, heroSize, scale = heroScale(playback.isPlaying), playing = playback.isPlaying, progress = playback.progress) }
 
             // Tarjeta: origen, título, me gusta, etiquetas y progreso.
             val cardShape = androidx.compose.foundation.shape.RoundedCornerShape(22.dp)
@@ -205,7 +205,7 @@ fun PlayerScreen(
                 PlayerTags(track, prefs.eq, state.sleep != null, Modifier.padding(top = 10.dp))
                 ProgressBar(playback.positionSec, duration, player::seekTo, Modifier.padding(top = 14.dp), wavePlaying = playback.isPlaying)
                 Row(Modifier.fillMaxWidth()) {
-                    BasicText(formatTime(playback.positionSec), style = type.caption)
+                    app.aurora.components.PositionText(playback.positionSec)
                     Spacer(Modifier.weight(1f))
                     BasicText("-" + formatTime(duration - playback.positionSec), style = type.caption)
                 }
@@ -220,14 +220,14 @@ fun PlayerScreen(
             ) {
                 IconButton(AuroraIcon.Shuffle, "Aleatorio", {
                     player.toggleShuffle(); state.show(if (!playback.shuffle) "Aleatorio activado" else "Aleatorio desactivado")
-                }, tint = if (playback.shuffle) c.accent else c.ink)
-                IconButton(AuroraIcon.Previous, "Anterior", player::previous, size = 48.dp)
+                }, tint = if (playback.shuffle) c.accent else c.ink, key = true)
+                IconButton(AuroraIcon.Previous, "Anterior", player::previous, size = 48.dp, key = true)
                 if (boxed) PlayButton(playback.isPlaying, 58.dp, player::togglePlay, width = 90.dp)
                 else PlayButton(playback.isPlaying, AuroraDimens.PlayButtonPlayer, player::togglePlay)
-                IconButton(AuroraIcon.Next, "Siguiente", player::next, size = 48.dp)
+                IconButton(AuroraIcon.Next, "Siguiente", player::next, size = 48.dp, key = true)
                 IconButton(AuroraIcon.Repeat, "Repetir", {
                     player.toggleRepeat(); state.show(if (!playback.repeatOne) "Repetir esta canción" else "Repetir desactivado")
-                }, tint = if (playback.repeatOne) c.accent else c.ink)
+                }, tint = if (playback.repeatOne) c.accent else c.ink, key = true)
             }
 
             // Accesos al panel: Letra · Cola · Info.
@@ -350,7 +350,19 @@ private fun SheetLyrics(state: app.aurora.AppState, playback: PlaybackState, tra
     val synced = l is app.aurora.data.LyricsState.Found && l.synced
     var scale by rememberSaveable { mutableStateOf(1f) }
     val duration = playback.durationSec.takeIf { it > 0 } ?: track.durationSec
-    Column(modifier) {
+    val c = Ui.colors
+    val sheet = Ui.theme.hero == app.aurora.theme.HeroStyle.CASSETTE
+    // Casete: la letra va en una hoja crema rayada (renglones verde petróleo al 18 %), como la lista de canciones
+    // escrita a mano en una carátula.
+    Column(modifier.then(if (sheet) Modifier.drawBehind {
+        val step = 34.dp.toPx()
+        var y = step
+        while (y < size.height) { drawLine(c.accent.copy(alpha = .18f), Offset(0f, y), Offset(size.width, y), 1.dp.toPx()); y += step }
+    } else Modifier)) {
+        if (sheet) BasicText(
+            "Lado A · letra", style = Ui.type.h2.copy(fontSize = 14.sp, color = Color(0xFFD9542B)),
+            modifier = Modifier.padding(bottom = 6.dp).graphicsLayer { rotationZ = -2f },
+        )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             if (synced) {
                 val off = state.lyricsOffsetMs / 1000f
@@ -368,9 +380,9 @@ private fun SheetLyrics(state: app.aurora.AppState, playback: PlaybackState, tra
             offsetMs = state.lyricsOffsetMs, textScale = scale,
         )
         Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(AuroraIcon.Previous, "Anterior", player::previous)
+            IconButton(AuroraIcon.Previous, "Anterior", player::previous, key = true)
             PlayButton(playback.isPlaying, 46.dp, player::togglePlay)
-            IconButton(AuroraIcon.Next, "Siguiente", player::next)
+            IconButton(AuroraIcon.Next, "Siguiente", player::next, key = true)
             ProgressBar(playback.positionSec, duration, player::seekTo, Modifier.weight(1f).padding(start = 8.dp))
         }
     }

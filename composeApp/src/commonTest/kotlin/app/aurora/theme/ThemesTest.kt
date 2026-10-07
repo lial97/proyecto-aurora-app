@@ -8,10 +8,10 @@ import kotlin.test.assertTrue
 
 class ThemesTest {
     @Test
-    fun sevenUniqueThemes() {
-        assertEquals(7, Themes.all.size)
+    fun uniqueThemes() {
+        assertEquals(ThemeId.entries.size, Themes.all.size)
         assertEquals(ThemeId.entries.toSet(), Themes.all.map { it.id }.toSet())
-        assertEquals(7, Themes.all.map { it.displayName }.toSet().size)
+        assertEquals(Themes.all.size, Themes.all.map { it.displayName }.toSet().size)
     }
 
     @Test

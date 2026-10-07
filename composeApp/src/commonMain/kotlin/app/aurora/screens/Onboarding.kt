@@ -370,7 +370,7 @@ private fun TopBar(step: Int, onBack: () -> Unit) {
 private fun Kicker(text: String, centered: Boolean) {
     Row(Modifier.padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         // Carbono: cuadrito del color de énfasis delante, como en la maqueta.
-        if (Ui.theme.id == ThemeId.CARBONO) Box(Modifier.padding(end = 8.dp).size(8.dp).background(Ui.colors.accent))
+        if (Ui.theme.headingDecoration == app.aurora.theme.HeadingDecoration.SQUARE_BEFORE) Box(Modifier.padding(end = 8.dp).size(8.dp).background(Ui.colors.accent))
         BasicText(
             text, style = Ui.type.caption.copy(color = Ui.colors.accent, fontWeight = FontWeight.Bold, letterSpacing = 1.6.sp, textAlign = if (centered) TextAlign.Center else TextAlign.Start),
         )

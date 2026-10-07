@@ -4,6 +4,10 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -17,12 +21,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.translate
 import app.aurora.theme.BackdropStyle
 import app.aurora.theme.LiveColors
 import app.aurora.theme.Ui
@@ -79,6 +86,12 @@ fun Backdrop(
                     BackdropStyle.GRID -> grid(c, desk)
                     BackdropStyle.DIAGONAL_STRIPES -> stripes(c, desk)
                     BackdropStyle.SOFT_CIRCLE -> softCircle(desk)
+                    BackdropStyle.NONE -> Unit
+                    // Se completan con cada tema nuevo.
+                    BackdropStyle.CONTOUR_LINES -> contourLines(c, desk)
+                    BackdropStyle.WATERCOLOR_BLOBS -> watercolorBlobs(t, desk)
+                    BackdropStyle.RETRO_STRIPE -> retroStripe(c, desk, alpha >= .9f)
+                    BackdropStyle.CHECKER_BAND -> checkerBand(c, desk, alpha >= .9f)
                 }
                 if (veilAlpha > 0f) drawRect(c.background.copy(alpha = veilAlpha))
             },
@@ -183,4 +196,165 @@ private fun DrawScope.softCircle(desk: Boolean) {
     val k = density
     if (desk) drawCircle(Color(0xFFDFE5DC), 350f * k, Offset(650f * k, -30f * k))
     else drawCircle(Color(0xFFDFE5DC), 200f * k, Offset(60f * k, -40f * k))
+}
+
+/**
+ * Bosque: curvas de nivel, como un mapa topográfico (la misma fórmula de la maqueta: dos cimas con 8 contornos
+ * irregulares cada una, en un lienzo de 380 × 760). No se animan: el trazo se arma una vez por tamaño y se guarda.
+ */
+private fun DrawScope.contourLines(c: LiveColors, desk: Boolean) {
+    drawPath(ContourCache.path(size, density, desk), c.mute.copy(alpha = .16f), style = Stroke(1f * density))
+}
+
+private object ContourCache {
+    private var key: Triple<Size, Float, Boolean>? = null
+    private var cached: Path? = null
+
+    fun path(size: Size, density: Float, desk: Boolean): Path {
+        val k = Triple(size, density, desk)
+        cached?.takeIf { key == k }?.let { return it }
+        // Como en la maqueta: 20 dp más grande por cada lado y recortado al centro. En escritorio el dibujo se
+        // ajusta al alto y se repite a lo ancho, así los contornos no quedan enormes en una ventana ancha.
+        val pad = 20f * density
+        val w = size.width + pad * 2
+        val h = size.height + pad * 2
+        val scale = if (desk) h / 760f else maxOf(w / 380f, h / 760f)
+        val tileW = 380f * scale
+        val tiles = if (desk) kotlin.math.ceil(w / tileW).toInt() else 1
+        val x0 = if (desk) -pad else (w - tileW) / 2 - pad
+        val y0 = (h - 760f * scale) / 2 - pad
+        val path = Path()
+        repeat(tiles) { tile ->
+            val ox = x0 + tile * tileW
+            listOf(60f to 130f, 250f to 520f).forEachIndexed { ci, (cx, cy) ->
+                for (ring in 1 until 9) {
+                    val r = ring * 24f
+                    var a = 0
+                    while (a <= 360) {
+                        val rad = a * PI.toFloat() / 180f
+                        val rr = r * (1 + .18f * sin(3 * rad + ring + ci) + .08f * kotlin.math.cos(5 * rad + ring))
+                        val x = ox + (cx + rr * kotlin.math.cos(rad)) * scale
+                        val y = y0 + (cy + rr * .8f * sin(rad)) * scale
+                        if (a == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                        a += 12
+                    }
+                    path.close()
+                }
+            }
+        }
+        key = k; cached = path
+        return path
+    }
+}
+
+/**
+ * Acuarela: manchas lila, durazno y menta al 55 % que flotan muy despacio (14 s, cada una desfasada) mientras
+ * suena. Degradados radiales en lugar de desenfoque, como las luces de Aurora.
+ */
+private fun DrawScope.watercolorBlobs(t: Float, desk: Boolean) {
+    val k = density * (if (desk) 1.6f else 1f)
+    fun wash(color: Color, w: Float, h: Float, center: Offset, delay: Float) {
+        val p = (1f - kotlin.math.cos((t + delay) / 14f * 2f * PI.toFloat())) / 2f
+        val s = 1f + .05f * p
+        val c = center + Offset(10f * k * p, -8f * k * p)
+        // El desenfoque de 26 px de la maqueta agranda la mancha: el degradado llega un poco más lejos.
+        val r = maxOf(w, h) / 2f * k * s * 1.25f
+        // Núcleo parejo al 55 % y borde que se desvanece, como la mancha desenfocada de la maqueta.
+        scale(1f, h / w, c) {
+            drawCircle(Brush.radialGradient(0f to color.copy(alpha = .55f), .5f to color.copy(alpha = .45f), 1f to Color.Transparent, center = c, radius = r), r, c)
+        }
+    }
+    wash(Color(0xFFC9B6F2), 220f, 180f, Offset(size.width - 50f * k, 40f * k), 0f)
+    wash(Color(0xFFFFC9B0), 200f, 160f, Offset(10f * k, 380f * k), 5f)
+    wash(Color(0xFFBFE8D9), 180f, 150f, Offset(size.width - 30f * k, size.height - 115f * k), 9f)
+}
+
+/**
+ * Casete: grano de papel muy leve en toda la pantalla y, en el reproductor del móvil ([player]), una franja diagonal
+ * abajo, detrás de las teclas. En escritorio la franja va al final del panel derecho ([RetroStripeBox]), así se
+ * desplaza con el contenido y nunca queda detrás de texto.
+ */
+private fun DrawScope.retroStripe(c: LiveColors, desk: Boolean, player: Boolean) {
+    drawRect(PaperGrain.brush)
+    if (desk || !player) return
+    val k = density
+    retroBands(Offset(size.width + 130f * k - 420f * k, size.height - 30f * k - 72f * k), 420f * k, 72f * k, c.ink)
+}
+
+/** Franja de Casete al final de un panel: un adorno que ocupa su lugar, no un fondo. */
+@Composable
+fun RetroStripeBox(modifier: Modifier = Modifier) {
+    val ink = Ui.colors.ink
+    Box(modifier.fillMaxWidth().height(110.dp).clipToBounds().drawBehind {
+        val k = density
+        retroBands(Offset(size.width - 330f * k, 30f * k), 420f * k, 72f * k, ink)
+    })
+}
+
+/** Cinco bandas (naranja, crema, verde petróleo, crema y café) en un rectángulo girado -28°. */
+private fun DrawScope.retroBands(topLeft: Offset, w: Float, h: Float, ink: Color) {
+    val center = topLeft + Offset(w / 2, h / 2)
+    val cream = Color(0xFFF6E7C8)
+    rotate(-28f, center) {
+        val bands = listOf(0f to Color(0xFFD9542B), .33f to cream, .40f to Color(0xFF1D524F), .73f to cream, .80f to ink, 1f to Color.Transparent)
+        for (i in 0 until bands.size - 1) {
+            val (from, color) = bands[i]
+            val to = bands[i + 1].first
+            drawRect(color.copy(alpha = .9f), topLeft + Offset(0f, h * from), Size(w, h * (to - from)))
+        }
+    }
+}
+
+/** Textura de ruido (puntos café muy tenues) que se genera una vez y se repite como mosaico. */
+private object PaperGrain {
+    val brush: Brush by lazy {
+        val n = 96
+        val img = androidx.compose.ui.graphics.ImageBitmap(n, n)
+        val canvas = androidx.compose.ui.graphics.Canvas(img)
+        val paint = androidx.compose.ui.graphics.Paint()
+        val rnd = kotlin.random.Random(7)
+        repeat(n * n / 3) {
+            paint.color = Color(0xFF3B2416).copy(alpha = rnd.nextFloat() * .07f)
+            val x = rnd.nextInt(n).toFloat(); val y = rnd.nextInt(n).toFloat()
+            canvas.drawRect(x, y, x + 1f, y + 1f, paint)
+        }
+        androidx.compose.ui.graphics.ShaderBrush(
+            androidx.compose.ui.graphics.ImageShader(img, androidx.compose.ui.graphics.TileMode.Repeated, androidx.compose.ui.graphics.TileMode.Repeated),
+        )
+    }
+}
+
+/**
+ * Rockola: estrella menta (✦) en una esquina y, en el reproductor del móvil ([player]), franja de cuadros de 16 dp
+ * en el borde inferior. Fuera del reproductor la franja va en la barra de pestañas o de reproducción (no en el
+ * fondo), así nunca queda detrás de texto.
+ */
+private fun DrawScope.checkerBand(c: LiveColors, desk: Boolean, player: Boolean) {
+    val k = density
+    if (player && !desk) {
+        val band = 16f * k
+        translate(top = size.height - band) {
+            val s = band / 2
+            drawRect(Color(0xFFFFF4E2), size = Size(size.width, band))
+            var x = 0f
+            var i = 0
+            while (x < size.width) {
+                drawRect(c.ink.copy(alpha = .9f), Offset(x, if (i % 2 == 0) 0f else s), Size(s, s))
+                x += s; i++
+            }
+        }
+    }
+    if (desk) return // en escritorio la esquina de arriba a la derecha es el panel derecho
+    val r = 13f * k
+    val center = if (player) Offset(22f * k + r, size.height - 70f * k - r) else Offset(size.width - 26f * k - r, 58f * k + r)
+    // Estrella de cuatro puntas con lados curvos.
+    val star = Path().apply {
+        moveTo(center.x, center.y - r)
+        quadraticTo(center.x, center.y, center.x + r, center.y)
+        quadraticTo(center.x, center.y, center.x, center.y + r)
+        quadraticTo(center.x, center.y, center.x - r, center.y)
+        quadraticTo(center.x, center.y, center.x, center.y - r)
+        close()
+    }
+    drawPath(star, Color(0xFF5DB8A4))
 }

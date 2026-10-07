@@ -25,6 +25,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithContent
@@ -205,7 +208,19 @@ private fun KaraokeLines(lines: List<LyricLine>, playback: PlaybackState, onSeek
                         withStyle(SpanStyle(color = c.lyricOn)) { append(shown.take(sung)) }
                         withStyle(SpanStyle(color = c.ink.copy(alpha = .5f))) { append(shown.drop(sung)) }
                     }
-                    BasicText(text, style = base, modifier = mod)
+                    if (theme.hero == app.aurora.theme.HeroStyle.CASSETTE) {
+                        // Casete: la línea activa lleva un subrayado mostaza (el 40 % inferior de cada renglón).
+                        var layout by remember { mutableStateOf<androidx.compose.ui.text.TextLayoutResult?>(null) }
+                        val marker = Color(0xFFE9B949).copy(alpha = .8f)
+                        BasicText(text, style = base, onTextLayout = { layout = it }, modifier = mod.drawBehind {
+                            val l = layout ?: return@drawBehind
+                            for (k in 0 until l.lineCount) {
+                                val top = l.getLineTop(k); val bottom = l.getLineBottom(k)
+                                val y = top + (bottom - top) * .6f
+                                drawRect(marker, Offset(l.getLineLeft(k), y), Size(l.getLineRight(k) - l.getLineLeft(k), bottom - y))
+                            }
+                        })
+                    } else BasicText(text, style = base, modifier = mod)
                 } else {
                     BasicText(shown, style = base.copy(color = if (state == 0) c.lyricOn else c.ink), modifier = mod)
                 }
@@ -235,14 +250,14 @@ fun LyricsScreen(playback: PlaybackState, player: PlayerController, lyrics: Lyri
         LyricsView(lyrics, playback, player::seekTo, Modifier.weight(1f).fillMaxWidth().padding(top = 8.dp), onRetry, onSave, offsetMs = offsetMs)
         ProgressBar(playback.positionSec, duration, player::seekTo)
         Row(Modifier.fillMaxWidth()) {
-            BasicText(formatTime(playback.positionSec), style = type.caption)
+            app.aurora.components.PositionText(playback.positionSec)
             Spacer(Modifier.weight(1f))
             BasicText("-" + formatTime(duration - playback.positionSec), style = type.caption)
         }
         Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-            IconButton(AuroraIcon.Previous, "Anterior", player::previous, size = 48.dp)
+            IconButton(AuroraIcon.Previous, "Anterior", player::previous, size = 48.dp, key = true)
             PlayButton(playback.isPlaying, 60.dp, player::togglePlay)
-            IconButton(AuroraIcon.Next, "Siguiente", player::next, size = 48.dp)
+            IconButton(AuroraIcon.Next, "Siguiente", player::next, size = 48.dp, key = true)
         }
     }
 }

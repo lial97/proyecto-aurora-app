@@ -195,7 +195,7 @@ fun MobileApp(state: AppState, lib: LibraryState, playback: PlaybackState) {
                 if (current != null) {
                     MiniPlayer(
                         current, playback.isPlaying,
-                        progress = playback.positionSec.toFloat() / (playback.durationSec.takeIf { it > 0 } ?: current.durationSec).coerceAtLeast(1),
+                        progress = playback.progress,
                         onOpen = { layer = Layer.Player },
                         onToggle = player::togglePlay,
                         modifier = Modifier.padding(top = 8.dp, bottom = 8.dp),

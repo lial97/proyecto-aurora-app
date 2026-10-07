@@ -53,6 +53,8 @@ import app.aurora.components.Icon
 import app.aurora.components.IconButton
 import app.aurora.components.MixSwatch
 import app.aurora.components.PlayButton
+import app.aurora.components.keyFace
+import app.aurora.components.drawChecker
 import app.aurora.components.ProgressBar
 import app.aurora.components.TechBadges
 import app.aurora.components.formatTime
@@ -138,9 +140,12 @@ private fun NavRow(label: String, icon: AuroraIcon, active: Boolean, compact: Bo
         active -> c.ink
         else -> c.mute
     }
+    val keys = active && theme.controlStyle == app.aurora.theme.ControlStyle.KEYS
     Row(
-        Modifier.fillMaxWidth().padding(vertical = 1.dp)
+        Modifier.fillMaxWidth().padding(vertical = 1.dp).padding(bottom = if (keys) 3.dp else 0.dp)
             .pressable(label, .97f, hoverBg = !active, onClick = onClick)
+            // Casete: el ítem activo es una tecla crema con borde y sombra dura.
+            .then(if (keys) Modifier.keyFace(c.surface, c.ink, shape) else Modifier)
             .then(if (active && theme.id == ThemeId.PETALO) Modifier.shadow(8.dp, shape, ambientColor = Color(0x224A2B3A), spotColor = Color(0x224A2B3A)) else Modifier)
             .clip(shape).background(bg)
             .drawBehind { if (active && theme.id == ThemeId.CARBONO) drawRect(c.accent, size = Size(3.dp.toPx(), size.height)) }
@@ -175,7 +180,10 @@ fun PlayerBar(state: AppState, playback: PlaybackState, nav: DesktopNav, onToggl
     val track = playback.current
     val duration = playback.durationSec.takeIf { it > 0 } ?: track?.durationSec ?: 0
     Row(
-        Modifier.fillMaxWidth().height(DesktopDimens.PlayerBar).background(c.background).background(c.barBg).padding(horizontal = 18.dp),
+        Modifier.fillMaxWidth().height(DesktopDimens.PlayerBar).background(c.background).background(c.barBg)
+            // Rockola: franja de cuadros en el borde superior de la barra.
+            .then(if (Ui.theme.backdrop == app.aurora.theme.BackdropStyle.CHECKER_BAND) Modifier.drawBehind { drawChecker(c.ink, 8.dp.toPx()) } else Modifier)
+            .padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(20.dp),
     ) {
@@ -195,14 +203,14 @@ fun PlayerBar(state: AppState, playback: PlaybackState, nav: DesktopNav, onToggl
         }
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                IconButton(AuroraIcon.Shuffle, "Aleatorio", player::toggleShuffle, tint = if (playback.shuffle) c.accent else c.ink)
-                IconButton(AuroraIcon.Previous, "Anterior", player::previous)
+                IconButton(AuroraIcon.Shuffle, "Aleatorio", player::toggleShuffle, tint = if (playback.shuffle) c.accent else c.ink, key = true)
+                IconButton(AuroraIcon.Previous, "Anterior", player::previous, key = true)
                 PlayButton(playback.isPlaying, 42.dp, player::togglePlay)
-                IconButton(AuroraIcon.Next, "Siguiente", player::next)
-                IconButton(AuroraIcon.Repeat, "Repetir", player::toggleRepeat, tint = if (playback.repeatOne) c.accent else c.ink)
+                IconButton(AuroraIcon.Next, "Siguiente", player::next, key = true)
+                IconButton(AuroraIcon.Repeat, "Repetir", player::toggleRepeat, tint = if (playback.repeatOne) c.accent else c.ink, key = true)
             }
             Row(Modifier.widthIn(max = 560.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                BasicText(formatTime(playback.positionSec), style = type.caption, modifier = Modifier.width(40.dp), maxLines = 1)
+                Box(Modifier.widthIn(min = 40.dp)) { app.aurora.components.PositionText(playback.positionSec) }
                 ProgressBar(playback.positionSec, duration, player::seekTo, Modifier.weight(1f), barHeight = if (Ui.theme.id == ThemeId.POSTER) 8.dp else if (Ui.theme.id == ThemeId.SEDA) 2.dp else 4.dp)
                 BasicText(formatTime(duration), style = type.caption.copy(textAlign = TextAlign.End), modifier = Modifier.width(40.dp), maxLines = 1)
             }
@@ -257,19 +265,14 @@ fun RightPanel(
             BasicText(theme.label("Reproduciendo"), style = Ui.type.rowTitle.copy(fontWeight = FontWeight.Bold), modifier = Modifier.weight(1f))
             IconButton(AuroraIcon.Panel, "Ocultar panel", onTogglePanel)
         }
-        val heroSize = when (theme.id) {
-            ThemeId.SEDA -> 220.dp
-            ThemeId.PETALO -> 210.dp
-            ThemeId.ESTADIO -> 218.dp
-            else -> 252.dp - 6.dp
-        }.let { minOf(it * (if (k > 1.15f) 1.1f else 1f), width - 50.dp) }
+        val heroSize = theme.heroSizes.panel.dp.let { minOf(it * (if (k > 1.15f) 1.1f else 1f), width - 50.dp) }
         if (playback.hasVideo) {
             Column(Modifier.pressable("Abrir video", .99f) { nav.go(DView.Video) }) {
                 VideoSurface(playback, state.player, controls = false)
             }
         } else {
             Box(Modifier.fillMaxWidth(), contentAlignment = if (theme.leftAlignedHero) Alignment.CenterStart else Alignment.Center) {
-                Hero(track, heroSize, scale = heroScale(playback.isPlaying))
+                Hero(track, heroSize, scale = heroScale(playback.isPlaying), playing = playback.isPlaying, progress = playback.progress)
             }
         }
         if (track == null) {
@@ -322,6 +325,7 @@ fun RightPanel(
                 }
             }
         }
+        if (theme.backdrop == app.aurora.theme.BackdropStyle.RETRO_STRIPE) app.aurora.components.RetroStripeBox(Modifier.padding(top = 16.dp))
     }
 }
 

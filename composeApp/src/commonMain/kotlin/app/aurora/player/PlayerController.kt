@@ -26,6 +26,9 @@ data class PlaybackState(
     val current: Track? get() = queue.getOrNull(index)
     /** La pista actual es un video que se está reproduciendo con el motor real. */
     val hasVideo: Boolean get() = realAudio && current?.mediaType == app.aurora.domain.MediaType.VIDEO
+    /** Avance de la canción de 0 a 1 (con la duración del motor o, si aún no la dio, la de las etiquetas). */
+    val progress: Float get() =
+        (positionSec.toFloat() / (durationSec.takeIf { it > 0 } ?: current?.durationSec ?: 0).coerceAtLeast(1)).coerceIn(0f, 1f)
 }
 
 /** Contrato del reproductor: cola, reglas de la spec §8 y control del motor. */

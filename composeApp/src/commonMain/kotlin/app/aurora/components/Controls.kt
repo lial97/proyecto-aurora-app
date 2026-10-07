@@ -2,6 +2,7 @@ package app.aurora.components
 
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -40,7 +42,10 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
@@ -55,7 +60,13 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.sp
 import app.aurora.theme.AuroraDimens
+import app.aurora.theme.ControlStyle
+import app.aurora.theme.HeadingDecoration
+import app.aurora.theme.TimeStyle
+import app.aurora.theme.PlayDecoration
 import app.aurora.theme.ThemeId
 import app.aurora.theme.Ui
 import app.aurora.theme.label
@@ -96,6 +107,39 @@ fun Modifier.pressable(label: String, pressedScale: Float = .9f, hoverBg: Boolea
         .background(hover, Ui.shapes.card)
 }
 
+/**
+ * Cara de una tecla de grabadora (Casete): relleno, borde café de 1,5 dp y sombra dura de 4 dp hacia abajo.
+ * [down] es cuánto está hundida (0–3 dp): la tecla baja y su sombra se achica hasta 1 dp.
+ */
+fun Modifier.keyFace(fill: Color, ink: Color, shape: Shape, down: Dp = 0.dp): Modifier =
+    offset(y = down)
+        .drawBehind {
+            val o = shape.createOutline(this.size, layoutDirection, this)
+            translate(top = (4.dp - down).coerceAtLeast(1.dp).toPx()) { drawOutline(o, ink) }
+        }
+        .clip(shape).background(fill).border(1.5.dp, ink, shape)
+
+/** Tecla pulsable: se hunde 3 dp en 80 ms mientras se mantiene pulsada. */
+@Composable
+private fun PressKey(
+    label: String, onClick: () -> Unit, fill: Color, width: Dp, height: Dp, modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    val source = remember { MutableInteractionSource() }
+    val pressed by source.collectIsPressedAsState()
+    val down by animateDpAsState(if (pressed) 3.dp else 0.dp, tween(80))
+    Box(
+        modifier.padding(bottom = 4.dp).width(width).height(height)
+            .semantics { contentDescription = label }
+            .clickable(interactionSource = source, indication = null, role = Role.Button, onClick = onClick)
+            .keyFace(fill, Ui.colors.ink, RoundedCornerShape(10.dp), down),
+        contentAlignment = Alignment.Center,
+    ) { content() }
+}
+
+/**
+ * @param key control de reproducción: en los temas con teclas (Casete) se dibuja como tecla de grabadora.
+ */
 @Composable
 fun IconButton(
     icon: AuroraIcon,
@@ -105,7 +149,16 @@ fun IconButton(
     tint: Color = Ui.colors.ink,
     size: Dp = if (Ui.isDesktop) 36.dp else AuroraDimens.IconButton,
     iconSize: Dp = if (Ui.isDesktop) 20.dp else AuroraDimens.Icon,
+    key: Boolean = false,
 ) {
+    if (key && Ui.theme.controlStyle == ControlStyle.KEYS) {
+        // Activo (aleatorio, repetir): tecla café con el ícono mostaza.
+        val on = tint != Ui.colors.ink
+        PressKey(label, onClick, if (on) Ui.colors.ink else Ui.colors.surface, size * 1.15f, size, modifier) {
+            Icon(icon, if (on) Ui.colors.background else Ui.colors.ink, size = iconSize)
+        }
+        return
+    }
     val source = remember { MutableInteractionSource() }
     val hovered by source.collectIsHoveredAsState()
     Box(
@@ -123,12 +176,31 @@ fun PlayButton(playing: Boolean, size: Dp, onClick: () -> Unit, modifier: Modifi
     val c = Ui.colors
     val theme = Ui.theme
     val shape = Ui.shapes.playButton
-    val w = width ?: if (theme.id == ThemeId.ESTADIO) size * 1.26f else size
-    val glow = when (theme.id) {
-        ThemeId.AURORA -> Modifier.shadow(26.dp, shape, ambientColor = c.accent, spotColor = c.accent)
-        ThemeId.PETALO -> Modifier.shadow(14.dp, shape, ambientColor = c.accent, spotColor = c.accent)
-        ThemeId.SEDA -> Modifier.border(1.dp, c.accent.copy(alpha = .6f), shape).padding(5.dp)
-        else -> Modifier
+    if (theme.controlStyle == ControlStyle.KEYS) {
+        // Casete: la tecla principal es verde petróleo y 1,5 veces más ancha.
+        PressKey(if (playing) "Pausar" else "Reproducir", onClick, c.playBg, width ?: (size * 1.5f), size, modifier) {
+            Icon(if (playing) AuroraIcon.Pause else AuroraIcon.Play, c.playInk, size = size * .4f)
+        }
+        return
+    }
+    val w = width ?: when {
+        theme.id == ThemeId.ESTADIO -> size * 1.26f
+        theme.playDecoration == PlayDecoration.CHROME_RING -> size * 1.45f // Rockola: píldora, como una tecla de rocola
+        else -> size
+    }
+    val glow = when (theme.playDecoration) {
+        PlayDecoration.GLOW -> Modifier.shadow(26.dp, shape, ambientColor = c.accent, spotColor = c.accent)
+        PlayDecoration.SHADOW -> Modifier.shadow(14.dp, shape, ambientColor = c.accent, spotColor = c.accent)
+        PlayDecoration.RING -> Modifier.border(1.dp, c.accent.copy(alpha = .6f), shape).padding(5.dp)
+        // Aro crema de 3 dp y aro cromo de 2 dp por fuera, con sombra suave del color del botón.
+        PlayDecoration.CHROME_RING -> Modifier.shadow(12.dp, shape, ambientColor = c.playBg, spotColor = c.playBg)
+            .border(2.dp, Color(0xFFC9CDD3), shape).padding(2.dp).border(3.dp, c.playInk, shape).padding(3.dp)
+        // Sombra dura de 4 dp hacia abajo, sin difuminar, del color del texto.
+        PlayDecoration.HARD_SHADOW -> Modifier.drawBehind {
+            val o = shape.createOutline(this.size, layoutDirection, this)
+            translate(top = 4.dp.toPx()) { drawOutline(o, c.ink) }
+        }
+        PlayDecoration.NONE -> Modifier
     }
     Box(
         modifier.width(w).height(size).pressable(if (playing) "Pausar" else "Reproducir", .92f, onClick = onClick).then(glow),
@@ -164,8 +236,8 @@ fun ProgressBar(
     val fraction = dragFraction ?: animated
     val desk = Ui.isDesktop
     val showThumb = !desk || hovered
-    val thinBar = Ui.theme.progressHeight < 10f
-    // Onda como la de Android 13+: solo en barras finas (en Póster, de 12 dp, no) y sin "Reducir movimiento".
+    val thinBar = Ui.theme.progressHeight < 8f
+    // Onda como la de Android 13+: solo en barras finas (no en Casete ni Póster, de 8 y 12 dp) y sin "Reducir movimiento".
     val wavy = wavePlaying != null && thinBar
     val amplitude by animateFloatAsState(if (wavy && wavePlaying == true && !Ui.reduceMotion) 1f else 0f, tween(450))
     // La fase solo corre mientras la onda se ve (en pausa la amplitud es 0 y no hace falta redibujar).
@@ -235,6 +307,23 @@ private fun DrawScope.drawWave(w: Float, stroke: Float, amplitude: Float, phase:
     drawPath(path, played, style = Stroke(width = stroke, cap = cap, join = StrokeJoin.Round))
 }
 
+/**
+ * Tiempo actual de la canción. En Casete es el contador de una casetera ("01:05"): pastilla café con dígitos
+ * mostaza en negrita y cifras tabulares.
+ */
+@Composable
+fun PositionText(sec: Int, modifier: Modifier = Modifier) {
+    if (Ui.theme.timeStyle == TimeStyle.TAPE_COUNTER) {
+        val s = sec.coerceAtLeast(0)
+        BasicText(
+            "${(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}",
+            style = Ui.type.caption.copy(color = Ui.colors.background, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, letterSpacing = .08.em),
+            modifier = modifier.padding(top = 4.dp).clip(RoundedCornerShape(6.dp)).background(Ui.colors.ink).padding(horizontal = 8.dp, vertical = 2.dp),
+            maxLines = 1,
+        )
+    } else BasicText(formatTime(sec), style = Ui.type.caption, modifier = modifier, maxLines = 1)
+}
+
 fun formatTime(sec: Int): String {
     val s = sec.coerceAtLeast(0)
     val mm = (s % 3600 / 60).toString()
@@ -299,11 +388,17 @@ fun Chip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifie
 fun SectionTitle(text: String, modifier: Modifier = Modifier, trailing: String? = null, top: Dp = if (Ui.isDesktop) 26.dp else 22.dp) {
     val theme = Ui.theme
     Row(modifier.fillMaxWidth().padding(top = top, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-        if (theme.headingMarker) {
+        if (theme.headingDecoration == HeadingDecoration.SQUARE_BEFORE) {
             Box(Modifier.size(8.dp).background(Ui.colors.accent))
             Spacer(Modifier.width(10.dp))
         }
-        BasicText(theme.title(text), style = Ui.type.h2, modifier = Modifier.weight(1f))
+        if (theme.headingDecoration == HeadingDecoration.LINE_AFTER) {
+            // Bosque: línea de cobre de 28 × 2 dp a la derecha del subtítulo.
+            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                BasicText(theme.title(text), style = Ui.type.h2, modifier = Modifier.weight(1f, fill = false))
+                Box(Modifier.padding(start = 10.dp).size(28.dp, 2.dp).background(Ui.colors.accent))
+            }
+        } else BasicText(theme.title(text), style = Ui.type.h2, modifier = Modifier.weight(1f))
         if (trailing != null) BasicText(trailing, style = Ui.type.caption.copy(fontWeight = FontWeight.SemiBold))
     }
 }

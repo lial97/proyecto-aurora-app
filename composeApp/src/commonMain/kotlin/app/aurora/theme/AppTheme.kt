@@ -5,16 +5,85 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 
-/** Los 7 temas visuales (files/TEMAS_VIDEO_ESCRITORIO.md §4). */
-enum class ThemeId { AURORA, POSTER, PETALO, SEDA, CARBONO, ESTADIO, BRUMA }
+/** Los temas visuales (files/TEMAS_VIDEO_ESCRITORIO.md §4 y las maquetas de files/). */
+enum class ThemeId { AURORA, POSTER, PETALO, SEDA, CARBONO, ESTADIO, BRUMA, CASETE, ACUARELA, BOSQUE, GRAFITO, ROCKOLA }
 
 enum class TitleCase { NORMAL, LOWER, UPPER }
 
 /** Decoración de la portada grande. */
-enum class HeroStyle { GLOW, THICK_BORDER, WHITE_FRAME, GOLD_RINGS, CORNER_BRACKETS, SKEWED_BLOCK, SOFT_SHADOW }
+enum class HeroStyle {
+    GLOW, THICK_BORDER, WHITE_FRAME, GOLD_RINGS, CORNER_BRACKETS, SKEWED_BLOCK, SOFT_SHADOW,
+    /** Casete: carátula en su estuche y debajo la cinta con carretes. */
+    CASSETTE,
+    /** Acuarela: forma de gota que cambia mientras suena, sobre una mancha difuminada. */
+    WATERCOLOR,
+    /** Bosque: marco de cobre separado de la portada. */
+    COPPER_FRAME,
+    /** Grafito: sombra profunda y un reflejo azul debajo. */
+    DEEP_SHADOW,
+    /** Rockola: la portada es la etiqueta de un vinilo que gira. */
+    VINYL,
+}
 
 /** Decoración del fondo. */
-enum class BackdropStyle { AURORA_LIGHTS, SPINNING_DOT, PASTEL_BLOBS, GOLD_CIRCLES, GRID, DIAGONAL_STRIPES, SOFT_CIRCLE }
+enum class BackdropStyle {
+    AURORA_LIGHTS, SPINNING_DOT, PASTEL_BLOBS, GOLD_CIRCLES, GRID, DIAGONAL_STRIPES, SOFT_CIRCLE,
+    /** Casete: franja diagonal de 5 bandas en una esquina y grano de papel. */
+    RETRO_STRIPE,
+    /** Acuarela: 3 manchas lila, durazno y menta que flotan despacio. */
+    WATERCOLOR_BLOBS,
+    /** Bosque: curvas de nivel de un mapa topográfico. */
+    CONTOUR_LINES,
+    /** Grafito: sin decoración. */
+    NONE,
+    /** Rockola: franja de cuadros encima de las pestañas y una estrella. */
+    CHECKER_BAND,
+}
+
+/** Controles de reproducción: botones del tema o teclas de grabadora (Casete). */
+enum class ControlStyle { ROUND, KEYS }
+
+/** Cómo se muestra el tiempo actual: texto normal o contador de cinta en una pastilla (Casete). */
+enum class TimeStyle { PLAIN, TAPE_COUNTER }
+
+/** Marco de las portadas pequeñas (filas, tarjetas y mini reproductor). */
+enum class SmallCoverStyle {
+    NONE,
+    /** Casete: borde crema y sombra dura. */
+    CREAM_FRAME,
+    /** Rockola: aro negro, como un disco. */
+    VINYL_RING,
+    /** Bosque: contorno fino. */
+    OUTLINE,
+}
+
+/** Decoración del botón principal. */
+enum class PlayDecoration {
+    NONE,
+    /** Aurora: halo grande del color de énfasis. */
+    GLOW,
+    /** Pétalo y Acuarela: sombra suave del color de énfasis. */
+    SHADOW,
+    /** Seda: aro fino separado del botón. */
+    RING,
+    /** Rockola: aro crema, aro cromo y sombra cereza. */
+    CHROME_RING,
+    /** Casete: sombra dura sin difuminar. */
+    HARD_SHADOW,
+}
+
+/** Adorno de los subtítulos (h2). */
+enum class HeadingDecoration {
+    NONE,
+    /** Carbono: cuadrito de énfasis delante y texto en mayúsculas espaciadas. */
+    SQUARE_BEFORE,
+    /** Bosque: línea de cobre a la derecha. */
+    LINE_AFTER,
+}
+
+/** Lado de la portada grande en dp: reproductor del móvil, vista "Reproduciendo" y panel derecho de escritorio. */
+@Immutable
+data class HeroSizes(val player: Float = 268f, val nowPlaying: Float = 270f, val panel: Float = 246f)
 
 /** Cómo se presenta el bloque de título y progreso bajo la portada del reproductor. */
 enum class PlayerPanel { GLASS_OVERLAP, WHITE_OVERLAP, PLAIN }
@@ -74,6 +143,7 @@ data class TypeScale(
 enum class FontKey {
     SYNE, DM_SANS, ARCHIVO, FRAUNCES_ITALIC, NUNITO, CORMORANT_ITALIC, JOST,
     CHAKRA_PETCH, INTER, BEBAS_NEUE, BARLOW, MANROPE,
+    SHRIKHAND, DM_SERIF_DISPLAY, QUICKSAND, ZILLA_SLAB, IBM_PLEX_SANS, FIGTREE, LOBSTER, RUBIK,
 }
 
 @Immutable
@@ -111,6 +181,14 @@ data class AppTheme(
     val dynamicColor: Boolean,
     /** Alto de la barra de progreso en dp. */
     val progressHeight: Float,
-    /** Cuadrito de énfasis antes de los subtítulos (Carbono). */
-    val headingMarker: Boolean = false,
+    val headingDecoration: HeadingDecoration = HeadingDecoration.NONE,
+    val controlStyle: ControlStyle = ControlStyle.ROUND,
+    val timeStyle: TimeStyle = TimeStyle.PLAIN,
+    /** La letra usa la fuente de texto (Casete y Rockola: sus títulos son muy gruesos o cursivos para leer muchas líneas). */
+    val lyricUsesBody: Boolean = false,
+    val smallCoverStyle: SmallCoverStyle = SmallCoverStyle.NONE,
+    val playDecoration: PlayDecoration = PlayDecoration.NONE,
+    val heroSizes: HeroSizes = HeroSizes(),
+    /** Subtítulos (h2) en el color de énfasis (Rockola). */
+    val accentHeadings: Boolean = false,
 )

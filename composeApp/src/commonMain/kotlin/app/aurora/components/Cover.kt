@@ -7,6 +7,11 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -37,6 +42,11 @@ import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
@@ -49,6 +59,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import app.aurora.color.ACCENT_SAMPLE_SIZE
 import app.aurora.color.Hsl
@@ -57,6 +68,8 @@ import app.aurora.domain.CoverRecipe
 import app.aurora.domain.CoverStyle
 import app.aurora.domain.Track
 import app.aurora.theme.HeroStyle
+import app.aurora.theme.OrganicBlobShape
+import app.aurora.theme.SmallCoverStyle
 import app.aurora.theme.ParallelogramShape
 import app.aurora.theme.Ui
 import kotlinx.coroutines.sync.withLock
@@ -160,8 +173,16 @@ fun Artwork(
         modifier
             .width(size).height(height)
             .semantics { contentDescription = "Portada de ${track?.title ?: "canción"}" }
+            // Casete: sombra dura café hacia abajo a la derecha (por fuera del recorte) y borde crema.
+            .then(if (!large && Ui.theme.smallCoverStyle == SmallCoverStyle.CREAM_FRAME) Modifier.creamFrame(shape, c.ink, c.surface) else Modifier)
+            // Rockola: aro negro alrededor, como un disco (por fuera del recorte).
+            .then(if (!large && Ui.theme.smallCoverStyle == SmallCoverStyle.VINYL_RING) Modifier.drawBehind {
+                drawCircle(Color(0xFF1B1416), this.size.minDimension / 2 + 3.dp.toPx())
+            } else Modifier)
             .clip(shape)
-            .then(if (border && bw > 0.dp) Modifier.border(if (large) bw else bw * .8f, c.ink, shape) else Modifier),
+            .then(if (border && bw > 0.dp) Modifier.border(if (large) bw else bw * .8f, c.ink, shape) else Modifier)
+            // Bosque: contorno fino en las portadas pequeñas.
+            .then(if (!large && Ui.theme.smallCoverStyle == SmallCoverStyle.OUTLINE) Modifier.border(1.dp, c.surfaceBorder, shape) else Modifier),
         contentAlignment = Alignment.Center,
     ) {
         when {
@@ -186,9 +207,13 @@ private inline fun DrawScope.translateScaled(dx: Float, dy: Float, k: Float, blo
     drawContext.transform.translate(-dx, -dy)
 }
 
-/** Portada grande con la decoración propia del tema (spec de temas §4.4). */
+/**
+ * Portada grande con la decoración propia del tema (spec de temas §4.4).
+ * @param playing si suena la canción (anima la gota de Acuarela, los carretes y el vinilo); `null` = portada
+ *   estática de una lista, sin animación ni detalles del reproductor.
+ */
 @Composable
-fun Hero(track: Track?, size: Dp, modifier: Modifier = Modifier, scale: Float = 1f) {
+fun Hero(track: Track?, size: Dp, modifier: Modifier = Modifier, scale: Float = 1f, playing: Boolean? = null, progress: Float = 0f) {
     val theme = Ui.theme
     val c = Ui.colors
     val shape = Ui.shapes.artLarge
@@ -223,6 +248,65 @@ fun Hero(track: Track?, size: Dp, modifier: Modifier = Modifier, scale: Float = 
         HeroStyle.SOFT_SHADOW -> Artwork(
             track, size, modifier.then(g).shadow(22.dp, shape, ambientColor = Color(0x331F2A24), spotColor = Color(0x331F2A24)), large = true,
         )
+        // Se completan con cada tema nuevo.
+        // Grafito: sombra negra profunda y un reflejo azul muy suave (elipse al 18 %) debajo.
+        HeroStyle.DEEP_SHADOW -> Box(
+            modifier.then(g).drawBehind {
+                val w = this.size.width * .78f
+                val h = 18.dp.toPx()
+                val center = Offset(this.size.width / 2, this.size.height + 10.dp.toPx())
+                drawOval(
+                    Brush.radialGradient(listOf(Color(0xFF8AB4FF).copy(alpha = .18f), Color.Transparent), center, w / 2),
+                    topLeft = Offset(center.x - w / 2, center.y - h / 2), size = Size(w, h),
+                )
+            },
+        ) { Artwork(track, size, Modifier.shadow(36.dp, shape, ambientColor = Color.Black, spotColor = Color.Black), large = true) }
+        // Bosque: 2 dp del color de fondo, marco de cobre de 1,5 dp y sombra profunda. Debajo, unas coordenadas
+        // decorativas: se dibujan (no ocupan lugar en el diseño) y los lectores de pantalla no las leen.
+        // Acuarela: mancha difuminada lila → durazno detrás y la portada en forma de gota, que cambia suavemente
+        // (12 s ida y vuelta) solo mientras suena.
+        HeroStyle.WATERCOLOR -> {
+            val clock = rememberPlayClock(playing == true && !Ui.reduceMotion, 1f)
+            Box(
+                modifier.then(g).size(size).drawBehind {
+                    val center = Offset(this.size.width / 2, this.size.height / 2)
+                    val r = this.size.width * .66f
+                    scale(1f, 270f / 290f, center) {
+                        drawCircle(
+                            Brush.radialGradient(0f to Color(0xFFD9C8FA), .6f to Color(0xFFFFD7C4), 1f to Color.Transparent, center = center, radius = r),
+                            r, center, alpha = .9f,
+                        )
+                    }
+                },
+                contentAlignment = Alignment.Center,
+            ) {
+                val blob = OrganicBlobShape((1f - kotlin.math.cos(clock.value / 12f * 2f * kotlin.math.PI.toFloat())) / 2f)
+                Artwork(track, size, Modifier.shadow(22.dp, blob, ambientColor = Color(0x477B57D1), spotColor = Color(0x477B57D1)), large = true, shape = blob)
+            }
+        }
+        HeroStyle.COPPER_FRAME -> {
+            val measurer = androidx.compose.ui.text.rememberTextMeasurer()
+            val coords = Ui.type.caption.copy(color = c.mute, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, letterSpacing = .2.em)
+            Box(
+                modifier.then(g).size(size + 7.dp)
+                    .shadow(28.dp, RoundedCornerShape(14.dp), clip = false, ambientColor = Color.Black, spotColor = Color.Black)
+                    .drawWithContent {
+                        val o = shape.createOutline(this.size, layoutDirection, this)
+                        drawOutline(o, c.background)
+                        val w = 1.5.dp.toPx()
+                        val inner = shape.createOutline(Size(this.size.width - w, this.size.height - w), layoutDirection, this)
+                        translate(w / 2, w / 2) { drawOutline(inner, c.accent, style = Stroke(w)) }
+                        drawContent()
+                        if (playing != null) {
+                            val text = measurer.measure("N 4°35′ · O 74°04′", coords)
+                            drawText(text, topLeft = Offset((this.size.width - text.size.width) / 2, this.size.height + 8.dp.toPx()))
+                        }
+                    },
+                contentAlignment = Alignment.Center,
+            ) { Artwork(track, size, large = true) }
+        }
+        HeroStyle.CASSETTE -> CassetteHero(track, size, modifier.then(g), playing, progress)
+        HeroStyle.VINYL -> VinylHero(track, size, modifier.then(g), playing)
     }
 }
 
@@ -298,4 +382,128 @@ fun accentOf(recipe: CoverRecipe): Hsl? = sampleAccent { scale(ACCENT_SAMPLE_SIZ
 /** Énfasis de una portada real: se reduce a 48 x 48 y se analiza. */
 fun accentOf(image: ImageBitmap): Hsl? = sampleAccent {
     drawImage(image, IntOffset.Zero, IntSize(image.width, image.height), IntOffset.Zero, IntSize(ACCENT_SAMPLE_SIZE, ACCENT_SAMPLE_SIZE))
+}
+
+/** Casete: sombra dura de 3 dp hacia abajo a la derecha y, encima de la portada, un borde crema de 2,5 dp. */
+private fun Modifier.creamFrame(shape: Shape, ink: Color, cream: Color) = drawBehind {
+    val o = shape.createOutline(size, layoutDirection, this)
+    translate(3.dp.toPx(), 3.dp.toPx()) { drawOutline(o, ink) }
+}.drawWithContent {
+    drawContent()
+    val w = 2.5.dp.toPx()
+    val inner = shape.createOutline(Size(size.width - w, size.height - w), layoutDirection, this)
+    translate(w / 2, w / 2) { drawOutline(inner, cream, style = Stroke(w)) }
+}
+
+/**
+ * Casete: la portada es la carátula en su estuche (borde crema de 7 dp, sombra dura de 6 dp y un lomo naranja a la
+ * izquierda). Debajo, montada 18 dp sobre la portada, la cinta con dos carretes que giran (una vuelta cada 3 s, solo
+ * mientras suena): la cinta del carrete izquierdo se achica y la del derecho crece con el progreso. En el
+ * reproductor ([playing] no nulo) lleva además la etiqueta "LADO A · álbum".
+ */
+@Composable
+private fun CassetteHero(track: Track?, size: Dp, modifier: Modifier, playing: Boolean?, progress: Float) {
+    val c = Ui.colors
+    val cream = c.surface
+    val orange = Color(0xFFD9542B)
+    val clock = rememberPlayClock(playing == true && !Ui.reduceMotion, 1f)
+    val p = progress.coerceIn(0f, 1f)
+    Column(modifier.width(size + 6.dp), horizontalAlignment = Alignment.Start) {
+        Box(Modifier.size(size)) {
+            val shape = RoundedCornerShape(8.dp)
+            Box(
+                Modifier.size(size)
+                    .drawBehind { translate(6.dp.toPx(), 6.dp.toPx()) { drawRoundRect(c.ink, cornerRadius = CornerRadius(8.dp.toPx())) } }
+                    .clip(shape).background(cream).padding(7.dp),
+            ) { Artwork(track, size - 14.dp, large = true, shape = RoundedCornerShape(3.dp)) }
+            // Lomo naranja.
+            Box(Modifier.offset(x = (-4).dp, y = 12.dp).width(4.dp).height(size - 24.dp).clip(RoundedCornerShape(2.dp)).background(orange))
+        }
+        // Cinta: tira café con dos carretes crema.
+        Canvas(Modifier.offset(y = (-18).dp).padding(horizontal = 14.dp).fillMaxWidth().height(56.dp).clearAndSetSemantics { }) {
+            val h = this.size.height
+            val w = this.size.width
+            drawRoundRect(Color.Black.copy(alpha = .25f), topLeft = Offset(0f, 3.dp.toPx()), size = this.size, cornerRadius = CornerRadius(h / 2))
+            drawRoundRect(c.ink, cornerRadius = CornerRadius(h / 2))
+            val left = Offset(30.dp.toPx(), h / 2)
+            val right = Offset(w - 30.dp.toPx(), h / 2)
+            val brown = Color(0xFF6B3F22)
+            // Cinta entre carretes (rayada) y cinta enrollada en cada uno según el progreso.
+            val bandH = 16.dp.toPx()
+            var x = left.x
+            var dark = false
+            while (x < right.x) {
+                drawRect(if (dark) Color(0xFF4D2C18) else brown, Offset(x, h / 2 - bandH / 2), Size(minOf(3.dp.toPx(), right.x - x), bandH))
+                x += 3.dp.toPx(); dark = !dark
+            }
+            val min = 21.dp.toPx(); val max = 27.dp.toPx()
+            drawCircle(brown, min + (max - min) * (1f - p), left)
+            drawCircle(brown, min + (max - min) * p, right)
+            val angle = clock.value / 3f * 360f
+            for (center in listOf(left, right)) {
+                drawCircle(cream, 20.dp.toPx(), center)
+                rotate(angle, center) {
+                    for (k in 0 until 3) rotate(k * 60f, center) {
+                        drawRoundRect(c.ink, Offset(center.x - 2.dp.toPx(), center.y - 18.dp.toPx()), Size(4.dp.toPx(), 36.dp.toPx()), CornerRadius(2.dp.toPx()))
+                    }
+                }
+                drawCircle(c.ink, 8.dp.toPx(), center)
+                drawCircle(cream, 7.dp.toPx(), center, style = Stroke(3.dp.toPx()))
+                drawCircle(c.ink, 5.5.dp.toPx(), center)
+            }
+        }
+        if (playing != null && track != null) {
+            Row(Modifier.offset(y = (-6).dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(8.dp).clip(CircleShape).background(orange))
+                BasicText(
+                    "LADO A · ${track.album.uppercase()}",
+                    style = Ui.type.caption.copy(fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = .12.em, color = c.mute),
+                    maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.padding(start = 6.dp),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Rockola: disco negro con surcos, un brillo diagonal y la portada como etiqueta circular (168/262 del disco) con aro
+ * cereza y un agujero crema en el medio. El disco gira (una vuelta cada 2,4 s) solo mientras suena; el brillo queda
+ * quieto, como la luz sobre un disco de verdad.
+ */
+@Composable
+private fun VinylHero(track: Track?, size: Dp, modifier: Modifier, playing: Boolean?) {
+    val c = Ui.colors
+    val clock = rememberPlayClock(playing == true && !Ui.reduceMotion, 1f)
+    val label = size * (168f / 262f)
+    Box(
+        modifier.size(size)
+            .shadow(26.dp, CircleShape, clip = false, ambientColor = Color(0x592A1B1F), spotColor = Color(0x592A1B1F))
+            .drawWithContent {
+                drawContent()
+                // Brillo diagonal (130°) y aro interior oscuro.
+                drawCircle(
+                    Brush.linearGradient(
+                        .40f to Color.Transparent, .50f to Color.White.copy(alpha = .12f), .60f to Color.Transparent,
+                        start = Offset(0f, this.size.height * .1f), end = Offset(this.size.width, this.size.height * .9f),
+                    ),
+                )
+                drawCircle(Color(0xFF0E0A0B), this.size.minDimension / 2 - 2.dp.toPx(), style = Stroke(4.dp.toPx()))
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier.fillMaxSize().graphicsLayer { rotationZ = clock.value / 2.4f * 360f }.clip(CircleShape).drawBehind {
+                drawCircle(Color(0xFF171112))
+                val step = 4.dp.toPx()
+                var r = this.size.minDimension / 2 - step / 2
+                while (r > 0f) { drawCircle(Color(0xFF221A1C), r, style = Stroke(2.dp.toPx())); r -= step }
+            },
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(Modifier.size(label + 6.dp).clip(CircleShape).background(Color(0xFFC81E35)), contentAlignment = Alignment.Center) {
+                Artwork(track, label, large = true, shape = CircleShape)
+            }
+            Box(Modifier.size(10.dp).clip(CircleShape).background(c.background))
+        }
+    }
 }

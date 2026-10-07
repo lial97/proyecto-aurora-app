@@ -99,7 +99,7 @@ import app.aurora.theme.title
 /** Las 7 secciones de Ajustes y las palabras con las que el buscador las encuentra. */
 enum class SettingsSection(val label: String, val icon: AuroraIcon, val keywords: String) {
     LIBRARY("Biblioteca", AuroraIcon.Folder, "carpetas música videos añadir ruta buscar formatos escanear vigilar cambios"),
-    APPEARANCE("Apariencia", AuroraIcon.Palette, "nombre perfil saludo tema aurora póster pétalo seda carbono estadio bruma color canción luces fondo densidad compacta"),
+    APPEARANCE("Apariencia", AuroraIcon.Palette, "nombre perfil saludo tema aurora póster pétalo seda carbono estadio bruma casete acuarela bosque grafito rockola color canción luces fondo densidad compacta"),
     SOUND("Sonido", AuroraIcon.Equalizer, "ecualizador eq graves agudos preset preamplificador volumen normalizar saturación"),
     PLAYBACK("Reproducción", AuroraIcon.Play, "bloqueo pantalla notificación vlc motor fundido crossfade sin pausas gapless cola terminar reanudar recordar"),
     LYRICS("Letras", AuroraIcon.Lyrics, "letras lrc lrclib descargar sincronizada karaoke borrar caché"),

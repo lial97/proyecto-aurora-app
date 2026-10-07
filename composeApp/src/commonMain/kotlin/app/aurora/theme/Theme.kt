@@ -28,6 +28,15 @@ import app.aurora.resources.bebas_neue
 import app.aurora.resources.chakra_petch_semibold
 import app.aurora.resources.cormorant_italic
 import app.aurora.resources.dm_sans
+import app.aurora.resources.dm_serif_display
+import app.aurora.resources.figtree
+import app.aurora.resources.ibm_plex_sans
+import app.aurora.resources.lobster
+import app.aurora.resources.quicksand
+import app.aurora.resources.rubik
+import app.aurora.resources.shrikhand
+import app.aurora.resources.zilla_slab_bold
+import app.aurora.resources.zilla_slab_semibold
 import app.aurora.resources.fraunces_italic
 import app.aurora.resources.inter
 import app.aurora.resources.jost
@@ -123,7 +132,7 @@ private fun variable(res: FontResource, weights: List<Int>, style: FontStyle = F
 @Composable
 private fun family(key: FontKey): FontFamily = when (key) {
     FontKey.SYNE -> FontFamily(variable(Res.font.syne, listOf(500, 700, 800)))
-    FontKey.DM_SANS -> FontFamily(variable(Res.font.dm_sans, listOf(400, 500, 600, 700)))
+    FontKey.DM_SANS -> FontFamily(variable(Res.font.dm_sans, listOf(400, 500, 600, 700, 800)))
     FontKey.ARCHIVO -> FontFamily(variable(Res.font.archivo, listOf(400, 600, 800, 900)))
     FontKey.FRAUNCES_ITALIC -> FontFamily(variable(Res.font.fraunces_italic, listOf(500, 600), FontStyle.Italic))
     FontKey.NUNITO -> FontFamily(variable(Res.font.nunito, listOf(400, 600, 700)))
@@ -138,6 +147,17 @@ private fun family(key: FontKey): FontFamily = when (key) {
         Font(Res.font.barlow_semibold, FontWeight.SemiBold),
     )
     FontKey.MANROPE -> FontFamily(variable(Res.font.manrope, listOf(400, 500, 700, 800)))
+    FontKey.SHRIKHAND -> FontFamily(Font(Res.font.shrikhand, FontWeight.Normal))
+    FontKey.DM_SERIF_DISPLAY -> FontFamily(Font(Res.font.dm_serif_display, FontWeight.Normal))
+    FontKey.QUICKSAND -> FontFamily(variable(Res.font.quicksand, listOf(400, 500, 600, 700)))
+    FontKey.ZILLA_SLAB -> FontFamily(
+        Font(Res.font.zilla_slab_semibold, FontWeight.SemiBold),
+        Font(Res.font.zilla_slab_bold, FontWeight.Bold),
+    )
+    FontKey.IBM_PLEX_SANS -> FontFamily(variable(Res.font.ibm_plex_sans, listOf(400, 500, 600)))
+    FontKey.FIGTREE -> FontFamily(variable(Res.font.figtree, listOf(400, 500, 600, 700, 800)))
+    FontKey.LOBSTER -> FontFamily(Font(Res.font.lobster, FontWeight.Normal))
+    FontKey.RUBIK -> FontFamily(variable(Res.font.rubik, listOf(400, 500, 600, 700, 800)))
 }
 
 @Composable
@@ -155,13 +175,17 @@ private fun uiType(theme: AppTheme, colors: LiveColors, form: FormFactor): UiTyp
     val h2Size = if (desk) s.h2Desktop else s.h2
     return UiType(
         h1 = big(if (desk) s.h1Desktop else s.h1, s.h1LineHeight).copy(letterSpacing = s.h1LetterSpacing.em),
-        h2 = if (theme.headingMarker) {
+        h2 = if (theme.headingDecoration == HeadingDecoration.SQUARE_BEFORE) {
             base.copy(fontFamily = display, fontWeight = hw, fontSize = h2Size.sp, letterSpacing = .14.em, color = colors.mute)
-        } else disp.copy(fontWeight = hw, fontSize = h2Size.sp),
+        } else disp.copy(fontWeight = hw, fontSize = h2Size.sp, color = if (theme.accentHeadings) colors.accent else colors.ink),
         playerTitle = big(s.playerTitle, s.titleLineHeight),
         panelTitle = big(s.panelTitle, s.titleLineHeight),
         nowPlayingTitle = big(s.nowPlayingTitle, s.titleLineHeight),
-        lyric = disp.copy(fontWeight = if (theme.id == ThemeId.POSTER) FontWeight.Black else hw,
+        lyric = (if (theme.lyricUsesBody) base else disp).copy(fontWeight = when {
+                theme.id == ThemeId.POSTER -> FontWeight.Black
+                theme.lyricUsesBody -> FontWeight.ExtraBold // letra en la fuente de texto: gruesa para leerse de lejos
+                else -> hw
+            },
             fontSize = (if (desk) s.lyricDesktop else s.lyric).sp,
             lineHeight = ((if (desk) s.lyricDesktop else s.lyric) * 1.18f).sp),
         rowTitle = base.copy(fontWeight = FontWeight.SemiBold, fontSize = if (desk) 14.sp else 15.sp),
@@ -205,7 +229,7 @@ fun AppThemeProvider(
         onAccent = if (dyn) bg else anim(c.onAccent),
         playBg = anim(c.playBg), playInk = if (dyn) bg else anim(c.playInk),
         track = anim(c.track),
-        fill = if (dyn) listOf(l1, acc) else listOf(anim(c.fill.first()), anim(c.fill.last())),
+        fill = if (dyn) listOf(l1, acc) else c.fill.mapIndexed { i, f -> androidx.compose.runtime.key(i) { anim(f) } },
         chipOn = anim(c.chipOn), chipOnInk = anim(c.chipOnInk), lyricOn = anim(c.lyricOn),
         sideBg = anim(c.sideBg), barBg = anim(c.barBg), raised = anim(c.raised), isDark = c.isDark,
         light1 = l1, light2 = l2, light3 = l3,
