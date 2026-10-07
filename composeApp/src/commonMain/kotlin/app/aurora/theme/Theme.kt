@@ -185,11 +185,13 @@ private fun uiType(theme: AppTheme, colors: LiveColors, form: FormFactor): UiTyp
 fun AppThemeProvider(
     theme: AppTheme, palette: AuroraPalette, formFactor: FormFactor,
     dynamic: Boolean = true, highContrast: Boolean = false,
+    /** Duración del cambio de colores; `null` = la de siempre (1,2 s con color de la canción, 600 ms en el resto). */
+    fadeMs: Int? = null,
     content: @Composable () -> Unit,
 ) {
     val c = theme.colors
     val dyn = theme.dynamicColor && dynamic
-    val ms = if (dyn) AuroraMotion.COLOR_FADE_MS else 600
+    val ms = if (Ui.reduceMotion) 0 else fadeMs ?: if (dyn) AuroraMotion.COLOR_FADE_MS else 600
     @Composable fun anim(target: Color) = animateColorAsState(target, tween(ms, easing = AuroraMotion.Ease)).value
 
     val bg = anim(if (dyn) palette.background else c.background)

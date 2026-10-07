@@ -50,6 +50,8 @@ kotlin {
             implementation(libs.kotlinx.coroutines.swing)
             implementation(libs.vlcj)
             implementation(libs.jaudiotagger)
+            // Selector de carpetas nativo: xdg-desktop-portal en Linux (respeta GTK y KDE) y el de Windows.
+            implementation(libs.filekit.dialogs)
         }
     }
 }
@@ -119,4 +121,9 @@ compose.desktop {
 // Pruebas con capturas: AURORA_SHOTS=/ruta guarda las imágenes que generan.
 tasks.withType<Test>().configureEach {
     System.getenv("AURORA_SHOTS")?.let { systemProperty("aurora.shots", it) }
+}
+
+// `./gradlew :composeApp:run` es una compilación de depuración: muestra las opciones de prueba (Ajustes › Acerca de).
+tasks.withType<JavaExec>().matching { it.name == "run" }.configureEach {
+    systemProperty("aurora.debug", "true")
 }

@@ -4,21 +4,30 @@
 
 El instalador de Windows **solo se puede generar en Windows** (lo hace `jpackage`, la herramienta de Java).
 
-1. Copia a tu PC con Windows el archivo `dist/aurora-codigo.zip` y descomprímelo.
+1. Baja el código con Git (o actualízalo si ya lo tienes):
+   ```bat
+   git clone https://github.com/lial97/proyecto-aurora-app.git
+   cd proyecto-aurora-app
+   git pull
+   ```
 2. Instala **Java 21** (Temurin): <https://adoptium.net/temurin/releases/?version=21>
    — durante la instalación marca **"Set JAVA_HOME"**.
-3. Instala **VLC de 64 bits**: <https://www.videolan.org/vlc/> (Aurora lo usa para el audio y el video).
-4. Haz doble clic en **`build-windows.bat`**. La primera vez tarda unos minutos (descarga Gradle y WiX).
-5. Resultado:
-   - **Portable**: `composeApp\build\compose\binaries\main\app\Aurora\Aurora.exe` (no se instala; copia la carpeta entera).
-   - **Instalador**: `composeApp\build\compose\binaries\main\exe\Aurora-0.3.0.exe` (crea accesos en el escritorio
-     y el menú Inicio).
+3. Haz doble clic en **`build-windows.bat`**. No hace falta instalar VLC: el script descarga VLC 3.0.24 portable
+   (comprobando su huella SHA-256) y lo mete dentro del instalador. La primera vez tarda unos minutos
+   (descarga Gradle, VLC y WiX).
+4. Resultado:
+   - **Instalador**: `AURORA-APP\Aurora-0.3.0.exe` (junto al APK; crea accesos en el escritorio y el menú Inicio).
+   - **Portable**: `composeApp\build\compose\binaries\main-release\app\Aurora\Aurora.exe` (no se instala; copia la carpeta entera).
 
 Comandos equivalentes en una terminal:
 ```bat
-gradlew.bat :composeApp:createDistributable
-gradlew.bat :composeApp:packageExe
-gradlew.bat :composeApp:packageMsi
+gradlew.bat :composeApp:createReleaseDistributable
+gradlew.bat :composeApp:packageReleaseExe
+```
+
+Para probar sin instalar (modo de depuración, con "Repetir configuración inicial" en Ajustes › Acerca de):
+```bat
+gradlew.bat :composeApp:run
 ```
 
 ## Android (.apk)
@@ -40,7 +49,6 @@ Para instalarlo en el celular:
 ## Linux
 
 ```sh
-./gradlew :composeApp:run                    # probar
-./gradlew :composeApp:packageDeb             # paquete .deb
-./gradlew :composeApp:createDistributable    # carpeta portable
+./gradlew :composeApp:run                    # probar (modo de depuración)
+bash scripts/empaquetar-linux.sh             # .deb y AppImage con VLC adentro (Docker) → AURORA-APP/
 ```

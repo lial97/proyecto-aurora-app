@@ -29,11 +29,18 @@ class DefaultPlayerController(
     private var repeatQueue = false
     @kotlin.concurrent.Volatile private var advancedEarly = false
     private var fadeFactor = 1f
+    /** Tras un salto, el motor puede avisar todavía la posición vieja: se ignora hasta llegar cerca del destino. */
+    @kotlin.concurrent.Volatile private var seekTargetMs = -1L
+    private var seekMark = kotlin.time.TimeSource.Monotonic.markNow()
 
     init {
         engine?.setVolume(initialVolume)
-        engine?.onPosition = { ms ->
+        engine?.onPosition = onPosition@{ ms ->
             // Se publica cada ~250 ms (VLC avisa más seguido): suficiente para el karaoke, que interpola.
+            if (seekTargetMs >= 0) {
+                if (kotlin.math.abs(ms - seekTargetMs) > 1500 && seekMark.elapsedNow().inWholeMilliseconds < 2000) return@onPosition
+                seekTargetMs = -1L
+            }
             val last = _state.value.positionMs
             if (ms < last || ms - last >= 250) _state.update { it.copy(positionSec = (ms / 1000).toInt(), positionMs = ms) }
             applyFade(ms)
@@ -184,7 +191,11 @@ class DefaultPlayerController(
         val dur = s.durationSec.takeIf { it > 0 } ?: s.current?.durationSec ?: 0
         val p = positionSec.coerceIn(0, maxOf(dur - 1, 0))
         _state.update { it.copy(positionSec = p, positionMs = p * 1000L) }
-        if (s.realAudio) engine?.seekTo(p * 1000L)
+        if (s.realAudio) {
+            seekTargetMs = p * 1000L
+            seekMark = kotlin.time.TimeSource.Monotonic.markNow()
+            engine?.seekTo(p * 1000L)
+        }
     }
 
     override fun enqueue(track: Track, next: Boolean) {

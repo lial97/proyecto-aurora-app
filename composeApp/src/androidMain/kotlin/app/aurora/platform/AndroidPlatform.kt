@@ -21,6 +21,7 @@ import app.aurora.domain.guessFromFileName
 import app.aurora.domain.isChatOrVoiceAudio
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 import androidx.datastore.preferences.core.edit
@@ -35,13 +36,14 @@ object AndroidPlatform {
     /** Un solo DataStore por archivo en todo el proceso (la actividad puede recrearse). */
     internal val store: KeyValueStore by lazy { DataStoreStore(context) }
 
-    /** Lo conecta MainActivity: abre el selector de carpetas del sistema y devuelve la carpeta elegida. */
-    var folderPicker: (suspend () -> Uri?)? = null
+    /** Lo conecta MainActivity: abre el selector de carpetas del sistema (en la carpeta inicial, si se da) y devuelve la elegida. */
+    var folderPicker: (suspend (initial: Uri?) -> Uri?)? = null
 }
 
 actual fun createPlatformServices(): PlatformServices = PlatformServices(
     name = "Android",
     isDesktop = false,
+    isDebug = (AndroidPlatform.context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0,
     store = AndroidPlatform.store,
     media = MediaStoreSource(AndroidPlatform.context),
     mediaEngine = app.aurora.player.Media3Engine(AndroidPlatform.context),
@@ -134,8 +136,10 @@ class MediaStoreSource(private val context: Context) : MediaSource {
 
     override val canPickFolder: Boolean = true
 
-    override suspend fun pickFolder(): String? {
-        val uri = AndroidPlatform.folderPicker?.invoke() ?: return null
+    override suspend fun pickFolder(): String? = pickFolder(null)
+
+    override suspend fun pickFolder(initial: String?): String? {
+        val uri = AndroidPlatform.folderPicker?.invoke(initial?.let(Uri::parse)) ?: return null
         // Lectura y escritura (para guardar las letras .lrc junto a las canciones); si no se puede, solo lectura.
         val rw = android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
         runCatching { context.contentResolver.takePersistableUriPermission(uri, rw) }
@@ -178,6 +182,111 @@ class MediaStoreSource(private val context: Context) : MediaSource {
     }
 
     override suspend fun candidateFolders(): List<String> = emptyList()
+
+    override val suggestionsAddDirectly: Boolean = false
+
+    override val canDecodeForTempo: Boolean = true
+
+    /**
+     * Unos 20 s del medio de la canción, decodificados con el decodificador del sistema (rápido y sin sonar),
+     * en mono y reducidos a ~11 kHz: suficiente para el tempo. Como mucho 6 s de trabajo por canción.
+     */
+    override suspend fun decodeForTempo(track: Track): app.aurora.domain.Pcm? = withContext(Dispatchers.IO) {
+        val ex = android.media.MediaExtractor()
+        var codec: android.media.MediaCodec? = null
+        try {
+            ex.setDataSource(context, Uri.parse(track.id), null)
+            val idx = (0 until ex.trackCount).firstOrNull { ex.getTrackFormat(it).getString(android.media.MediaFormat.KEY_MIME)?.startsWith("audio/") == true }
+                ?: return@withContext null
+            val fmt = ex.getTrackFormat(idx)
+            ex.selectTrack(idx)
+            val durUs = if (fmt.containsKey(android.media.MediaFormat.KEY_DURATION)) fmt.getLong(android.media.MediaFormat.KEY_DURATION) else track.durationSec * 1_000_000L
+            ex.seekTo((durUs / 2 - 10_000_000L).coerceAtLeast(0L), android.media.MediaExtractor.SEEK_TO_CLOSEST_SYNC)
+            val c = android.media.MediaCodec.createDecoderByType(fmt.getString(android.media.MediaFormat.KEY_MIME)!!)
+            codec = c
+            c.configure(fmt, null, null, 0)
+            c.start()
+            var rate = fmt.getInteger(android.media.MediaFormat.KEY_SAMPLE_RATE)
+            var channels = fmt.getInteger(android.media.MediaFormat.KEY_CHANNEL_COUNT)
+            var isFloat = false
+            var factor = maxOf(1, rate / 11025)
+            val out = FloatArray(22 * 11025 + 4096)
+            var n = 0
+            var acc = 0f; var accN = 0
+            var inputDone = false
+            val info = android.media.MediaCodec.BufferInfo()
+            val deadline = System.nanoTime() + 6_000_000_000L
+            while (System.nanoTime() < deadline) {
+                kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                if (!inputDone) {
+                    val i = c.dequeueInputBuffer(10_000)
+                    if (i >= 0) {
+                        val buf = c.getInputBuffer(i)!!
+                        val size = ex.readSampleData(buf, 0)
+                        if (size < 0) { c.queueInputBuffer(i, 0, 0, 0, android.media.MediaCodec.BUFFER_FLAG_END_OF_STREAM); inputDone = true }
+                        else { c.queueInputBuffer(i, 0, size, ex.sampleTime, 0); ex.advance() }
+                    }
+                }
+                val o = c.dequeueOutputBuffer(info, 10_000)
+                if (o == android.media.MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                    val f = c.outputFormat
+                    rate = f.getInteger(android.media.MediaFormat.KEY_SAMPLE_RATE)
+                    channels = f.getInteger(android.media.MediaFormat.KEY_CHANNEL_COUNT)
+                    isFloat = f.containsKey(android.media.MediaFormat.KEY_PCM_ENCODING) && f.getInteger(android.media.MediaFormat.KEY_PCM_ENCODING) == android.media.AudioFormat.ENCODING_PCM_FLOAT
+                    factor = maxOf(1, rate / 11025)
+                } else if (o >= 0) {
+                    val buf = c.getOutputBuffer(o)!!.order(java.nio.ByteOrder.nativeOrder())
+                    buf.position(info.offset); buf.limit(info.offset + info.size)
+                    // Mezcla a mono y promedia de a `factor` muestras (~11 kHz).
+                    if (isFloat) {
+                        val fb = buf.asFloatBuffer()
+                        while (fb.remaining() >= channels && n < out.size) {
+                            var m = 0f; repeat(channels) { m += fb.get() }
+                            acc += m / channels; if (++accN == factor) { out[n++] = acc / factor; acc = 0f; accN = 0 }
+                        }
+                    } else {
+                        val sb = buf.asShortBuffer()
+                        while (sb.remaining() >= channels && n < out.size) {
+                            var m = 0f; repeat(channels) { m += sb.get() / 32768f }
+                            acc += m / channels; if (++accN == factor) { out[n++] = acc / factor; acc = 0f; accN = 0 }
+                        }
+                    }
+                    c.releaseOutputBuffer(o, false)
+                    if (info.flags and android.media.MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) break
+                }
+                if (n >= 20 * (rate / factor)) break
+            }
+            if (n < 6 * (rate / factor)) null else app.aurora.domain.Pcm(out.copyOf(n), rate / factor)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null
+        } finally {
+            runCatching { codec?.stop() }; runCatching { codec?.release() }; runCatching { ex.release() }
+        }
+    }
+
+    /**
+     * Sin permiso no se puede contar fuera de lo elegido: se sugieren las carpetas estándar que existen, sin número,
+     * y al tocarlas se abre el selector del sistema ya ubicado en ellas. Download solo antes de Android 11: desde
+     * Android 11 el sistema no deja elegir la carpeta Download entera.
+     */
+    override suspend fun suggestFolders(type: MediaType, chosen: List<String>): List<FolderSuggestion> = withContext(Dispatchers.IO) {
+        val names = if (type == MediaType.VIDEO) listOf(android.os.Environment.DIRECTORY_MOVIES)
+        else listOfNotNull(
+            android.os.Environment.DIRECTORY_MUSIC,
+            android.os.Environment.DIRECTORY_DOWNLOADS.takeIf { android.os.Build.VERSION.SDK_INT < 30 },
+            android.os.Environment.DIRECTORY_PODCASTS,
+        )
+        val chosenIds = chosen.mapNotNull { runCatching { DocumentsContract.getTreeDocumentId(Uri.parse(it)) }.getOrNull() }
+        names.mapNotNull { name ->
+            @Suppress("DEPRECATION")
+            val dir = android.os.Environment.getExternalStoragePublicDirectory(name)
+            val docId = "primary:$name"
+            if (!dir.isDirectory || chosenIds.any { it == docId || it == "primary:" || docId.startsWith("$it/") }) return@mapNotNull null
+            FolderSuggestion(name, DocumentsContract.buildDocumentUri("com.android.externalstorage.documents", docId).toString(), null)
+        }
+    }
 
     override fun isUsableFolder(folder: String) = folder.startsWith("content://")
 

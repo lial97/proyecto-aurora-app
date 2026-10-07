@@ -37,15 +37,15 @@ echo  [3/3] Instalador .exe ^(descarga WiX automaticamente la primera vez^)...
 call gradlew.bat :composeApp:packageReleaseExe --console=plain
 if errorlevel 1 goto error
 
-if not exist dist mkdir dist
-copy /y "composeApp\build\compose\binaries\main-release\exe\*.exe" dist\ >nul
+if not exist AURORA-APP mkdir AURORA-APP
+copy /y "composeApp\build\compose\binaries\main-release\exe\*.exe" AURORA-APP\ >nul
 
 echo.
 echo  ===  Listo  ===
-echo  Instalador: dist\  ^(Aurora-^<version^>.exe: siguiente, siguiente y listo; VLC ya va adentro^)
+echo  Instalador: AURORA-APP\  ^(Aurora-^<version^>.exe: siguiente, siguiente y listo; VLC ya va adentro^)
 echo  Portable:   composeApp\build\compose\binaries\main-release\app\Aurora\Aurora.exe
 echo.
-explorer dist
+explorer AURORA-APP
 pause
 exit /b 0
 

@@ -59,11 +59,12 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         AndroidPlatform.init(this)
-        AndroidPlatform.folderPicker = {
+        AndroidPlatform.folderPicker = { initial ->
             pendingFolder?.complete(null)
             val d = kotlinx.coroutines.CompletableDeferred<android.net.Uri?>()
             pendingFolder = d
-            pickTree.launch(null)
+            // `initial` (p. ej. la carpeta Music) va como EXTRA_INITIAL_URI: el selector se abre ya ubicado ahí.
+            pickTree.launch(initial)
             d.await()
         }
         val perms = if (Build.VERSION.SDK_INT >= 33) {

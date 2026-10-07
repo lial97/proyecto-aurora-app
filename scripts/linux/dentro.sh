@@ -7,8 +7,8 @@ bash scripts/linux/copiar-vlc.sh composeApp/resources/linux/vlc
 
 ./gradlew --no-daemon -q :composeApp:createReleaseDistributable :composeApp:packageReleaseDeb
 
-mkdir -p dist
-cp composeApp/build/compose/binaries/main-release/deb/*.deb dist/
+mkdir -p AURORA-APP
+cp composeApp/build/compose/binaries/main-release/deb/*.deb AURORA-APP/
 
 # AppImage: la misma app (con su Java y su VLC) en un solo archivo ejecutable.
 APPDIR=$(mktemp -d)/Aurora.AppDir
@@ -55,5 +55,5 @@ Icon=aurora
 Categories=AudioVideo;Audio;Video;Player;
 Terminal=false
 DESK
-ARCH=x86_64 appimagetool --appimage-extract-and-run --no-appstream "$APPDIR" "dist/Aurora-$VERSION-x86_64.AppImage" >/dev/null
-echo "AppImage y .deb en dist/"
+ARCH=x86_64 appimagetool --appimage-extract-and-run --no-appstream "$APPDIR" "AURORA-APP/Aurora-$VERSION-x86_64.AppImage" >/dev/null
+echo "AppImage y .deb en AURORA-APP/"

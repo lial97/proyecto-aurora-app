@@ -58,6 +58,7 @@ fun isSuggestibleFolder(path: String): Boolean {
     val blocked = listOf(
         "whatsapp", "telegram", "signal", "screenshots", "capturas", "screen recordings", "screenrecord",
         "/dcim", "camera", "cámara", "gifs", "/gif", "recordings", "grabaciones", "voice recorder", "/call/", "callrec", "/android/",
+        "/pictures", "/imágenes", "/imagenes", "/documents", "/documentos",
     )
     return blocked.none { it in p }
 }

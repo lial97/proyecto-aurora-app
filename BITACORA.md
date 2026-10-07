@@ -11,6 +11,81 @@ Formato de cada entrada:
 **Pendiente:** lo que queda abierto (opcional).
 ```
 
+## 2026-10-06 — Configuración inicial nueva (fase 6: pulido, accesibilidad y pruebas)
+**Qué:**
+- Foco al título de cada paso al llegar (`FocusRequester` + `focusable` + `heading`): los lectores de pantalla lo anuncian y en escritorio el teclado funciona sin hacer clic antes.
+- Teclado: Esc y Alt+← vuelven antes que el elemento enfocado; Enter avanza solo si el elemento enfocado no lo usó (`onKeyEvent`), así Enter sobre una tarjeta de tema la elige y en el campo del nombre avanza un solo paso.
+- Tarjetas de tema como grupo de opciones navegable: Tab entra, las flechas mueven el foco entre tarjetas y Enter elige.
+- Ya estaban de fases anteriores: animación de entrada de 300 ms (sin animación con "Reducir movimiento"), "Paso 2 de 4", `liveRegion` en conteos y etapas, `progressBarRangeInfo`.
+**Archivos:** `commonMain/screens/Onboarding.kt`; prueba nueva `desktopTest/OnboardingFlowTest.kt` (recorrido completo con el teclado, Continuar desactivado sin carpetas, tarjetas de tema con flechas, "Todo listo" sin volver atrás, retomar con lo elegido).
+**Pruebas:** 107 pruebas de `desktopTest` pasan. Capturas temporales con texto al 130 % en 360 dp (Estadio, Aurora, Póster, Pétalo, Seda) y en escritorio 1000×700: nada se corta ni se superpone y el botón queda visible. APK instalado en el A35.
+
+## 2026-10-06 — Configuración inicial nueva (fase 5: escritorio)
+**Qué:**
+- Ventana (`desktopMain/Main.kt`): 1000×700 durante la configuración (mínimo 900×620, centrada); al terminar vuelve al tamaño normal (1280×800 o el 85 % de la pantalla, mínimo 800×540) y se centra. La primera vez la ventana ya abre en 1000×700 (`Main.kt` crea los servicios y mira `onboardingDone` antes de abrir). "Repetir configuración inicial" la vuelve a achicar.
+- Dos columnas (`DesktopOnboarding`): a la izquierda 330 dp con el logo "Aurora", los 4 pasos (Tu nombre / Cómo te llamamos, Tu música / Carpetas de canciones, Tus videos / Videos musicales, Tu estilo / Elige un tema) con número, el actual resaltado y los hechos con ✓ del color de énfasis, y las portadas en abanico abajo. A la derecha el paso con 56 dp de margen y abajo "Atrás" a la izquierda y el botón principal con "→" a la derecha ("Lo haré después" junto a él). En escritorio el texto va alineado a la izquierda y el resumen final es una fila de 4 tarjetas.
+- Móvil y escritorio comparten el contenido de cada paso (`StepBody`); el placeholder del nombre ahora es "Escribe tu nombre", como en la maqueta.
+- Selector de carpetas nativo con FileKit 0.16 (`filekit-dialogs`, solo escritorio, ~2 MB): xdg-desktop-portal en Linux (respeta GNOME/KDE) y el diálogo de Windows. Si falla, zenity y por último JFileChooser; si el usuario cancela, no se abre otro.
+- Arreglo: en escritorio, elegir una carpeta y cerrar la app a mitad de la configuración hacía que se saltara al volver (la regla de "usuario de versión anterior" veía `carpetas` guardadas). Ahora al abrirse la configuración se guarda `bienvenida_lista=0` (`markOnboardingStarted`).
+**Archivos:** `desktopMain/Main.kt`, `desktopMain/platform/DesktopMediaSource.kt`, `commonMain/screens/Onboarding.kt`, `data/SettingsRepository.kt`, `AppState.kt`, `gradle/libs.versions.toml`, `composeApp/build.gradle.kts`, `commonTest/data/OnboardingTest.kt`.
+**Pruebas:** `desktopTest` pasa; capturas temporales a 1000×700 de los pasos 0–5 en Aurora, Póster, Carbono y Pétalo. `ScrollMemoryTest` falló una vez con un error interno de Compose ("LayoutNode not found in RectList") al correr junto a la prueba de capturas; sola pasa. APK instalado en el A35.
+**Pendiente:** probar en el PC real el cambio de tamaño de la ventana y el selector de FileKit (portal) en Linux y en Windows.
+
+## 2026-10-06 — Configuración inicial nueva (fase 4: progreso real del escaneo y tempo)
+**Qué:**
+- `LibraryState.stage` (`ScanStage`: READING, SORTING, TEMPO; `null` = listo) con `stageDone`/`stageTotal`. La lectura suma el avance de todas las carpetas que se están escaneando (también `scanFolder`, que antes no avisaba); al terminar todas se ordena y empieza el tempo.
+- "Todo listo": barra real (lectura 5–50 %, orden 55 %, tempo 60–100 %) con "Leyendo portadas y letras…", "Ordenando por artista y álbum…", "Calculando el tempo de cada canción…" y "Listo.", más "12 de 146" debajo. El mensaje se anuncia con `liveRegion` y la barra tiene `progressBarRangeInfo`.
+- Tempo (`domain/Tempo.kt`, `estimateBpm`): flujo espectral cada 10 ms (FFT propia de 512), sin tendencia, autocorrelación 50–220 BPM con preferencia suave por 120 y resultado en 70–180. Solo para canciones sin BPM en la etiqueta, de a una (`limitedParallelism(1)`), y guardado en un solo archivo `tempos` del `BlobStore` (0 = no se pudo, no se reintenta). Se aplica a las pistas al publicar cada escaneo.
+- Fragmento para el tempo (`MediaSource.decodeForTempo`, ~20 s del medio, mono):
+  - Android: `MediaExtractor` + `MediaCodec`, reducido a ~11 kHz, tope de 6 s por canción.
+  - Escritorio (`TempoDecoder`): VLC con el audio a memoria (`amem`, no suena) a ×3 sin conservar el tono; ~6,3 s por canción. Usa el mismo VLC empaquetado (el complemento amem viene con audio_output).
+- Primera versión (energía) descartada: con música real daba "sin pulso" o valores lejanos. Comparada en Python contra el BPM de las etiquetas de 8 canciones del PC: el flujo espectral acierta 136, 173 y 146 y da el mismo resultado a ×1 y a ×3; a veces sale la mitad (72 en vez de 144).
+**Archivos:** `commonMain/domain/Tempo.kt`, `data/LibraryRepository.kt`, `platform/Platform.kt`, `screens/Onboarding.kt`, `AppState.kt`, `androidMain/platform/AndroidPlatform.kt`, `desktopMain/platform/TempoDecoder.kt`, `desktopMain/platform/DesktopMediaSource.kt`; pruebas `commonTest/domain/TempoTest.kt`, `desktopTest/data/TempoStageTest.kt`.
+**Pruebas:** `desktopTest` pasa (pulsos sintéticos a 90/100/120/128 BPM, silencio, etapas y caché). APK instalado en el A35.
+**Pendiente:** la primera vez, el tempo de una biblioteca grande tarda (escritorio ~6 s por canción en segundo plano); revisarlo en la fase de app ligera.
+
+## 2026-10-06 — Configuración inicial nueva (fase 3: carpetas, conteo y sugerencias)
+**Qué:**
+- Pasos 2 y 3: filas con ícono, nombre, ruta monoespaciada con "…", conteo en vivo o "Buscando…" (anunciado con `liveRegion`) y ×; botón grande con borde punteado "Elegir carpeta"/"Añadir otra carpeta" con "Se abre el selector de carpetas del teléfono/del sistema"; nota con el ícono nuevo `AuroraIcon.Shield`.
+- Sugerencias "Encontramos música aquí:" / "Encontramos videos aquí:" (`MediaSource.suggestFolders`, `FolderSuggestion`):
+  - Escritorio: ~/Música, ~/Music, ~/Descargas, ~/Downloads, ~/Vídeos, ~/Videos (y las de `xdg-user-dir`) y discos en /run/media/<usuario>, /media/<usuario> y /media. Se cuentan todas a la vez con un tope de 2 s en total y solo se muestran las que tienen archivos, con su número. Los conteos completos quedan en memoria. Tocar una la añade directamente.
+  - Android: Music y Podcasts (Download solo antes de Android 11, porque desde el 11 el sistema no deja elegir Download entera) para música; Movies para videos. Sin número; al tocarla se abre el selector del sistema ya ubicado ahí (`EXTRA_INITIAL_URI` vía `pickFolder(initial)`).
+  - Nunca: `isSuggestibleFolder` ahora también bloquea Pictures/Imágenes y Documents/Documentos (ya bloqueaba DCIM, cámara, capturas, WhatsApp y Telegram).
+- Usuarios nuevos de escritorio ya no empiezan con ~/Música y ~/Vídeos elegidas por defecto: aparecen como sugerencias.
+- `pickFolder(initial)`: zenity con `--filename` y `JFileChooser` en esa carpeta en escritorio.
+**Archivos:** `commonMain/screens/Onboarding.kt`, `platform/Platform.kt`, `components/Icons.kt`, `domain/FileNames.kt`, `AppState.kt`, `desktopMain/platform/DesktopMediaSource.kt`, `androidMain/platform/AndroidPlatform.kt`, `androidApp/.../MainActivity.kt`.
+**Pruebas:** `desktopTest` pasa. Sugerencias reales en el PC de desarrollo: Music (157) y Downloads (1) en 0,16 s. Capturas temporales del paso 2 en Aurora, Póster y Carbono. APK instalado en el A35.
+
+## 2026-10-06 — Configuración inicial nueva (fase 2: nombre y estilo con el tema en vivo)
+**Qué:**
+- Cambio de tema en vivo: se quitó el `Crossfade` de `App.kt` que dibujaba la pantalla dos veces durante 600 ms. Ahora hay una sola copia: los colores pasan en 600 ms (`AppThemeProvider(fadeMs = 600)` mientras dura la configuración, también en Aurora) y las fuentes y formas cambian al instante. `AppThemeProvider` respeta "Reducir movimiento" (0 ms) en toda la app.
+- Fondo propio de la configuración: color del tema con dos manchas difuminadas (énfasis y segunda luz), estático. Las decoraciones de Póster y Estadio tapaban el texto.
+- Tarjetas de tema (`ThemePreview`, la misma de Ajustes › Apariencia): descripción en 1 línea con "…", alto fijo 120 → 104 dp, grupo de opciones (`selectableGroup`, rol de radio y "elegido").
+- Detalles por tema de la maqueta: botón principal con la forma de los chips del tema (Póster recto, Estadio paralelogramo) y esquinas cortadas en Carbono; cuadrito de énfasis antes de la etiqueta en Carbono; portadas del abanico con marco blanco en Pétalo y anillo fino en Seda. El campo del nombre usa la forma de tarjeta.
+**Archivos:** `commonMain/App.kt`, `theme/Theme.kt`, `screens/Onboarding.kt`, `screens/SettingsScreen.kt`.
+**Pruebas:** `desktopTest` pasa; capturas temporales de los pasos 0, 1 y 4 en Aurora, Póster, Carbono, Estadio, Pétalo y Seda a 360 dp. APK instalado en el A35.
+
+## 2026-10-06 — Configuración inicial nueva (fase 1: estructura, navegación y retomar)
+**Qué:**
+- `screens/Onboarding.kt` reescrito con 6 pasos (0 Bienvenida, 1 Nombre, 2 Música, 3 Videos, 4 Estilo, 5 Todo listo) y los textos de la maqueta (`files/Aurora · Configuración inicial.html`).
+- Móvil: arriba Atrás, barra de 4 tramos y "2/4" (pasos 1–4, anunciado como "Paso 2 de 4"); contenido desplazable; botón principal fijo de 52 dp y secundario debajo ("Lo haré después" en música sin carpetas). Portadas en abanico en bienvenida y final. El contenido aparece subiendo 8 dp con fundido (sin animación con "Reducir movimiento").
+- Botones según el paso: "Continuar sin nombre", "Continuar" desactivado hasta tener carpeta y terminar de contar, "Saltar este paso", "Empezar, Lila", "Vamos, Lila"/"Ir a Aurora".
+- Retomar: el paso se guarda (`bienvenida_paso`, ahora 0–5). "Empezar" del paso 4 marca la configuración como completada; "Todo listo" no permite volver atrás. Atrás del sistema, Esc y Alt+← vuelven; en la bienvenida Android sale de la app. Enter avanza si el botón está activo.
+- Sin carpetas ("Lo haré después"): Inicio y Biblioteca ya no muestran canciones de ejemplo sino "Aún no hay música" con el botón "Elegir carpetas de música" (`LibraryState.noFolders`, `LocalPickFolders`).
+- "Repetir configuración inicial" en Ajustes › Acerca de, solo en depuración (`PlatformServices.isDebug`: APK debug en Android; `./gradlew :composeApp:run` en escritorio).
+**Archivos:** `commonMain/screens/Onboarding.kt`, `AppState.kt`, `App.kt`, `data/SettingsRepository.kt`, `data/LibraryRepository.kt`, `components/Common.kt`, `screens/SettingsScreen.kt`, `platform/Platform.kt`, `androidMain/platform/AndroidPlatform.kt`, `desktopMain/platform/DesktopPlatform.kt`, `composeApp/build.gradle.kts`, `commonTest/data/OnboardingTest.kt`, `desktopTest/ContextMenuTest.kt` (ahora con una carpeta, porque sin carpetas ya no hay canciones de ejemplo).
+**Pruebas:** `desktopTest` pasa; capturas temporales a 360 dp de los 6 pasos y con texto al 130 %. APK compilado; falta probar en el celular (no estaba conectado).
+**Pendiente:** fase 2 (vista previa del nombre, cambio de tema en vivo, tarjetas con descripción en 1 línea), fase 3 (sugerencias, escudo, borde punteado), fase 4 (progreso real por etapas), fase 5 (escritorio de dos columnas).
+
+## 2026-10-06 — Barra de progreso: un solo salto al soltar (bug de Windows)
+**Qué:**
+- `ProgressBar` (`components/Controls.kt`) y `VideoProgress` (`components/Video.kt`): mientras se arrastra, la barra sigue al cursor/dedo con una posición local (sin la animación de 900 ms) y `onSeek` se llama una sola vez al soltar (o al tocar). Mismo patrón que `FullscreenProgress`.
+- `VlcEngine.seekTo`: `setTime` va al hilo de VLC (`submit`) y, si llegan varios saltos seguidos, solo se ejecuta el último.
+- `DefaultPlayerController`: después de un salto ignora durante 2 s como máximo las posiciones que el motor aún avisa lejos del destino (la barra ya no vuelve atrás un instante).
+**Por qué:** en Windows la app se trababa al usar la barra: cada movimiento del arrastre (60–120 por segundo) hacía un `setTime` nativo de VLC en el hilo de la ventana, y con decodificación por CPU cada salto vacía los búferes.
+**Archivos:** `commonMain/components/Controls.kt`, `commonMain/components/Video.kt`, `commonMain/player/DefaultPlayerController.kt`, `desktopMain/player/VlcEngine.kt`.
+**Pruebas:** `desktopTest` pasa y el APK compila. Falta que el usuario lo pruebe en Windows y en el celular (no estaba conectado).
+
 ## 2026-10-06 — Arranque rápido en Windows (VLC en segundo plano e índice de complementos)
 **Qué:**
 - `VlcEngine` arranca VLC en su propio hilo (`aurora-vlc-arranque`): la ventana ya no espera a VLC. Las órdenes que llegan antes (cargar, reproducir, volumen, ecualizador…) quedan en fila y se ejecutan en orden al terminar. `VlcVideoOutput` existe desde el principio y se conecta con `bind`.

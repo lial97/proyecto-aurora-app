@@ -50,9 +50,13 @@ fun ScreenTitle(text: String, modifier: Modifier = Modifier, style: TextStyle = 
     BasicText(Ui.theme.title(text), style = style, modifier = modifier)
 }
 
-/** Aviso de la biblioteca: buscando, catálogo de ejemplo o error. `null` si no hay nada que avisar. */
+/** Abre el selector de carpetas de música (lo da App.kt; en pruebas no hace nada). */
+val LocalPickFolders = androidx.compose.runtime.staticCompositionLocalOf<() -> Unit> { {} }
+
+/** Aviso de la biblioteca: buscando, sin carpetas, catálogo de ejemplo o error. Nada si no hay que avisar. */
 @Composable
 fun LibraryBanner(lib: LibraryState, onOpenSettings: () -> Unit, modifier: Modifier = Modifier) {
+    if (lib.noFolders && !lib.scanning) { NoFoldersState(modifier); return }
     val (title, detail) = when {
         lib.scanning -> "Buscando tu música…" to (lib.progress?.let { p ->
             if (p.total != null && p.total > 0) "${p.done} de ${p.total} archivos" else "Revisando tus carpetas"
@@ -71,6 +75,22 @@ fun LibraryBanner(lib: LibraryState, onOpenSettings: () -> Unit, modifier: Modif
             BasicText(detail, style = Ui.type.rowSubtitle)
         }
         if (!lib.scanning) Chip("Ajustes", selected = true, onClick = onOpenSettings, icon = AuroraIcon.Settings)
+    }
+}
+
+/** Sin carpetas elegidas ("Lo haré después" en la configuración inicial). */
+@Composable
+private fun NoFoldersState(modifier: Modifier) {
+    val c = Ui.colors
+    val pick = LocalPickFolders.current
+    Column(modifier.fillMaxWidth().padding(top = 14.dp).surface().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Icon(AuroraIcon.Folder, c.accent, size = 32.dp)
+        BasicText("Aún no hay música", style = Ui.type.rowTitle, modifier = Modifier.padding(top = 10.dp))
+        BasicText(
+            "Elige las carpetas donde guardas tus canciones. Aurora solo lee las que elijas.",
+            style = Ui.type.rowSubtitle.copy(textAlign = androidx.compose.ui.text.style.TextAlign.Center), modifier = Modifier.padding(top = 4.dp),
+        )
+        Chip("Elegir carpetas de música", selected = true, onClick = pick, modifier = Modifier.padding(top = 14.dp), icon = AuroraIcon.Plus)
     }
 }
 

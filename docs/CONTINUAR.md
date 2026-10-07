@@ -15,8 +15,8 @@ Este archivo sirve para retomar el trabajo en una conversación nueva. La histor
 ```bash
 ./gradlew :composeApp:desktopTest            # pruebas
 ./gradlew :androidApp:assembleDebug          # APK → androidApp/build/outputs/apk/debug/androidApp-debug.apk
-cp androidApp/build/outputs/apk/debug/androidApp-debug.apk dist/Aurora-0.3.0-debug.apk
-~/Android/Sdk/platform-tools/adb install -r dist/Aurora-0.3.0-debug.apk
+cp androidApp/build/outputs/apk/debug/androidApp-debug.apk AURORA-APP/Aurora-0.3.0-android.apk
+~/Android/Sdk/platform-tools/adb install -r AURORA-APP/Aurora-0.3.0-android.apk
 ~/Android/Sdk/platform-tools/adb exec-out screencap -p > captura.png
 ```
 
@@ -27,6 +27,8 @@ cp androidApp/build/outputs/apk/debug/androidApp-debug.apk dist/Aurora-0.3.0-deb
 
 ## Estado actual (2026-10-06)
 
+- **Configuración inicial nueva (HECHA, fases 1 a 6):** maqueta en `files/Aurora · Configuración inicial.html`; detalle de cada fase en la bitácora. Falta que el usuario la pruebe en el celular y en el PC (ventana 1000×700 y selector de FileKit). Siguiente pedido del usuario: app más ligera (medir primero CPU, memoria y arranque; el tempo de la primera vez en escritorio tarda ~6 s por canción) y después Windows.
+- **Barra de progreso:** arreglado el bloqueo en Windows (un solo salto al soltar); falta que el usuario lo pruebe en Windows.
 - **Móvil:** terminados los 6 arreglos de los errores del móvil:
   1. botón Atrás y recordar la posición;
   2. video a pantalla completa;
@@ -107,11 +109,12 @@ cp androidApp/build/outputs/apk/debug/androidApp-debug.apk dist/Aurora-0.3.0-deb
   - Fase 3: escribir las etiquetas en el archivo también en Android (jaudiotagger con copia temporal y SAF) y "Corregir todas" en lote.
 - **"Vigilar cambios" en Android:** no funciona con las carpetas elegidas con el selector del sistema.
 - **Git:** primer commit hecho y subido a https://github.com/lial97/proyecto-aurora-app (público, rama `main`). Revisar antes de subir que no entren datos privados.
+- **Descargas:** carpeta `AURORA-APP/` (antes `app/`): ahí dejan los instaladores `build-windows.bat` (.exe) y `scripts/empaquetar-linux.sh` (.deb y AppImage), y ahí va el APK. Git solo guarda el APK y `LEEME.md` (los demás están en `.gitignore`) y Releases de GitHub (`gh release create vX.Y.Z ...`): el .deb y el AppImage pasan los 100 MB que GitHub permite dentro del repositorio, por eso van en la Release. Release v0.3.0 publicada con APK, .deb, AppImage y .exe (el .exe se compila en Windows y se sube con `gh release upload v0.3.0 AURORA-APP/Aurora-0.3.0.exe --clobber`).
 - **Instaladores de escritorio con VLC adentro (en curso):**
-  - Linux HECHO: `bash scripts/empaquetar-linux.sh` (Docker) → `dist/Aurora-<versión>-x86_64.AppImage` (se agrega solo al menú al abrirlo) y `dist/aurora_<versión>_amd64.deb`.
-  - Windows HECHO y probado por el usuario (Ryzen 5 7535HS, 1920×1080 al 125 %): `build-windows.bat` prepara VLC 3.0.24 (`scripts/windows/preparar-vlc.ps1`), arma el instalador y lo deja en `dist\`. El `.exe` solo se puede compilar en Windows. `Aurora-0.3.0.exe` subido a la Release v0.3.0.
+  - Linux HECHO: `bash scripts/empaquetar-linux.sh` (Docker) → `AURORA-APP/Aurora-<versión>-x86_64.AppImage` (se agrega solo al menú al abrirlo) y `AURORA-APP/aurora_<versión>_amd64.deb`.
+  - Windows HECHO y probado por el usuario (Ryzen 5 7535HS, 1920×1080 al 125 %): `build-windows.bat` prepara VLC 3.0.24 (`scripts/windows/preparar-vlc.ps1`), arma el instalador y lo deja en `AURORA-APP\`. El `.exe` solo se puede compilar en Windows. `Aurora-0.3.0.exe` subido a la Release v0.3.0.
   - Arreglos de la prueba en Windows (ver la bitácora): VLC decodifica por CPU (con D3D11 el audio del video se cortaba), animaciones que redibujaban sin parar, escritorio más compacto, VLC arranca en segundo plano y el índice de complementos ya sale válido (antes el primer arranque tardaba más de un minuto).
-  - **Pendiente:** volver a armar el `.deb` y el AppImage con `bash scripts/empaquetar-linux.sh` para que incluyan estos arreglos (los de la Release son de antes) y subirlos con `gh release upload v0.3.0 dist/... --clobber`. Compilar y probar el APK: `App.kt` cambió (en Android solo cambia la decisión del tipo de interfaz con "Compacta").
+  - **Pendiente:** volver a armar el `.deb` y el AppImage con `bash scripts/empaquetar-linux.sh` para que incluyan estos arreglos (los de la Release son de antes) y subirlos con `gh release upload v0.3.0 AURORA-APP/... --clobber`. Los que hay en `AURORA-APP/` de este PC son de antes de la configuración inicial nueva. Compilar y probar el APK: `App.kt` cambió (en Android solo cambia la decisión del tipo de interfaz con "Compacta").
   - En Windows, `Invoke-WebRequest` de PowerShell 5.1 bajó VLC dañado (SHA-256 distinto) y `curl.exe` lo bajó bien; si vuelve a pasar, cambiar la descarga de `preparar-vlc.ps1` a `curl.exe`.
 
 ## Piezas clave del código (para no buscarlas)

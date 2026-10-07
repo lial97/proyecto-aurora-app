@@ -141,7 +141,14 @@ class VlcEngine : MediaEngine {
 
     override fun play() = whenReady { mp?.controls()?.play() }
     override fun pause() = whenReady { mp?.controls()?.setPause(true) }
-    override fun seekTo(ms: Long) = whenReady { mp?.controls()?.setTime(ms) }
+    /** Último salto pedido; si llegan varios seguidos, solo se ejecuta el más nuevo. */
+    private val pendingSeek = java.util.concurrent.atomic.AtomicLong(-1)
+
+    // `setTime` puede tardar (VLC vacía búferes): va al hilo de VLC, nunca al de la ventana.
+    override fun seekTo(ms: Long) = whenReady {
+        val p = mp ?: return@whenReady
+        if (pendingSeek.getAndSet(ms) == -1L) p.submit { p.controls().setTime(pendingSeek.getAndSet(-1)) }
+    }
     override fun stop() { videoOut.reset(); whenReady { mp?.controls()?.stop() } }
 
     override fun setVolume(volume: Float) {

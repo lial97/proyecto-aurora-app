@@ -13,6 +13,8 @@ actual fun createPlatformServices(): PlatformServices = PlatformServices(
     http = JavaHttp(),
     textCache = FileTextCache(File(cacheDir(), "letras")),
     files = FileBlobStore(File(configDir(), "portadas")),
+    // `./gradlew :composeApp:run` lo activa; los instaladores no.
+    isDebug = System.getProperty("aurora.debug") == "true",
 )
 
 /** HTTP con el cliente de Java (sigue redirecciones, 12 s de espera). */

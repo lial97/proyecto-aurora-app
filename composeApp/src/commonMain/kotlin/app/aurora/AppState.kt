@@ -53,7 +53,8 @@ sealed interface AppDialog {
 data class SleepTimer(val atMs: Long?, val endOfTrack: Boolean, val label: String)
 
 class AppState(private val scope: CoroutineScope, val platform: PlatformServices) {
-    val settings = SettingsRepository(platform.store, platform.media.defaultFolders(), legacySkipsWelcome = platform.isDesktop).also { st ->
+    // Sin carpetas por defecto: el usuario elige (las habituales aparecen como sugerencias en la configuración inicial).
+    val settings = SettingsRepository(platform.store, emptyList(), legacySkipsWelcome = platform.isDesktop).also { st ->
         // Se olvidan carpetas que ya no sirven (en Android, las rutas de versiones anteriores).
         st.folders.value.filterNot(platform.media::isUsableFolder).forEach(st::removeFolder)
         st.videoFolders.value.filterNot(platform.media::isUsableFolder).forEach(st::removeVideoFolder)
@@ -62,7 +63,7 @@ class AppState(private val scope: CoroutineScope, val platform: PlatformServices
     private val edits = app.aurora.data.EditsRepository(platform.store)
     val stats = app.aurora.data.PlayStatsRepository(platform.store)
     private val offsets = app.aurora.data.LyricsOffsetRepository(platform.store)
-    val library = LibraryRepository(scope, platform.media, settings, edits)
+    val library = LibraryRepository(scope, platform.media, settings, edits, platform.files)
     val player = DefaultPlayerController(scope, platform.mediaEngine, settings.volume)
     // La portada descargada con "Corregir datos" tiene prioridad sobre la del archivo.
     val covers = CoverCache { t -> customCover(t.id) ?: platform.media.loadCover(t) }
@@ -477,10 +478,10 @@ class AppState(private val scope: CoroutineScope, val platform: PlatformServices
         } else show("Esa carpeta ya está en la lista")
     }
 
-    /** Abre el selector de carpetas del sistema. */
-    fun pickAndAddFolder(type: MediaType = MediaType.AUDIO, quiet: Boolean = false) {
+    /** Abre el selector de carpetas del sistema (ya ubicado en [initial] si se da). */
+    fun pickAndAddFolder(type: MediaType = MediaType.AUDIO, quiet: Boolean = false, initial: String? = null) {
         scope.launch {
-            val path = platform.media.pickFolder() ?: return@launch
+            val path = (if (initial != null) platform.media.pickFolder(initial) else platform.media.pickFolder()) ?: return@launch
             addFolder(path, type, quiet)
         }
     }
@@ -494,11 +495,18 @@ class AppState(private val scope: CoroutineScope, val platform: PlatformServices
     // --- Nombre y bienvenida ---
 
     /** La bienvenida está abierta (primera vez que se abre la app). */
-    var onboarding by mutableStateOf(!settings.onboardingDone)
+    var onboarding by mutableStateOf(!settings.onboardingDone.also { done -> if (!done) settings.markOnboardingStarted() })
         private set
 
-    fun finishOnboarding() {
-        settings.finishOnboarding()
-        onboarding = false
+    /** "Empezar" del paso 4: se guarda todo. La pantalla "Todo listo" sigue abierta hasta [closeOnboarding]. */
+    fun finishOnboarding() = settings.finishOnboarding()
+
+    /** "Vamos" / "Ir a Aurora": se cierra la configuración y se va a Inicio (el escaneo sigue en segundo plano). */
+    fun closeOnboarding() { onboarding = false }
+
+    /** Ajustes › Acerca de › "Repetir configuración inicial" (solo en depuración). */
+    fun restartOnboarding() {
+        settings.restartOnboarding()
+        onboarding = true
     }
 }

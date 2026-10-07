@@ -26,6 +26,33 @@ class OnboardingTest {
         assertTrue(SettingsRepository(store, emptyList()).onboardingDone)
     }
 
+    @Test fun resumesAnyOfTheSixStepsAndCanBeRepeated() {
+        val store = MemoryStore()
+        val s = SettingsRepository(store, emptyList())
+        s.onboardingStep = 4
+        assertEquals(4, SettingsRepository(store, emptyList()).onboardingStep)
+        s.addFolder("/m")
+        s.finishOnboarding()
+        assertTrue(SettingsRepository(store, emptyList()).onboardingDone)
+        // "Repetir configuración inicial" (depuración): vuelve a la bienvenida aunque ya haya carpetas.
+        s.restartOnboarding()
+        val again = SettingsRepository(store, emptyList())
+        assertFalse(again.onboardingDone)
+        assertEquals(0, again.onboardingStep)
+    }
+
+    @Test fun closingMidSetupAfterChoosingAFolderResumesSetup() {
+        val store = MemoryStore()
+        val s = SettingsRepository(store, emptyList())
+        assertFalse(s.onboardingDone)
+        s.markOnboardingStarted()
+        s.addFolder("/home/u/Música")
+        s.onboardingStep = 3
+        val again = SettingsRepository(store, emptyList())
+        assertFalse(again.onboardingDone, "con carpeta elegida a mitad, la configuración sigue pendiente")
+        assertEquals(3, again.onboardingStep)
+    }
+
     @Test fun previousUsersSkipWelcomeAndKeepVideosInSameFolders() {
         val store = MemoryStore().apply { put(SettingsRepository.KEY_FOLDERS, "/home/u/Música") }
         val s = SettingsRepository(store, emptyList())

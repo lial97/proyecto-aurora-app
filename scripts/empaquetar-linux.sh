@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Instaladores de Aurora para Linux, con VLC adentro (no hay que instalar nada aparte):
-#   dist/Aurora-<versión>-x86_64.AppImage   → cualquier distribución: doble clic y listo
-#   dist/aurora_<versión>_amd64.deb         → Ubuntu, Debian, Mint: doble clic → Instalar
+#   AURORA-APP/Aurora-<versión>-x86_64.AppImage   → cualquier distribución: doble clic y listo
+#   AURORA-APP/aurora_<versión>_amd64.deb         → Ubuntu, Debian, Mint: doble clic → Instalar
 # Necesita Docker. Se compila sobre Ubuntu 22.04 para que funcione también en distribuciones viejas.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -22,4 +22,4 @@ docker run --rm -u "$(id -u):$(id -g)" \
     "$IMAGE" bash scripts/linux/dentro.sh
 
 echo "==> [3/3] Listo"
-ls -lh dist/*.AppImage dist/*.deb 2>/dev/null
+ls -lh AURORA-APP/*.AppImage AURORA-APP/*.deb 2>/dev/null

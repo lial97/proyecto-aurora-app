@@ -11,6 +11,15 @@ iosApp/build/
 files.zip
 dist/
 
+# Instaladores de escritorio: pasan los 100 MB que GitHub permite por archivo; van en la Release.
+# En AURORA-APP/ del repositorio solo se guardan el APK y LEEME.md.
+AURORA-APP/*.deb
+AURORA-APP/*.AppImage
+AURORA-APP/*.exe
+AURORA-APP/*.msi
+AURORA-APP/*.rpm
+AURORA-APP/*.dmg
+
 # VLC que se mete en los instaladores (se descarga o se copia al empaquetar)
 composeApp/resources/linux/vlc/
 composeApp/resources/windows/vlc/

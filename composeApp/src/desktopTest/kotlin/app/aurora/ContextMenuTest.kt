@@ -37,7 +37,7 @@ class ContextMenuTest {
     @Test
     fun rightClickElsewhereReopensMenu() {
         var st: AppState? = null
-        val scene = ImageComposeScene(1280, 800, Density(1f)) { App(PlatformServices("Prueba", true, MemoryStore().apply { put("bienvenida_lista", "1") }, Empty, null)) { st = it } }
+        val scene = ImageComposeScene(1280, 800, Density(1f)) { App(PlatformServices("Prueba", true, MemoryStore().apply { put("bienvenida_lista", "1"); put("carpetas", "/musica") }, Empty, null)) { st = it } }
         var t = 0L
         fun frames(n: Int = 20) = repeat(n) { scene.render(t); t += 16_000_000; Thread.sleep(5) }
         fun right(x: Float, y: Float) {

@@ -33,7 +33,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -156,16 +158,25 @@ fun VideoSurface(
 @Composable
 private fun VideoProgress(positionSec: Int, durationSec: Int, onSeek: (Int) -> Unit) {
     val c = Ui.colors
-    fun seek(x: Float, w: Int) { if (durationSec > 0) onSeek(((x / w).coerceIn(0f, 1f) * durationSec).toInt()) }
+    // Igual que ProgressBar: se salta una sola vez al soltar, no en cada movimiento.
+    var dragPos by remember { mutableStateOf<Float?>(null) }
+    fun at(x: Float, w: Int) = (x / w).coerceIn(0f, 1f)
+    fun seek(f: Float) { if (durationSec > 0) onSeek((f * durationSec).toInt()) }
     Canvas(
         Modifier.fillMaxWidth().height(16.dp)
-            .pointerInput(durationSec) { detectTapGestures { seek(it.x, size.width) } }
-            .pointerInput(durationSec) { detectHorizontalDragGestures { ch, _ -> seek(ch.position.x, size.width) } },
+            .pointerInput(durationSec) { detectTapGestures { seek(at(it.x, size.width)) } }
+            .pointerInput(durationSec) {
+                detectHorizontalDragGestures(
+                    onDragStart = { dragPos = at(it.x, size.width) },
+                    onDragEnd = { dragPos?.let(::seek); dragPos = null },
+                    onDragCancel = { dragPos = null },
+                ) { ch, _ -> ch.consume(); dragPos = at(ch.position.x, size.width) }
+            },
     ) {
         val h = 4.dp.toPx()
         val y = size.height / 2 - h / 2
         drawRect(Color.White.copy(alpha = .3f), Offset(0f, y), Size(size.width, h))
-        val f = if (durationSec > 0) positionSec.toFloat() / durationSec else 0f
+        val f = dragPos ?: if (durationSec > 0) positionSec.toFloat() / durationSec else 0f
         drawRect(c.accent, Offset(0f, y), Size(size.width * f, h))
     }
 }

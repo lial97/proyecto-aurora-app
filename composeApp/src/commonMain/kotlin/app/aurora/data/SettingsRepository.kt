@@ -33,9 +33,9 @@ class SettingsRepository(
      */
     val onboardingDone: Boolean get() = store.get(KEY_ONBOARDING) == "1" || (legacySkipsWelcome && store.get(KEY_ONBOARDING) == null && store.get(KEY_FOLDERS) != null)
 
-    /** Paso de la bienvenida donde quedó el usuario (0-3), para retomarla si cerró la app. */
+    /** Paso de la configuración inicial donde quedó el usuario (0-5), para retomarla si cerró la app. */
     var onboardingStep: Int
-        get() = store.get(KEY_STEP)?.toIntOrNull()?.coerceIn(0, 3) ?: 0
+        get() = store.get(KEY_STEP)?.toIntOrNull()?.coerceIn(0, 5) ?: 0
         set(v) = store.put(KEY_STEP, v.toString())
 
     fun finishOnboarding() {
@@ -43,6 +43,20 @@ class SettingsRepository(
         store.put(KEY_STEP, null)
         // A partir de aquí las listas se guardan aunque queden vacías.
         saveFolders(_folders.value); saveVideoFolders(_videoFolders.value)
+    }
+
+    /**
+     * Se abrió la configuración inicial: desde ahora las carpetas que se elijan no cuentan como "usuario de una
+     * versión anterior" (si no, al cerrar la app a mitad y volver, la configuración se saltaba).
+     */
+    fun markOnboardingStarted() {
+        if (store.get(KEY_ONBOARDING) == null) store.put(KEY_ONBOARDING, "0")
+    }
+
+    /** Opción de depuración: la próxima vez (o ahora) se vuelve a mostrar la configuración inicial. */
+    fun restartOnboarding() {
+        store.put(KEY_ONBOARDING, "0")
+        store.put(KEY_STEP, "0")
     }
 
     fun setUserName(name: String) {

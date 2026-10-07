@@ -87,21 +87,21 @@ fun App(
             app.aurora.theme.LocalPrefs provides prefs,
         ) {
         val themed: @Composable (app.aurora.theme.AppTheme, @Composable () -> Unit) -> Unit = { t, content ->
-            AppThemeProvider(t, palette, form, dynamic = prefs.dynamicColor, highContrast = prefs.highContrast) {
+            AppThemeProvider(t, palette, form, dynamic = prefs.dynamicColor, highContrast = prefs.highContrast, fadeMs = if (state.onboarding) 600 else null) {
                 CompositionLocalProvider(
                     LocalCoverCache provides state.covers,
                     app.aurora.components.LocalPreviewCache provides state.previews,
+                    app.aurora.components.LocalPickFolders provides { state.pickAndAddFolder(app.aurora.domain.MediaType.AUDIO) },
                     app.aurora.components.LocalTrackMenu provides { tr, p, anchor -> state.dialog = AppDialog.TrackMenu(tr, p?.takeIf { it.isUser }, anchor) },
                 ) { content() }
             }
         }
         if (state.onboarding) {
-            // Bienvenida: al elegir un tema, toda la pantalla pasa a ese tema en 600 ms.
+            // Configuración inicial: al elegir un tema, toda la pantalla cambia al instante: colores en 600 ms,
+            // fuentes y formas de golpe. Una sola copia de la pantalla (antes un fundido cruzado dibujaba dos).
             val model = remember { app.aurora.screens.OnboardingModel(state) }
-            androidx.compose.animation.Crossfade(theme, animationSpec = androidx.compose.animation.core.tween(if (prefs.reduceMotion) 0 else 600)) { t ->
-                themed(t) {
-                    app.aurora.components.Backdrop(playing = false, intensity = .55f) { app.aurora.screens.OnboardingScreen(state, model) }
-                }
+            themed(theme) {
+                app.aurora.screens.OnboardingScreen(state, model)
             }
         } else themed(theme) {
             if (form == FormFactor.DESKTOP) DesktopApp(state, lib, playback) else MobileApp(state, lib, playback)

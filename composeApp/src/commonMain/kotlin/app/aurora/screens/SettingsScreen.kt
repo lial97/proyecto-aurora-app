@@ -55,6 +55,9 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
@@ -517,12 +520,12 @@ private fun AppearanceSection(state: AppState, ctx: SettingsCtx) {
     }
     BasicText(Ui.theme.label("Tema").uppercase(), style = Ui.type.caption.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.sp), modifier = Modifier.padding(top = 18.dp, bottom = 8.dp))
     val cols = if (Ui.isDesktop) 4 else 2
-    Themes.all.chunked(cols).forEach { row ->
+    Column(Modifier.selectableGroup()) { Themes.all.chunked(cols).forEach { row ->
         Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             row.forEach { t -> ThemePreview(t, t.id == theme.id, Modifier.weight(1f)) { state.settings.setTheme(t) } }
             repeat(cols - row.size) { Spacer(Modifier.weight(1f)) }
         }
-    }
+    } }
     Group("Detalles") {
         val aurora = theme.id == ThemeId.AURORA
         SettingRow(ctx, AuroraIcon.Palette, "Color según la canción", if (aurora) "Tempo y portada pintan la app" else "Solo disponible en Aurora", enabled = aurora,
@@ -726,6 +729,8 @@ private fun AboutSection(state: AppState) {
             Chip("Código fuente", false, { state.show("El repositorio público se publicará pronto") }, icon = AuroraIcon.Music)
             Chip("Reportar un problema", false, { state.show("Los reportes se harán en el repositorio público") }, icon = AuroraIcon.Info)
             Chip("Licencias", licenses, { licenses = !licenses }, icon = AuroraIcon.Lyrics)
+            // Solo en compilaciones de depuración, para probar la configuración inicial desde cero.
+            if (state.platform.isDebug) Chip("Repetir configuración inicial", false, { state.restartOnboarding() }, icon = AuroraIcon.Refresh)
         }
         if (licenses) {
             Column(Modifier.padding(top = 14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -746,13 +751,13 @@ private fun AboutSection(state: AppState) {
 
 /** Vista previa de un tema dibujada con sus propios colores, formas y fuentes. */
 /** Alto de cada tarjeta del selector de tema: igual para todas, en cualquier pantalla y tamaño de texto. */
-val ThemeCardHeight = 120.dp
+val ThemeCardHeight = 104.dp
 
 /**
  * Tarjeta del selector de tema (Ajustes › Apariencia y bienvenida). Todas miden lo mismo y ponen todo en
  * la misma posición: cada tema usa su fuente, pero con tamaño y alto de línea fijos (Fraunces, Cormorant y
- * Bebas Neue tienen alturas muy distintas) y sin el relleno extra de la fuente. Nombre en 1 línea y
- * descripción en 2 como mucho, con "…".
+ * Bebas Neue tienen alturas muy distintas) y sin el relleno extra de la fuente. Nombre y descripción en
+ * 1 línea, con "…".
  */
 @Composable
 internal fun ThemePreview(theme: AppTheme, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
@@ -769,7 +774,9 @@ internal fun ThemePreview(theme: AppTheme, selected: Boolean, modifier: Modifier
     Box(
         modifier
             .height(ThemeCardHeight)
-            .pressable(theme.displayName, .97f, onClick = onClick)
+            // Grupo de opciones: el lector de pantalla dice "Aurora, elegido, opción 1 de 7".
+            .semantics { this.selected = selected; role = androidx.compose.ui.semantics.Role.RadioButton }
+            .pressable("${theme.displayName}. ${theme.description}", .97f, onClick = onClick)
             .clip(cardShape)
             .border(if (selected) 2.5.dp else 1.dp, if (selected) outer.accent else outer.surfaceBorder, cardShape),
     ) {
@@ -777,7 +784,7 @@ internal fun ThemePreview(theme: AppTheme, selected: Boolean, modifier: Modifier
             androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalDensity provides fixed) {
                 val c = Ui.colors
                 Column(Modifier.padding(3.dp).fillMaxSize().clip(cardShape).background(c.background).padding(horizontal = 12.dp, vertical = 8.dp)) {
-                    // 120 dp = 6 de borde + 16 de margen + 30 portada + 6 + 22 nombre + 2 + 32 (dos líneas) + 6 de aire.
+                    // 104 dp = 6 de borde + 16 de margen + 30 portada + 6 + 22 nombre + 2 + 16 (una línea) + 6 de aire.
                     Row(Modifier.height(30.dp), verticalAlignment = Alignment.CenterVertically) {
                         Artwork(sample, 30.dp)
                         Spacer(Modifier.width(10.dp))
@@ -798,7 +805,7 @@ internal fun ThemePreview(theme: AppTheme, selected: Boolean, modifier: Modifier
                     BasicText(
                         theme.description,
                         style = Ui.type.rowSubtitle.copy(fontSize = 12.sp, lineHeight = 16.sp, lineHeightStyle = trim),
-                        maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 2.dp),
+                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 2.dp),
                     )
                 }
             }

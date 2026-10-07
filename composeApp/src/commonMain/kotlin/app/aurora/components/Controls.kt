@@ -32,7 +32,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -157,9 +159,13 @@ fun ProgressBar(
     val square = Ui.shapes.playButton == RectangleShape || Ui.theme.id == ThemeId.CARBONO
     val source = remember { MutableInteractionSource() }
     val hovered by source.collectIsHoveredAsState()
-    val fraction by animateFloatAsState(
+    // Mientras se arrastra, la barra sigue al dedo/cursor y el salto se hace una sola vez al soltar:
+    // saltar en cada movimiento (60–120 veces por segundo) trababa VLC y la ventana, sobre todo en Windows.
+    var dragFraction by remember { mutableStateOf<Float?>(null) }
+    val animated by animateFloatAsState(
         if (durationSec > 0) positionSec.toFloat() / durationSec else 0f, tween(900, easing = LinearEasing),
     )
+    val fraction = dragFraction ?: animated
     val desk = Ui.isDesktop
     val showThumb = !desk || hovered
     val thinBar = Ui.theme.progressHeight < 10f
@@ -168,8 +174,9 @@ fun ProgressBar(
     val amplitude by animateFloatAsState(if (wavy && wavePlaying == true && !Ui.reduceMotion) 1f else 0f, tween(450))
     // La fase solo corre mientras la onda se ve (en pausa la amplitud es 0 y no hace falta redibujar).
     val phase = if (wavy && amplitude > 0f) rememberInfiniteTransition().animateFloat(0f, 1f, infiniteRepeatable(tween(1600, easing = LinearEasing))).value else 0f
-    fun seek(x: Float, width: Int) {
-        if (durationSec > 0) onSeek(((x / width).coerceIn(0f, 1f) * durationSec).toInt())
+    fun at(x: Float, width: Int) = (x / width).coerceIn(0f, 1f)
+    fun seek(f: Float) {
+        if (durationSec > 0) onSeek((f * durationSec).toInt())
     }
     Canvas(
         modifier
@@ -177,8 +184,14 @@ fun ProgressBar(
             .height(maxOf(22.dp, barHeight + 8.dp))
             .hoverable(source)
             .semantics { contentDescription = "Progreso" }
-            .pointerInput(durationSec) { detectTapGestures { seek(it.x, size.width) } }
-            .pointerInput(durationSec) { detectHorizontalDragGestures { ch, _ -> seek(ch.position.x, size.width) } },
+            .pointerInput(durationSec) { detectTapGestures { seek(at(it.x, size.width)) } }
+            .pointerInput(durationSec) {
+                detectHorizontalDragGestures(
+                    onDragStart = { dragFraction = at(it.x, size.width) },
+                    onDragEnd = { dragFraction?.let(::seek); dragFraction = null },
+                    onDragCancel = { dragFraction = null },
+                ) { ch, _ -> ch.consume(); dragFraction = at(ch.position.x, size.width) }
+            },
     ) {
         val h = barHeight.toPx()
         val y = size.height / 2 - h / 2

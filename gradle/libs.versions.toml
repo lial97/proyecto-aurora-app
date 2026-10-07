@@ -7,6 +7,7 @@ activityCompose = "1.13.0"
 datetime = "0.8.0"
 vlcj = "4.12.1"
 jaudiotagger = "3.0.1"
+filekit = "0.16.0"
 serialization = "1.11.0"
 media3 = "1.11.1"
 glance = "1.2.0"
@@ -33,6 +34,7 @@ glance-appwidget = { module = "androidx.glance:glance-appwidget", version.ref = 
 glance-material3 = { module = "androidx.glance:glance-material3", version.ref = "glance" }
 vlcj = { module = "uk.co.caprica:vlcj", version.ref = "vlcj" }
 jaudiotagger = { module = "net.jthink:jaudiotagger", version.ref = "jaudiotagger" }
+filekit-dialogs = { module = "io.github.vinceglb:filekit-dialogs", version.ref = "filekit" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 kotlinx-coroutines-swing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-swing", version.ref = "coroutines" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }

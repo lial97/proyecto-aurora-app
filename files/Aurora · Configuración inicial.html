@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<!--
+=====================================================================
+  AURORA · CONFIGURACIÓN INICIAL (escritorio 1000×700 y móvil)
+=====================================================================
+  Pasos: Bienvenida → 1 Nombre → 2 Música → 3 Videos → 4 Estilo → Listo.
+  - Escritorio: ventana de 1000×700 en dos columnas (pasos a la izquierda,
+    contenido a la derecha).
+  - Móvil: una sola columna centrada, barra de progreso arriba y botón
+    principal fijo abajo, al alcance del pulgar.
+  - Al elegir un tema en el paso 4, toda la pantalla cambia a ese tema.
+  - Las carpetas se eligen con el selector del sistema (aquí simulado).
+=====================================================================
+-->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Aurora · Configuración inicial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800;900&family=Barlow:wght@400;500;600&family=Bebas+Neue&family=Chakra+Petch:wght@500;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&family=DM+Sans:wght@400;500;700&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500;1,9..144,600&family=Inter:wght@400;500;600&family=Jost:wght@400;500;600&family=Manrope:wght@400;500;700;800&family=Nunito:wght@400;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ====== PÁGINA ====== */
+:root{--bg:#f3f2f6;--ink:#1b1a22;--muted:#5f5d6b;--card:#fff;--line:#e2e0e9;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#111016;--ink:#ecebf2;--muted:#a3a1b0;--card:#1b1a22;--line:#2c2a36}}
+:root[data-theme="dark"]{--bg:#111016;--ink:#ecebf2;--muted:#a3a1b0;--card:#1b1a22;--line:#2c2a36}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"DM Sans",system-ui,sans-serif;line-height:1.5}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+.wrap{max-width:1500px;margin:0 auto;padding:0 20px}
+.intro{max-width:780px;padding:40px 0 6px}
+.intro h1{font-family:Archivo,sans-serif;font-weight:900;font-size:clamp(30px,5.5vw,50px);line-height:.95;letter-spacing:-.04em;margin:0 0 12px}
+.intro p{color:var(--muted);margin:0 0 8px;max-width:66ch}
+.sec{padding:26px 0}
+.sec>h2{font-family:Archivo,sans-serif;font-weight:800;font-size:24px;margin:0 0 12px;letter-spacing:-.02em}
+.pgbtn{padding:6px 14px;border-radius:20px;border:1px solid var(--line);background:var(--card);font-size:13px}
+.duo{display:flex;gap:36px;align-items:flex-start;flex-wrap:wrap}
+.stage{position:relative;flex:1 1 640px;min-width:300px}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.box{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px 18px}
+.box h3{margin:0 0 6px;font-size:16px}.box p{margin:0;color:var(--muted);font-size:14px}
+.pagefoot{color:var(--muted);font-size:13px;padding:10px 0 50px}
+
+/* =====================================================================
+   ONBOARDING · estructura común (tokens del tema llegan por JS)
+   ===================================================================== */
+.ob{--bg:#120E2B;--surf:rgba(255,255,255,.08);--sb:rgba(255,255,255,.16);--ink:#F2EEFF;--mute:rgba(242,238,255,.62);--acc:#FF5FA2;--btn:#F2EEFF;--btnink:#120E2B;
+  --fd:Syne;--fb:"DM Sans";--fw:800;--tt:none;--fst:normal;--r:16px;--d1:#FF5FA2;--d2:#5B8CFF;
+  position:relative;overflow:hidden;isolation:isolate;background:var(--bg);color:var(--ink);font-family:var(--fb),system-ui,sans-serif;
+  transition:background-color .6s,color .6s}
+.ob *{transition:background-color .6s,border-color .6s,color .4s}
+.ob button:focus-visible,.ob input:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
+.deco{position:absolute;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
+.deco i{position:absolute;border-radius:50%;filter:blur(70px);opacity:.45;animation:drift 18s ease-in-out infinite alternate}
+.deco i:nth-child(1){background:var(--d1)}.deco i:nth-child(2){background:var(--d2);animation-duration:24s}
+@keyframes drift{to{transform:translate(40px,30px) scale(1.15)}}
+.ob .h{font-family:var(--fd),sans-serif;font-weight:var(--fw);text-transform:var(--tt);font-style:var(--fst);letter-spacing:-.02em;line-height:1.05;margin:0}
+.ob .lead{color:var(--mute);margin:8px 0 0;font-size:15px}
+.ob .kick{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--acc)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:46px;padding:0 22px;border-radius:999px;font-weight:700;font-size:15px;background:var(--btn);color:var(--btnink);transition:transform .15s,opacity .2s}
+.btn:active{transform:scale(.97)}
+.btn[disabled]{opacity:.4;pointer-events:none}
+.btn.sec{background:var(--surf);color:var(--ink);border:1px solid var(--sb)}
+.btn.link{background:none;color:var(--mute);padding:0 8px;font-weight:600}
+.btn svg.i{width:18px;height:18px}
+svg.i{width:20px;height:20px;fill:currentColor;display:block;flex:none}
+.field{display:flex;align-items:center;gap:10px;height:56px;padding:0 18px;border-radius:var(--r);background:var(--surf);border:1.5px solid var(--sb);font-size:18px}
+.field:focus-within{border-color:var(--acc)}
+.ob .field input:focus-visible{outline:none}
+.field input{all:unset;flex:1;min-width:0;color:var(--ink);font-size:18px}
+.field input::placeholder{color:var(--mute)}
+.field small{color:var(--mute);font-size:12px;font-variant-numeric:tabular-nums}
+.preview{margin-top:18px;padding:16px 18px;border-radius:calc(var(--r) + 4px);background:var(--surf);border:1px solid var(--sb)}
+.preview small{color:var(--mute);font-size:12px}
+.preview .h{font-size:26px;margin-top:4px}
+/* Carpetas */
+.flist{display:flex;flex-direction:column;gap:8px;margin-top:16px}
+.frow{display:grid;grid-template-columns:40px 1fr auto 36px;gap:12px;align-items:center;padding:10px 12px;border-radius:var(--r);background:var(--surf);border:1px solid var(--sb);animation:pop .35s cubic-bezier(.2,.8,.2,1)}
+@keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.fic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:color-mix(in srgb,var(--acc) 18%,transparent);color:var(--acc)}
+.fic svg.i{width:20px;height:20px}
+.frow b{display:block;font-size:14.5px}
+.frow .path{display:block;font-family:ui-monospace,monospace;font-size:11.5px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cnt{font-size:12.5px;font-weight:700;padding:3px 10px;border-radius:999px;background:color-mix(in srgb,var(--acc) 18%,transparent);color:var(--acc);white-space:nowrap;font-variant-numeric:tabular-nums}
+.cnt.scan{background:none;color:var(--mute);font-weight:500}
+.rm{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;color:var(--mute)}
+.rm:hover{background:color-mix(in srgb,var(--ink) 8%,transparent);color:var(--ink)}
+.addbig{display:flex;align-items:center;gap:12px;width:100%;padding:16px;border-radius:var(--r);border:1.5px dashed color-mix(in srgb,var(--ink) 30%,transparent);color:var(--ink);font-weight:700;margin-top:16px;text-align:left}
+.addbig:hover{border-color:var(--acc)}
+.addbig .fic{background:var(--btn);color:var(--btnink)}
+.addbig small{display:block;font-weight:400;color:var(--mute);font-size:12.5px}
+.sugg{margin-top:14px;font-size:13px;color:var(--mute)}
+.sugg .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:13px;font-weight:600;background:var(--surf);border:1px solid var(--sb);color:var(--ink);white-space:nowrap}
+.chip svg.i{width:15px;height:15px}
+.chip small{color:var(--mute);font-weight:500}
+.note{display:flex;gap:8px;margin-top:14px;font-size:12.5px;color:var(--mute)}
+.note svg.i{width:16px;height:16px;color:var(--acc);margin-top:1px}
+/* Temas (tarjetas siempre del mismo tamaño) */
+.tgrid{display:grid;gap:10px;margin-top:16px}
+.tcard{position:relative;height:108px;border-radius:14px;padding:12px;display:flex;flex-direction:column;justify-content:space-between;text-align:left;overflow:hidden;
+  border:1px solid rgba(127,127,127,.25);transition:transform .2s,box-shadow .2s!important}
+.tcard:hover{transform:translateY(-2px)}
+.tcard[aria-checked=true]{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--acc)}
+.tcard .top{display:flex;align-items:center;gap:8px;height:30px}
+.tcard .mart{width:30px;height:30px;background:center/cover;flex:none}
+.tcard .sws{display:flex;gap:3px}.tcard .sws i{width:8px;height:8px;border-radius:50%}
+.tcard .nm{display:block;height:24px;line-height:24px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tcard .ds{display:block;font-size:11px;line-height:14px;height:14px;opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:system-ui,sans-serif}
+.tcard .chk{position:absolute;right:9px;top:9px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center}
+.tcard .chk svg.i{width:13px;height:13px}
+/* Portadas en abanico */
+.fan{position:relative;height:150px;width:220px}
+.fan span{position:absolute;width:110px;height:110px;background:center/cover;border-radius:var(--artr,14px);box-shadow:0 14px 30px rgba(0,0,0,.35);top:20px;left:55px;transition:transform .6s cubic-bezier(.2,.8,.2,1)!important}
+.fan span:nth-child(1){transform:translateX(-58px) rotate(-14deg) scale(.86)}
+.fan span:nth-child(3){transform:translateX(58px) rotate(14deg) scale(.86)}
+.fan span:nth-child(2){z-index:2;transform:translateY(-6px)}
+/* Final */
+.sum{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:18px}
+.sum div{padding:12px 14px;border-radius:var(--r);background:var(--surf);border:1px solid var(--sb)}
+.sum b{display:block;font-family:var(--fd),sans-serif;font-size:24px;line-height:1.1;font-weight:var(--fw)}
+.sum small{color:var(--mute);font-size:12.5px}
+.prog{height:6px;border-radius:3px;background:color-mix(in srgb,var(--ink) 12%,transparent);overflow:hidden;margin-top:16px}
+.prog i{display:block;height:100%;width:0;background:var(--acc);border-radius:3px;transition:width .3s linear!important}
+.status{font-size:13px;color:var(--mute);margin-top:8px;min-height:20px}
+/* Selector de carpetas del sistema (simulado) */
+.picker{position:absolute;inset:0;z-index:30;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;animation:fade .2s}
+@keyframes fade{from{opacity:0}}
+.pk{width:420px;max-width:calc(100% - 32px);background:#fdfdfd;color:#202124;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.4);font-family:Inter,system-ui,sans-serif;overflow:hidden}
+.pk header{padding:14px 18px;border-bottom:1px solid #e6e6e6;font-weight:600;font-size:15px}
+.pk header small{display:block;font-weight:400;color:#666;font-size:12px}
+.pk .pl{max-height:300px;overflow:auto}
+.pk .pr{display:flex;align-items:center;gap:12px;width:100%;padding:10px 18px;text-align:left;font-size:14px;color:#202124}
+.pk .pr:hover,.pk .pr.sel{background:#e8f0fe}
+.pk .pr svg.i{color:#5f6368}
+.pk .pr small{margin-left:auto;color:#777;font-size:12px}
+.pk footer{display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid #e6e6e6}
+.pk footer button{padding:8px 16px;border-radius:8px;font-weight:600;font-size:14px;color:#1a73e8}
+.pk footer button.pri{background:#1a73e8;color:#fff}
+.pk footer button[disabled]{opacity:.4}
+.ob.m .picker{align-items:flex-end}
+.ob.m .pk{width:100%;max-width:100%;border-radius:20px 20px 0 0}
+
+/* ===================== ESCRITORIO 1000×700 ===================== */
+.ob.d{position:absolute;left:0;top:0;width:1000px;height:700px;border-radius:12px;transform-origin:top left;box-shadow:0 30px 70px rgba(10,8,30,.3),0 0 0 1px rgba(0,0,0,.2);display:grid;grid-template-columns:330px 1fr;grid-template-rows:34px 1fr}
+.ob.d .tb{grid-column:1/3;display:flex;align-items:center;gap:7px;padding:0 14px;font-size:12px;color:var(--mute);border-bottom:1px solid color-mix(in srgb,var(--ink) 8%,transparent)}
+.ob.d .tb i{width:12px;height:12px;border-radius:50%;background:#ff5f57}.ob.d .tb i:nth-child(2){background:#febc2e}.ob.d .tb i:nth-child(3){background:#28c840;margin-right:10px}
+.ob.d .left{padding:34px 30px 28px;display:flex;flex-direction:column;border-right:1px solid color-mix(in srgb,var(--ink) 8%,transparent);background:color-mix(in srgb,var(--ink) 3%,transparent)}
+.logo{display:flex;align-items:center;gap:10px;font-family:var(--fd),sans-serif;font-weight:var(--fw);text-transform:var(--tt);font-style:var(--fst);font-size:22px}
+.logo b{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--acc);color:var(--btnink)}
+.logo b svg.i{width:18px;height:18px}
+.steps{list-style:none;margin:34px 0 0;padding:0;display:flex;flex-direction:column;gap:4px}
+.steps li{display:flex;align-items:center;gap:12px;padding:9px 10px;border-radius:12px;color:var(--mute);font-weight:600;font-size:14.5px}
+.steps li .n{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:13px;border:1.5px solid color-mix(in srgb,var(--ink) 25%,transparent)}
+.steps li.cur{color:var(--ink);background:var(--surf)}
+.steps li.cur .n{border-color:var(--acc);color:var(--acc)}
+.steps li.done .n{background:var(--acc);border-color:var(--acc);color:var(--btnink)}
+.steps li.done .n svg.i{width:14px;height:14px}
+.steps li small{display:block;font-weight:400;font-size:12px;color:var(--mute)}
+.ob.d .left .fan{margin:auto auto 0}
+.ob.d .right{display:flex;flex-direction:column;min-height:0}
+.ob.d .body{flex:1;min-height:0;overflow-y:auto;padding:46px 56px 10px}
+.ob.d .body .h{font-size:38px}
+.ob.d .foot{display:flex;align-items:center;gap:10px;padding:16px 56px 26px}
+.ob.d .foot .grow{flex:1}
+.ob.d .tgrid{grid-template-columns:repeat(4,1fr)}
+.ob.d .welcome{height:100%;display:flex;flex-direction:column;justify-content:center}
+.ob.d .welcome .h{font-size:52px}
+/* ===================== MÓVIL ===================== */
+.phone{width:340px;height:720px;border-radius:48px;border:10px solid #0b0b10;position:relative;overflow:hidden;flex:none;box-shadow:0 28px 56px rgba(10,8,30,.28)}
+.phone::before{content:"";position:absolute;top:9px;left:50%;transform:translateX(-50%);width:20px;height:20px;border-radius:50%;background:#0b0b10;z-index:50}
+.ob.m{position:absolute;inset:0;display:flex;flex-direction:column}
+.ob.m .sbar{height:40px;flex:none;display:flex;justify-content:space-between;align-items:center;padding:6px 24px 0;font-size:12px;font-weight:600}
+.ob.m .topm{display:flex;align-items:center;gap:10px;padding:6px 14px 0;height:44px;flex:none}
+.ob.m .topm .bk{width:36px;height:36px;display:grid;place-items:center;border-radius:50%}
+.ob.m .bars{flex:1;display:flex;gap:5px}
+.ob.m .bars i{flex:1;height:4px;border-radius:2px;background:color-mix(in srgb,var(--ink) 15%,transparent);overflow:hidden;position:relative}
+.ob.m .bars i.on::after{content:"";position:absolute;inset:0;background:var(--acc)}
+.ob.m .topm .pg{font-size:12px;color:var(--mute);min-width:36px;text-align:right;font-variant-numeric:tabular-nums}
+.ob.m .body{flex:1;min-height:0;overflow-y:auto;padding:18px 22px 10px;display:flex;flex-direction:column;justify-content:center;text-align:center;scrollbar-width:none}
+.ob.m .body.top{justify-content:flex-start}
+.ob.m .body .h{font-size:30px}
+.ob.m .body .lead{font-size:14.5px}
+.ob.m .field,.ob.m .flist,.ob.m .addbig,.ob.m .sugg,.ob.m .note,.ob.m .preview,.ob.m .sum{text-align:left}
+.ob.m .center{display:flex;justify-content:center}
+.ob.m .tgrid{grid-template-columns:1fr 1fr;text-align:left}
+.ob.m .tcard{height:96px}
+.ob.m .foot{flex:none;display:flex;flex-direction:column;gap:6px;padding:10px 22px 26px}
+.ob.m .foot .btn{width:100%;height:52px}
+.ob.m .welcome .fan{margin:0 auto 22px}
+.ob.m .welcome .h{font-size:36px}
+.ob.m .frow{grid-template-columns:38px 1fr 32px;gap:2px 10px;padding:9px 10px}
+.ob.m .frow .fic{grid-row:1/span 2}.ob.m .frow .rm{grid-column:3;grid-row:1/span 2}.ob.m .frow .cnt{grid-column:2;grid-row:2;justify-self:start;padding:1px 8px;font-size:11.5px}
+/* Temas: detalles de cada estilo */
+.ob.th-poster .btn,.ob.th-poster .field,.ob.th-poster .frow,.ob.th-poster .preview,.ob.th-poster .sum div,.ob.th-poster .addbig,.ob.th-poster .chip{border-radius:0}
+.ob.th-poster .field,.ob.th-poster .frow,.ob.th-poster .preview,.ob.th-poster .sum div{border-width:2.5px}
+.ob.th-carbono .btn,.ob.th-carbono .field,.ob.th-carbono .frow,.ob.th-carbono .chip{border-radius:3px}
+.ob.th-carbono .btn{clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)}
+.ob.th-carbono .fan span{clip-path:polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)}
+.ob.th-carbono .kick::before{content:"";display:inline-block;width:8px;height:8px;background:var(--acc);margin-right:8px}
+.ob.th-estadio .btn{border-radius:4px;transform:skewX(-8deg)}
+.ob.th-estadio .btn>*{transform:skewX(8deg)}
+.ob.th-seda .fan span{box-shadow:0 0 0 3px var(--bg),0 0 0 4px var(--acc),0 14px 30px rgba(0,0,0,.4)}
+.ob.th-petalo .fan span{border:4px solid #fff}
+.ob.th-petalo .field,.ob.th-petalo .frow,.ob.th-petalo .preview,.ob.th-petalo .sum div{box-shadow:0 6px 16px rgba(74,43,58,.06)}
+@media (prefers-reduced-motion: reduce){.ob *,.ob{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="music" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></g></symbol>
+  <symbol id="folder" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2.5h8.5A1.5 1.5 0 0 1 21 9v9.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z"/></symbol>
+  <symbol id="video" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="2.5" y="5" width="14" height="14" rx="2.5"/><path d="M16.5 10l5-3v10l-5-3z"/></g></symbol>
+  <symbol id="plus" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="x" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="check" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="back" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M15 18l-6-6 6-6"/></symbol>
+  <symbol id="fwd" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M9 18l6-6-6-6"/></symbol>
+  <symbol id="shield" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/></symbol>
+  <symbol id="palette" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.8-.9 1.4-2l-.3-.8c-.5-1.2.4-2.2 1.6-2.2H17a4 4 0 0 0 4-4c0-5-4-9-9-9z"/></g></symbol>
+  <symbol id="drive" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="7" width="18" height="10" rx="2"/><path d="M7 12h.01"/></g></symbol>
+</svg>
+
+<div class="wrap">
+  <header class="intro">
+    <h1>Configuración inicial</h1>
+    <p>Lo primero que ve el usuario al instalar Aurora. Escritorio en una ventana de 1000×700 con los pasos a la izquierda; móvil en una sola columna centrada con el botón principal abajo, al alcance del pulgar.</p>
+    <p>Pruébalo: escribe un nombre, añade carpetas y, en el último paso, toca un tema para ver toda la pantalla cambiar.</p>
+  </header>
+  <section class="sec">
+    <h2>Escritorio · 1000×700</h2>
+    <p style="margin:-4px 0 14px"><button class="pgbtn" id="resetD">Empezar de nuevo</button></p>
+    <div class="stage" id="stageD"><div class="ob d" id="obD"></div></div>
+  </section>
+  <section class="sec">
+    <h2>Móvil</h2>
+    <div class="duo">
+      <div><p style="margin:-4px 0 14px"><button class="pgbtn" id="resetM">Empezar de nuevo</button></p><div class="phone"><div class="ob m" id="obM"></div></div></div>
+      <div style="flex:1;min-width:260px;max-width:520px" class="cols">
+        <div class="box"><h3>Centrado y a una mano</h3><p>Una idea por pantalla, contenido centrado, barra de progreso de 4 tramos arriba y el botón principal grande abajo. "Atrás" arriba a la izquierda y el botón Atrás del sistema vuelven al paso anterior.</p></div>
+        <div class="box"><h3>Saltar sin culpa</h3><p>Nombre y videos se pueden saltar. La música no, porque sin carpetas la app queda vacía; pero se puede decir "Lo haré después" y elegirla en Ajustes.</p></div>
+        <div class="box"><h3>Carpetas con permiso</h3><p>Se abre el selector de carpetas del sistema. Solo se sugieren carpetas que contienen música, nunca WhatsApp ni la cámara. El conteo aparece en vivo.</p></div>
+        <div class="box"><h3>El tema se ve antes de elegir</h3><p>Al tocar una tarjeta, toda la pantalla cambia a ese tema. Las 7 tarjetas miden exactamente lo mismo.</p></div>
+      </div>
+    </div>
+  </section>
+  <section class="sec">
+    <h2>Detalles</h2>
+    <div class="cols">
+      <div class="box"><h3>Teclado</h3><p>Enter avanza, Esc o Alt+← retrocede. Al cambiar de paso, el foco va al título para que los lectores de pantalla lo anuncien.</p></div>
+      <div class="box"><h3>Retomar</h3><p>Si se cierra la app a mitad, vuelve al mismo paso con lo ya elegido.</p></div>
+      <div class="box"><h3>Último paso</h3><p>"Todo listo" muestra el resumen mientras termina de leer la biblioteca, y el botón dice "Ir a Aurora" (o "Vamos, Lila").</p></div>
+    </div>
+  </section>
+  <footer class="pagefoot">Selector de carpetas simulado. Rutas y cantidades de ejemplo.</footer>
+</div>
+
+<script>
+/* ===================== DATOS ===================== */
+var THEMES=[
+ {id:'aurora',n:'Aurora',d:'Cambia con cada canción',t:{bg:'#120E2B',surf:'rgba(255,255,255,.08)',sb:'rgba(255,255,255,.16)',ink:'#F2EEFF',mute:'rgba(242,238,255,.62)',acc:'#FF5FA2',btn:'#F2EEFF',btnink:'#120E2B',fd:'Syne',fb:"'DM Sans'",fw:800,tt:'none',fst:'normal',r:'16px',d1:'#FF5FA2',d2:'#5B8CFF',artr:'14px'},sw:['#FF5FA2','#5B8CFF','#F2EEFF'],cardF:"800 17px Syne",cardT:'none',sh:'border-radius:8px'},
+ {id:'poster',n:'Póster',d:'Gráfico y directo',t:{bg:'#EDEBFF',surf:'transparent',sb:'#1F2BFF',ink:'#1F2BFF',mute:'rgba(31,43,255,.7)',acc:'#1F2BFF',btn:'#1F2BFF',btnink:'#EDEBFF',fd:'Archivo',fb:'Archivo',fw:900,tt:'lowercase',fst:'normal',r:'0px',d1:'#1F2BFF',d2:'#EDEBFF',artr:'0'},sw:['#1F2BFF','#1F2BFF','#d3d0ff'],cardF:"900 19px Archivo",cardT:'lowercase',sh:'border-radius:0;outline:2px solid #1F2BFF'},
+ {id:'petalo',n:'Pétalo',d:'Suave, rosas y lilas',t:{bg:'#FBEEF1',surf:'#FFFFFF',sb:'#F4D9E1',ink:'#4A2B3A',mute:'#9A7383',acc:'#E0567A',btn:'#E0567A',btnink:'#FFFFFF',fd:'Fraunces',fb:'Nunito',fw:600,tt:'none',fst:'italic',r:'20px',d1:'#F7C3D2',d2:'#DDD0F6',artr:'999px 999px 12px 12px'},sw:['#E0567A','#B9A3E3','#4A2B3A'],cardF:"italic 600 18px Fraunces",cardT:'none',sh:'border-radius:999px 999px 5px 5px;outline:2px solid #fff'},
+ {id:'seda',n:'Seda',d:'Ciruela y dorado',t:{bg:'#1E0F18',surf:'rgba(232,201,160,.06)',sb:'rgba(232,201,160,.3)',ink:'#F6E9DD',mute:'rgba(246,233,221,.6)',acc:'#E8C9A0',btn:'#E8C9A0',btnink:'#1E0F18',fd:"'Cormorant Garamond'",fb:'Jost',fw:600,tt:'none',fst:'italic',r:'14px',d1:'#5a2340',d2:'#E8C9A0',artr:'50%'},sw:['#E8C9A0','#F08BA8','#F6E9DD'],cardF:"italic 600 21px 'Cormorant Garamond'",cardT:'none',sh:'border-radius:50%;box-shadow:0 0 0 2px #1E0F18,0 0 0 3px #E8C9A0'},
+ {id:'carbono',n:'Carbono',d:'Técnico y preciso',t:{bg:'#121417',surf:'#1B1E22',sb:'#2C3138',ink:'#E3E7EC',mute:'#8A929C',acc:'#FF7A1A',btn:'#FF7A1A',btnink:'#121417',fd:"'Chakra Petch'",fb:'Inter',fw:600,tt:'uppercase',fst:'normal',r:'4px',d1:'#FF7A1A',d2:'#2C3138',artr:'0'},sw:['#FF7A1A','#2C3138','#E3E7EC'],cardF:"600 15px 'Chakra Petch'",cardT:'uppercase',sh:'clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px)'},
+ {id:'estadio',n:'Estadio',d:'Deportivo, letras grandes',t:{bg:'#0D1B2E',surf:'#14263F',sb:'#22395A',ink:'#FFFFFF',mute:'#9DB0C8',acc:'#E63946',btn:'#E63946',btnink:'#FFFFFF',fd:"'Bebas Neue'",fb:'Barlow',fw:400,tt:'uppercase',fst:'normal',r:'6px',d1:'#E63946',d2:'#FFD23F',artr:'6px'},sw:['#E63946','#FFD23F','#FFFFFF'],cardF:"400 23px 'Bebas Neue'",cardT:'uppercase',sh:'border-radius:3px;box-shadow:4px 3px 0 #E63946'},
+ {id:'bruma',n:'Bruma',d:'Tranquilo y legible',t:{bg:'#ECEFEA',surf:'#FFFFFF',sb:'#DCE1DA',ink:'#1F2A24',mute:'#6B776F',acc:'#2F7D6A',btn:'#1F2A24',btnink:'#ECEFEA',fd:'Manrope',fb:'Manrope',fw:800,tt:'none',fst:'normal',r:'14px',d1:'#DFE5DC',d2:'#cfe3dc',artr:'14px'},sw:['#2F7D6A','#1F2A24','#DCE1DA'],cardF:"800 17px Manrope",cardT:'none',sh:'border-radius:7px'}
+];
+/* Carpetas del "dispositivo" para el selector simulado */
+var FS={m:[['Music','/storage/emulated/0/Music',146,'aud'],['Download','/storage/emulated/0/Download',38,'aud'],['Podcasts','/storage/emulated/0/Podcasts',12,'aud'],['Videoclips','/storage/emulated/0/Movies/Videoclips',22,'vid'],['Movies','/storage/emulated/0/Movies',69,'vid'],['DCIM','/storage/emulated/0/DCIM',0,'no'],['WhatsApp','/storage/emulated/0/WhatsApp',0,'no']],
+        d:[['Música','/home/lila97/Música',146,'aud'],['Descargas','/home/lila97/Descargas',38,'aud'],['Mis discos','/media/lila97/Disco/Mis discos',329,'aud'],['Videoclips','/home/lila97/Vídeos/Videoclips',22,'vid'],['Vídeos','/home/lila97/Vídeos',69,'vid'],['Imágenes','/home/lila97/Imágenes',0,'no'],['Documentos','/home/lila97/Documentos',0,'no']]};
+var COVERS=[{st:'sun',bg:'#24103d',c:['#ff3d8b','#ff8a3d','#ffd23d']},{st:'waves',bg:'#0f3d2e',c:['#7ddc5a','#ffcf3d','#2bb3a0']},{st:'circles',bg:'#0b1d2e',c:['#3de0c0','#1a8a9c','#e9f5f2']}];
+var STEPS=[['Tu nombre','Cómo te llamamos'],['Tu música','Carpetas de canciones'],['Tus videos','Videos musicales'],['Tu estilo','Elige un tema']];
+
+function paintCover(sp){var Z=240,cv=document.createElement('canvas');cv.width=cv.height=Z;var x=cv.getContext('2d');x.scale(.8,.8);x.fillStyle=sp.bg;x.fillRect(0,0,300,300);var c=sp.c;
+  if(sp.st==='sun'){var g=x.createLinearGradient(0,70,0,270);g.addColorStop(0,c[2]);g.addColorStop(.5,c[1]);g.addColorStop(1,c[0]);x.fillStyle=g;x.beginPath();x.arc(150,175,100,0,7);x.fill();x.fillStyle=sp.bg;for(var y=185,hh=4;y<280;y+=18,hh+=2)x.fillRect(0,y,300,hh)}
+  else if(sp.st==='circles'){[[110,120,90,c[1]],[190,170,80,c[0]],[150,230,40,c[2]]].forEach(function(q){x.globalAlpha=.85;x.fillStyle=q[3];x.beginPath();x.arc(q[0],q[1],q[2],0,7);x.fill()});x.globalAlpha=1}
+  else{for(var j=0;j<4;j++){x.fillStyle=c[j%3];x.globalAlpha=.9;x.beginPath();x.moveTo(0,300);for(var px=0;px<=300;px+=10)x.lineTo(px,130+j*40+Math.sin(px/40+j)*22);x.lineTo(300,300);x.fill()}x.globalAlpha=1;x.fillStyle=c[1];x.beginPath();x.arc(80,70,30,0,7);x.fill()}
+  return cv.toDataURL('image/jpeg',.85)}
+COVERS.forEach(function(c){c.url=paintCover(c)});
+function ic(id){return '<svg class="i" aria-hidden="true"><use href="#'+id+'"/></svg>'}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function greet(){var h=new Date().getHours();return h>=5&&h<12?'Buenos días':h<19?'Buenas tardes':'Buenas noches'}
+
+/* =====================================================================
+   ONBOARDING: una instancia por ventana (mode 'd' escritorio, 'm' móvil)
+   step: 0 bienvenida · 1 nombre · 2 música · 3 videos · 4 estilo · 5 listo
+   ===================================================================== */
+function OB(root,mode){this.root=root;this.mode=mode;this.reset();var me=this;
+  root.addEventListener('click',function(e){me.click(e)});
+  root.addEventListener('input',function(e){if(e.target.dataset.in==='name'){me.s.name=e.target.value.slice(0,20);me.updName()}});
+  root.addEventListener('keydown',function(e){me.key(e)});}
+OB.prototype.reset=function(){this.s={step:0,name:'',music:[],videos:[],theme:'aurora',picker:null,sel:null,scan:0};this.render(true)};
+OB.prototype.apply=function(){var t=THEMES.filter(function(x){return x.id===this.s.theme},this)[0].t,st=this.root.style;
+  Object.keys(t).forEach(function(k){st.setProperty('--'+k,t[k])});this.root.className='ob '+this.mode+' th-'+this.s.theme};
+OB.prototype.fan=function(){return '<div class="fan" aria-hidden="true">'+COVERS.map(function(c){return '<span style="background-image:url('+c.url+')"></span>'}).join('')+'</div>'};
+OB.prototype.folderRows=function(list,kind){var me=this;return list.map(function(f,k){return '<div class="frow"><span class="fic">'+ic(kind==='vid'?'video':'folder')+'</span><span style="min-width:0"><b>'+f[0]+'</b><span class="path">'+f[1]+'</span></span>'+
+  '<span class="cnt'+(f.scanning?' scan':'')+'" aria-live="polite">'+(f.scanning?'Buscando…':f[2]+(kind==='vid'?' videos':' canciones'))+'</span><button class="rm" data-act="rm" data-k="'+k+'" data-kind="'+kind+'" aria-label="Quitar '+f[0]+'">'+ic('x')+'</button></div>'}).join('')};
+OB.prototype.content=function(){var s=this.s,m=this.mode==='m',me=this;
+  switch(s.step){
+   case 0:return '<div class="welcome">'+(m?this.fan():'')+'<span class="kick">Bienvenida</span><h1 class="h" tabindex="-1" style="margin-top:8px">Tu música,<br>a tu manera.</h1><p class="lead">Cuatro pasos rápidos: cómo te llamamos, dónde está tu música, tus videos y el estilo que más te guste.</p></div>';
+   case 1:return '<span class="kick">Paso 1 de 4</span><h1 class="h" tabindex="-1" style="margin-top:6px">¿Cómo te llamamos?</h1><p class="lead">Tu nombre o un apodo. Lo usaremos para saludarte.</p>'+
+     '<label class="field" style="margin-top:22px"><input data-in="name" maxlength="20" placeholder="Escribe tu nombre" aria-label="Tu nombre" value="'+esc(s.name)+'" autocomplete="given-name"><small data-count>'+s.name.length+'/20</small></label>'+
+     '<div class="preview" aria-live="polite"><small>Así te saludará Aurora</small><div class="h" data-greet>'+esc(greet()+(s.name.trim()?', '+s.name.trim():''))+'</div></div>';
+   case 2:case 3:var vid=s.step===3,list=vid?s.videos:s.music,kind=vid?'vid':'aud',fs=FS[this.mode],sug=fs.filter(function(f){return f[3]===kind&&!list.some(function(x){return x[1]===f[1]})}).slice(0,2);
+     return '<span class="kick">Paso '+s.step+' de 4</span><h1 class="h" tabindex="-1" style="margin-top:6px">'+(vid?'¿Y tus videos musicales?':'¿Dónde está tu música?')+'</h1>'+
+      '<p class="lead">'+(vid?'Solo los videos de estas carpetas aparecerán en la app.':'Elige las carpetas con tus canciones. Aurora buscará también en sus subcarpetas.')+'</p>'+
+      '<div class="flist">'+this.folderRows(list,kind)+'</div>'+
+      '<button class="addbig" data-act="pick"><span class="fic">'+ic('plus')+'</span><span>'+(list.length?'Añadir otra carpeta':'Elegir carpeta')+'<small>Se abre el selector de carpetas '+(m?'del teléfono':'del sistema')+'</small></span></button>'+
+      (sug.length?'<div class="sugg">Encontramos música aquí:'.replace('música',vid?'videos':'música')+'<div class="chips">'+sug.map(function(f){return '<button class="chip" data-act="sug" data-p="'+f[1]+'">'+ic('plus')+f[0]+' <small>'+f[2]+'</small></button>'}).join('')+'</div></div>':'')+
+      '<p class="note">'+ic('shield')+'<span>'+(vid?'Tus fotos y videos personales no se tocan.':'Aurora solo lee las carpetas que elijas. Nada sale de tu '+(m?'teléfono':'equipo')+'.')+'</span></p>';
+   case 4:return '<span class="kick">Paso 4 de 4</span><h1 class="h" tabindex="-1" style="margin-top:6px">Elige tu estilo</h1><p class="lead">Toca uno para probarlo. Puedes cambiarlo cuando quieras en Ajustes.</p>'+
+      '<div class="tgrid" role="radiogroup" aria-label="Tema">'+THEMES.map(function(x){var on=s.theme===x.id;
+        return '<button class="tcard" role="radio" aria-checked="'+on+'" data-act="theme" data-id="'+x.id+'" style="background:'+x.t.bg+';color:'+x.t.ink+'"><span class="top"><span class="mart" style="background-image:url('+COVERS[0].url+');'+x.sh+'"></span><span class="sws">'+x.sw.map(function(c){return '<i style="background:'+c+'"></i>'}).join('')+'</span></span>'+
+        '<span><span class="nm" style="font:'+x.cardF.replace(/"/g,"'")+';text-transform:'+x.cardT+'">'+x.n+'</span><span class="ds">'+x.d+'</span></span>'+(on?'<span class="chk" style="background:'+x.t.acc+';color:'+x.t.bg+'">'+ic('check')+'</span>':'')+'</button>'}).join('')+'</div>';
+   case 5:var songs=s.music.reduce(function(a,f){return a+f[2]},0),vids=s.videos.reduce(function(a,f){return a+f[2]},0),th=THEMES.filter(function(x){return x.id===s.theme})[0];
+     return '<div class="welcome">'+(m?this.fan():'')+'<span class="kick">Todo listo</span><h1 class="h" tabindex="-1" style="margin-top:8px">'+(s.name.trim()?'¡Listo, '+esc(s.name.trim())+'!':'¡Todo listo!')+'</h1><p class="lead">Estamos terminando de preparar tu biblioteca.</p>'+
+      '<div class="sum"><div><b>'+songs+'</b><small>canciones</small></div><div><b>'+vids+'</b><small>videos</small></div><div><b>'+(s.music.length+s.videos.length)+'</b><small>carpetas</small></div><div><b style="font-size:20px">'+th.n+'</b><small>tema</small></div></div>'+
+      '<div class="prog" aria-hidden="true"><i data-prog></i></div><p class="status" data-status aria-live="polite">Leyendo portadas y letras…</p></div>'}};
+OB.prototype.canNext=function(){var s=this.s;if(s.step===2)return s.music.length>0&&!s.music.some(function(f){return f.scanning});if(s.step===3)return !s.videos.some(function(f){return f.scanning});return true};
+OB.prototype.footer=function(){var s=this.s,m=this.mode==='m',name=s.name.trim();
+  var pri={0:'Empezar',1:name?'Continuar':'Continuar sin nombre',2:'Continuar',3:s.videos.length?'Continuar':'Saltar este paso',4:name?'Empezar, '+name:'Empezar',5:name?'Vamos, '+name:'Ir a Aurora'}[s.step];
+  var secd=s.step===2&&!s.music.length?'Lo haré después':null;
+  var priB='<button class="btn" data-act="next"'+(this.canNext()?'':' disabled')+'><span>'+esc(pri)+'</span>'+(m?'':ic('fwd'))+'</button>';
+  if(m)return priB+(secd?'<button class="btn link" data-act="later">'+secd+'</button>':'');
+  return (s.step>0&&s.step<5?'<button class="btn sec" data-act="back">'+ic('back')+'<span>Atrás</span></button>':'')+'<span class="grow"></span>'+(secd?'<button class="btn link" data-act="later">'+secd+'</button>':'')+priB};
+OB.prototype.render=function(focus){var s=this.s,m=this.mode==='m',me=this;this.apply();
+  var deco='<div class="deco" aria-hidden="true"><i style="width:'+(m?260:460)+'px;height:'+(m?260:460)+'px;top:-'+(m?80:140)+'px;right:-'+(m?90:120)+'px"></i><i style="width:'+(m?220:380)+'px;height:'+(m?220:380)+'px;bottom:-'+(m?60:140)+'px;left:-'+(m?80:60)+'px"></i></div>';
+  var pk=s.picker?this.pickerHtml():'';
+  if(m){this.root.innerHTML=deco+'<div class="sbar"><span>9:41</span><span>●●● 87%</span></div>'+
+    (s.step>=1&&s.step<=4?'<div class="topm"><button class="bk" data-act="back" aria-label="Paso anterior">'+ic('back')+'</button><div class="bars" aria-hidden="true">'+[1,2,3,4].map(function(k){return '<i class="'+(k<=s.step?'on':'')+'"></i>'}).join('')+'</div><span class="pg">'+s.step+'/4</span></div>':'<div class="topm"></div>')+
+    '<div class="body'+(s.step===4||s.step===2||s.step===3?' top':'')+'">'+this.content()+'</div><div class="foot">'+this.footer()+'</div>'+pk}
+  else{this.root.innerHTML=deco+'<div class="tb"><i></i><i></i><i></i>Configurar Aurora</div><aside class="left"><div class="logo"><b>'+ic('music')+'</b>Aurora</div>'+
+    '<ol class="steps">'+STEPS.map(function(x,k){var n=k+1,cls=n<s.step||s.step===5?'done':n===s.step?'cur':'';return '<li class="'+cls+'"'+(n===s.step?' aria-current="step"':'')+'><span class="n">'+(cls==='done'?ic('check'):n)+'</span><span>'+x[0]+'<small>'+x[1]+'</small></span></li>'}).join('')+'</ol>'+this.fan()+'</aside>'+
+    '<section class="right"><div class="body">'+this.content()+'</div><div class="foot">'+this.footer()+'</div></section>'+pk}
+  if(focus){var h=this.root.querySelector('.body .h');h&&h.focus({preventScroll:true})}
+  if(s.step===5)this.finish()};
+OB.prototype.updName=function(){var r=this.root,n=this.s.name.trim();r.querySelector('[data-count]').textContent=this.s.name.length+'/20';r.querySelector('[data-greet]').textContent=greet()+(n?', '+n:'');
+  r.querySelector('.foot').innerHTML=this.footer()};
+OB.prototype.pickerHtml=function(){var s=this.s,kind=s.picker,fs=FS[this.mode],m=this.mode==='m';
+  return '<div class="picker" role="dialog" aria-label="Elegir carpeta"><div class="pk"><header>'+(m?'Elegir carpeta':'Seleccionar carpeta')+'<small>'+(m?'Almacenamiento interno':'Equipo')+'</small></header><div class="pl" role="listbox">'+
+   fs.map(function(f){return '<button class="pr'+(s.sel===f[1]?' sel':'')+'" role="option" aria-selected="'+(s.sel===f[1])+'" data-act="sel" data-p="'+f[1]+'">'+ic(f[1].indexOf('/media/')===0?'drive':'folder')+f[0]+'<small>'+(f[3]==='aud'?f[2]+' audios':f[3]==='vid'?f[2]+' videos':'')+'</small></button>'}).join('')+
+   '</div><footer><button data-act="pkcancel">Cancelar</button><button class="pri" data-act="pkok"'+(s.sel?'':' disabled')+'>'+(m?'Usar esta carpeta':'Seleccionar')+'</button></footer></div></div>'};
+OB.prototype.addFolder=function(path){var s=this.s,f=FS[this.mode].filter(function(x){return x[1]===path})[0];if(!f)return;var kind=s.step===3?'vid':'aud',list=kind==='vid'?s.videos:s.music;
+  if(list.some(function(x){return x[1]===path}))return;var row=f.slice();row.scanning=true;list.push(row);var me=this;this.render(false);
+  setTimeout(function(){row.scanning=false;if(f[3]!==kind)row[2]=0;me.render(false)},900)};
+OB.prototype.finish=function(){var r=this.root,p=0,me=this,msgs=['Leyendo portadas y letras…','Ordenando por artista y álbum…','Calculando el tempo de cada canción…','Listo.'];clearInterval(this._fi);
+  this._fi=setInterval(function(){p=Math.min(100,p+4);var bar=r.querySelector('[data-prog]');if(!bar){clearInterval(me._fi);return}bar.style.width=p+'%';r.querySelector('[data-status]').textContent=msgs[Math.min(3,Math.floor(p/34))];if(p>=100)clearInterval(me._fi)},120)};
+OB.prototype.go=function(n){this.s.step=Math.max(0,Math.min(5,n));this.render(true)};
+OB.prototype.click=function(e){var el=e.target.closest('[data-act]');if(!el)return;var s=this.s,a=el.dataset.act;
+  switch(a){
+   case 'next':if(s.step===5){this.flash('Abre Aurora en Inicio');return}this.go(s.step+1);break;
+   case 'back':this.go(s.step-1);break;
+   case 'later':this.go(3);break;
+   case 'pick':s.picker=s.step===3?'vid':'aud';s.sel=null;this.render(false);var f=this.root.querySelector('.pk .pr');f&&f.focus();break;
+   case 'sel':s.sel=el.dataset.p;this.render(false);var sb=this.root.querySelector('.pk .pr.sel');sb&&sb.focus();break;
+   case 'pkcancel':s.picker=null;this.render(false);break;
+   case 'pkok':var p=s.sel;s.picker=null;s.sel=null;this.addFolder(p);break;
+   case 'sug':this.addFolder(el.dataset.p);break;
+   case 'rm':(el.dataset.kind==='vid'?s.videos:s.music).splice(+el.dataset.k,1);this.render(false);break;
+   case 'theme':s.theme=el.dataset.id;this.render(false);var tc=this.root.querySelector('.tcard[data-id="'+s.theme+'"]');tc&&tc.focus();break;
+  }};
+OB.prototype.key=function(e){var s=this.s;if(s.picker){if(e.key==='Escape'){s.picker=null;this.render(false)}return}
+  if(e.key==='Enter'&&!e.target.closest('button')&&this.canNext()){e.preventDefault();if(s.step<5)this.go(s.step+1)}
+  else if((e.key==='Escape'||(e.altKey&&e.key==='ArrowLeft'))&&s.step>0&&s.step<5){e.preventDefault();this.go(s.step-1)}};
+OB.prototype.flash=function(m){var b=this.root.querySelector('.foot .btn:last-child span');if(b){var o=b.textContent;b.textContent=m;setTimeout(function(){b.textContent=o},1400)}};
+
+var D=new OB(document.getElementById('obD'),'d'),M=new OB(document.getElementById('obM'),'m');
+document.getElementById('resetD').onclick=function(){D.reset()};document.getElementById('resetM').onclick=function(){M.reset()};
+var stage=document.getElementById('stageD'),win=document.getElementById('obD');
+function fit(){var k=Math.min(1,stage.clientWidth/1000);win.style.transform='scale('+k+')';stage.style.height=(700*k)+'px'}
+new ResizeObserver(fit).observe(stage);fit();
+</script>
+</body>
+</html>

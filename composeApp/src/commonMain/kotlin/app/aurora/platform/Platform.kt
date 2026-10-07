@@ -16,6 +16,12 @@ data class ScanProgress(val done: Int, val total: Int?)
 /** Cómo se muestra una carpeta: nombre ("Rock") y ruta ("Almacenamiento interno/Music/Rock"). */
 data class FolderLabel(val name: String, val path: String)
 
+/**
+ * Carpeta sugerida en la configuración inicial. [path] es lo que se añade (escritorio) o donde se abre el
+ * selector del sistema (Android). [count] es cuántos archivos tiene; `null` si no se puede contar (Android).
+ */
+data class FolderSuggestion(val name: String, val path: String, val count: Int?)
+
 /** Acceso a los archivos multimedia del dispositivo. */
 interface MediaSource {
     /** Carpetas que se escanean si el usuario aún no eligió ninguna. */
@@ -26,6 +32,18 @@ interface MediaSource {
 
     /** Abre el selector de carpetas; `null` si se cancela. */
     suspend fun pickFolder(): String?
+
+    /** Abre el selector de carpetas ya ubicado en [initial] (una de [suggestFolders]). */
+    suspend fun pickFolder(initial: String?): String? = pickFolder()
+
+    /**
+     * Carpetas habituales con música o videos que aún no se eligieron (nunca la cámara, capturas, WhatsApp,
+     * Telegram, Imágenes ni Documentos). Si [FolderSuggestion.count] no es `null`, solo las que tienen archivos.
+     */
+    suspend fun suggestFolders(type: app.aurora.domain.MediaType, chosen: List<String>): List<FolderSuggestion> = emptyList()
+
+    /** Si tocar una sugerencia la añade directamente (escritorio) o abre el selector en ella (Android). */
+    val suggestionsAddDirectly: Boolean get() = true
 
     /** Si una carpeta guardada sigue sirviendo (Android solo acepta las elegidas con el selector del sistema). */
     fun isUsableFolder(folder: String): Boolean = true
@@ -39,6 +57,12 @@ interface MediaSource {
 
     /** Busca audio y video dentro de [folders] (incluye subcarpetas). */
     suspend fun scan(folders: List<String>, onProgress: (ScanProgress) -> Unit): List<Track>
+
+    /** Si [decodeForTempo] funciona en esta plataforma. */
+    val canDecodeForTempo: Boolean get() = false
+
+    /** Un fragmento de la canción (unos 20 s del medio) en mono, para calcular su tempo; `null` si no se pudo. */
+    suspend fun decodeForTempo(track: Track): app.aurora.domain.Pcm? = null
 
     /** Avisa cuando cambian archivos multimedia dentro de [folders] (para "Vigilar cambios"). */
     fun watch(folders: List<String>): kotlinx.coroutines.flow.Flow<Unit> = kotlinx.coroutines.flow.emptyFlow()
@@ -111,6 +135,8 @@ class PlatformServices(
     val http: HttpClient = HttpClient { _, _ -> null },
     val textCache: TextCache = MemoryTextCache(),
     val files: BlobStore = BlobStore.Memory(),
+    /** Compilación de depuración: muestra opciones de prueba (p. ej. "Repetir configuración inicial"). */
+    val isDebug: Boolean = false,
 )
 
 class MemoryTextCache : TextCache {

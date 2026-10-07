@@ -21,7 +21,7 @@ import app.aurora.theme.AuroraDimens
 enum class AuroraIcon {
     Play, Pause, Next, Previous, Shuffle, Repeat, Heart, HeartFilled, Back, Down, More,
     Home, Search, Library, Video, Plus, Download, Lyrics, Info, Queue, Share, Edit, Sort,
-    Settings, Folder, Refresh, Trash, Panel, Volume, Forward, Music, Palette, Check, Close, Expand, Shrink, ListAdd, ArrowUp, ArrowDown, Equalizer, Accessibility, Sparkle, Grip, Timer, Lock,
+    Settings, Folder, Refresh, Trash, Panel, Volume, Forward, Music, Palette, Check, Close, Expand, Shrink, ListAdd, ArrowUp, ArrowDown, Equalizer, Accessibility, Sparkle, Grip, Timer, Lock, Shield,
 }
 
 @Composable
@@ -133,6 +133,10 @@ private fun DrawScope.drawIcon(icon: AuroraIcon, c: Color) {
             line(8.5f, 10.5f, 8.5f, 7.5f); line(15.5f, 10.5f, 15.5f, 7.5f)
             drawArc(c, 180f, 180f, false, Offset(8.5f, 4f), Size(7f, 7f), style = st)
             drawCircle(c, 1.3f, Offset(12f, 15.5f))
+        }
+        AuroraIcon.Shield -> {
+            drawPath(path { moveTo(12f, 3f); lineTo(19.5f, 6f); lineTo(19.5f, 11.5f); cubicTo(19.5f, 16f, 16.3f, 19.4f, 12f, 21f); cubicTo(7.7f, 19.4f, 4.5f, 16f, 4.5f, 11.5f); lineTo(4.5f, 6f); close() }, c, style = st)
+            line(8.8f, 12f, 11.2f, 14.4f, 15.5f, 9.8f)
         }
         AuroraIcon.Timer -> { drawCircle(c, 8f, Offset(12f, 13f), style = st); line(12f, 13f, 12f, 8.5f); line(9.5f, 2.5f, 14.5f, 2.5f) }
         AuroraIcon.Sort -> { line(7f, 4f, 7f, 20f); line(3.5f, 16.5f, 7f, 20f, 10.5f, 16.5f); line(17f, 20f, 17f, 4f); line(13.5f, 7.5f, 17f, 4f, 20.5f, 7.5f) }

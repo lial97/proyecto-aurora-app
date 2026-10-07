@@ -11,6 +11,8 @@ import app.aurora.domain.UNKNOWN_ARTIST
 import app.aurora.domain.guessFromFileName
 import app.aurora.domain.parseLrc
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import io.github.vinceglb.filekit.dialogs.openDirectoryPicker
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.channels.awaitClose
@@ -47,11 +49,78 @@ class DesktopMediaSource(
 
     override val canPickFolder: Boolean = true
 
-    override suspend fun pickFolder(): String? = withContext(Dispatchers.IO) {
-        zenityPick() ?: swingPick()
+    override suspend fun pickFolder(): String? = pickFolder(null)
+
+    /**
+     * Selector nativo con FileKit: en Linux por xdg-desktop-portal (el de GNOME o KDE, según el escritorio) y en
+     * Windows el del sistema. Si falla (sin portal, por ejemplo), zenity y por último JFileChooser.
+     */
+    override suspend fun pickFolder(initial: String?): String? {
+        val native = runCatching {
+            io.github.vinceglb.filekit.FileKit.openDirectoryPicker(
+                directory = (initial ?: System.getProperty("user.home"))?.let { io.github.vinceglb.filekit.PlatformFile(File(it)) },
+                dialogSettings = io.github.vinceglb.filekit.dialogs.FileKitDialogSettings(title = "Elige una carpeta con música o videos"),
+            )
+        }
+        native.getOrNull()?.let { return it.file.absolutePath }
+        // Se canceló en el selector nativo: no abrir otro.
+        if (native.isSuccess) return null
+        return withContext(Dispatchers.IO) { zenityPick(initial) ?: swingPick(initial) }
     }
 
     override suspend fun candidateFolders(): List<String> = defaultFolders()
+
+    private val tempo = TempoDecoder()
+    override val canDecodeForTempo: Boolean get() = tempo.available
+
+    override suspend fun decodeForTempo(track: Track): app.aurora.domain.Pcm? = withContext(Dispatchers.IO) {
+        val f = track.filePath?.let(::File)?.takeIf { it.isFile } ?: return@withContext null
+        tempo.decode(f, track.durationSec)
+    }
+
+    /** Conteos ya hechos (carpeta y tipo → archivos), para no repetir la búsqueda al volver a mostrar las sugerencias. */
+    private val suggestionCounts = java.util.concurrent.ConcurrentHashMap<Pair<String, MediaType>, Int>()
+
+    /**
+     * Carpetas habituales (Música, Descargas, Vídeos y discos montados) con su número de audios o videos.
+     * Se cuentan todas a la vez con un tope de 2 s en total: si una es enorme, se muestra lo contado hasta ahí.
+     */
+    override suspend fun suggestFolders(type: MediaType, chosen: List<String>): List<FolderSuggestion> = withContext(Dispatchers.IO) {
+        val home = System.getProperty("user.home")
+        val user = System.getProperty("user.name").orEmpty()
+        val xdg = listOf("MUSIC", "DOWNLOAD", "VIDEOS").mapNotNull { xdgUserDir(it) }
+        val guesses = listOf("Música", "Music", "Descargas", "Downloads", "Vídeos", "Videos").map { "$home/$it" }
+        fun children(dir: String) = File(dir).listFiles { f -> f.isDirectory && !f.isHidden }?.map { it.absolutePath }.orEmpty()
+        val mounts = children("/run/media/$user") + children("/media/$user") + children("/media").filter { File(it).name != user }
+        val chosenFiles = chosen.map { File(it).absoluteFile }
+        val candidates = (xdg + guesses + mounts).map { File(it).absoluteFile }.distinctBy { it.canonicalPathOrSelf() }
+            .filter { f ->
+                f.isDirectory && f.absolutePath != home && app.aurora.domain.isSuggestibleFolder(f.absolutePath + "/") &&
+                    // Ni las ya elegidas ni las que están dentro de una elegida.
+                    chosenFiles.none { c -> f == c || f.startsWith(c) }
+            }
+        val deadline = System.nanoTime() + 2_000_000_000L
+        val counted = kotlinx.coroutines.coroutineScope {
+            candidates.map { f -> async(Dispatchers.IO) { f to countMedia(f, type, deadline) } }.map { it.await() }
+        }
+        counted.filter { it.second > 0 }.map { (f, n) -> FolderSuggestion(f.name, f.absolutePath, n) }
+    }
+
+    private fun File.canonicalPathOrSelf() = runCatching { canonicalPath }.getOrDefault(absolutePath)
+
+    /** Archivos de [type] dentro de [dir] (con subcarpetas, sin las ocultas) hasta [deadline]. */
+    private fun countMedia(dir: File, type: MediaType, deadline: Long): Int {
+        val key = dir.absolutePath to type
+        suggestionCounts[key]?.let { return it }
+        var n = 0
+        var complete = true
+        for (f in dir.walkTopDown().onEnter { !it.name.startsWith(".") && it.name !in skippedDirs }) {
+            if (System.nanoTime() > deadline) { complete = false; break }
+            if (f.isFile && MediaType.fromFileName(f.name) == type) n++
+        }
+        if (complete) suggestionCounts[key] = n
+        return n
+    }
 
     override suspend fun scan(folders: List<String>, onProgress: (ScanProgress) -> Unit): List<Track> {
         val files = folders.asSequence()
@@ -218,18 +287,20 @@ class DesktopMediaSource(
         p.inputStream.bufferedReader().readText().trim().takeIf { p.waitFor() == 0 && it.isNotEmpty() }
     }.getOrNull()
 
-    /** Selector nativo de GNOME/GTK (zenity) si está instalado. */
-    private fun zenityPick(): String? = runCatching {
+    /** Selector nativo de GNOME/GTK (zenity) si está instalado, abierto en [initial] si se da. */
+    private fun zenityPick(initial: String? = null): String? = runCatching {
         if (!System.getProperty("os.name").orEmpty().lowercase().contains("linux")) return null
-        val p = ProcessBuilder("zenity", "--file-selection", "--directory", "--title=Elige una carpeta con música o videos").start()
+        val args = mutableListOf("zenity", "--file-selection", "--directory", "--title=Elige una carpeta con música o videos")
+        if (initial != null) args += "--filename=${initial.trimEnd('/')}/"
+        val p = ProcessBuilder(args).start()
         val out = p.inputStream.bufferedReader().readText().trim()
         if (p.waitFor() == 0 && out.isNotEmpty()) out else null
     }.getOrNull()
 
-    private fun swingPick(): String? {
+    private fun swingPick(initial: String? = null): String? {
         var result: String? = null
         SwingUtilities.invokeAndWait {
-            val chooser = JFileChooser(System.getProperty("user.home")).apply {
+            val chooser = JFileChooser(initial ?: System.getProperty("user.home")).apply {
                 fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
                 dialogTitle = "Elige una carpeta con música o videos"
             }
