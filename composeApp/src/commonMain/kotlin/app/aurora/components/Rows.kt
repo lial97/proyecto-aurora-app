@@ -112,12 +112,12 @@ fun MiniPlayer(
     }
 }
 
-/** Pestañas del móvil: Inicio, Videos, Buscar, Biblioteca y Ajustes. */
+/** Pestañas del móvil: Inicio, Biblioteca, Videos, Buscar y Ajustes. */
 enum class Tab(val label: String, val icon: AuroraIcon) {
     Home("Inicio", AuroraIcon.Home),
+    Library("Biblioteca", AuroraIcon.Library),
     Videos("Videos", AuroraIcon.Video),
     Search("Buscar", AuroraIcon.Search),
-    Library("Biblioteca", AuroraIcon.Library),
     Settings("Ajustes", AuroraIcon.Settings),
 }
 

@@ -268,10 +268,10 @@ VLC en escritorio (`VlcAudioEngine`), pendiente Media3 en Android y AVPlayer en 
 
 ## 8. Navegación
 
-**Móvil**: pestañas Inicio · Videos · Buscar · Biblioteca. Encima se abren Lista, Ajustes (desde el avatar
+**Móvil**: pestañas Inicio · Biblioteca · Videos · Buscar. Encima se abren Lista, Ajustes (desde el avatar
 o el engranaje) y Reproductor/Letra (pantalla completa, ocultan mini reproductor y pestañas).
 
-**Escritorio**: lateral (Inicio, Videos, Buscar, Biblioteca, Ajustes, Tus listas), historial con Atrás/Adelante,
+**Escritorio**: lateral (Inicio, Biblioteca, Videos, Buscar, Ajustes, Tus listas), historial con Atrás/Adelante,
 vistas Inicio, Biblioteca (tablas), Lista, Reproduciendo (portada + letra), Videos, Buscar y Ajustes.
 Atajos: Espacio, ← →  (±5 s), Ctrl + ← → (anterior/siguiente), L (letra), V (video), F (pantalla completa), Esc (salir).
 Los atajos se ignoran mientras se escribe en un campo de texto.

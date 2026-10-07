@@ -73,9 +73,9 @@ private data class NavItem(val view: DView, val label: String, val icon: AuroraI
 
 private val navItems = listOf(
     NavItem(DView.Home, "Inicio", AuroraIcon.Home),
+    NavItem(DView.Library, "Biblioteca", AuroraIcon.Library),
     NavItem(DView.Videos, "Videos", AuroraIcon.Video),
     NavItem(DView.Search, "Buscar", AuroraIcon.Search),
-    NavItem(DView.Library, "Biblioteca", AuroraIcon.Library),
 )
 
 /** Lateral: logo, navegación, tus listas y ajustes. Reducido a íconos (72 dp) en ventanas estrechas. */

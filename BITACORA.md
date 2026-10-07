@@ -11,6 +11,11 @@ Formato de cada entrada:
 **Pendiente:** lo que queda abierto (opcional).
 ```
 
+## 2026-10-07 — Nuevo orden del menú: Inicio, Biblioteca, Videos, Buscar, Ajustes
+**Qué:** a pedido del usuario, Biblioteca pasa al segundo lugar en el lateral de escritorio (`navItems`) y en la barra inferior del móvil (`Tab`). Las pestañas se guardan por nombre (`Tab.valueOf`), así que el historial de Atrás no se ve afectado.
+**Archivos:** `desktop/Chrome.kt`, `components/Rows.kt`, `ARQUITECTURA.md`.
+**Pruebas:** 107 pruebas pasan; APK instalado en el A35 y barra revisada con captura.
+
 ## 2026-10-07 — Linux y Android: cola instantánea, tempo en segundo plano, menos memoria y desinstalar limpio
 **Qué:**
 - **Cola lenta y fuga de memoria:** `QueueTab` (panel Cola en móvil y escritorio) componía todas las filas de la cola con `Column` + `forEach`. Al reproducir desde la biblioteca la cola tiene cientos de canciones: tardaba segundos en abrir y cada fila cargaba y retenía su portada. En el A35 había **1036 imágenes vivas (727 MB)** y 942 MB de PSS (casi todo en swap). Ahora es una `LazyColumn`: solo se componen las filas visibles.
