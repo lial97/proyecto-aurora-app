@@ -29,7 +29,7 @@ Cuando este documento cita "spec §N" se refiere a ese archivo.
 | RF9 | Color dinámico: atmósfera por tempo y énfasis por portada (spec §3) | F1 ✅ |
 | RF10 | Cola, aleatorio, repetir, anterior/siguiente con las reglas de la spec §8 | ✅ |
 | RF11 | **Ajustes con carpetas** donde buscar música y videos (añadir, quitar, volver a buscar) | ✅ |
-| RF12 | **7 temas**: Aurora, Póster, Pétalo, Seda, Carbono, Estadio, Bruma (`files/TEMAS_VIDEO_ESCRITORIO.md`) | ✅ |
+| RF12 | **12 temas**: Aurora, Póster, Pétalo, Seda, Carbono, Estadio, Bruma (`files/TEMAS_VIDEO_ESCRITORIO.md`), Casete, Acuarela, Bosque, Grafito y Rockola (`files/Aurora · Tema Casete.html`, `files/Aurora · 4 temas nuevos.html`) | ✅ |
 | RF13 | **Interfaz de escritorio** de 3 columnas en PC y de teléfono en móvil (`files/escritorio-app-musica.html`) | ✅ |
 
 ### No funcionales
@@ -99,7 +99,7 @@ Reglas:
 app-music/
 ├── ARQUITECTURA.md · BITACORA.md · README.md · LICENSE (GPL-3.0)
 ├── files/                       diseños y especificaciones (referencia, no se modifican)
-├── docs/capturas/               capturas de la interfaz (7 temas, móvil y escritorio)
+├── docs/capturas/               capturas de la interfaz (12 temas, móvil y escritorio; temas-nuevos/ con las maquetas)
 ├── docs/licencias/              licencias de las fuentes (OFL)
 ├── gradle/libs.versions.toml    versiones de todas las dependencias
 ├── composeApp/src/
@@ -109,7 +109,7 @@ app-music/
 │   │   ├── MobileApp.kt         interfaz de teléfono (pestañas + pantallas)
 │   │   ├── desktop/             interfaz de PC: DesktopApp (estructura, atajos), Chrome (lateral,
 │   │   │                        barra superior, barra de reproducción, panel derecho), DesktopViews
-│   │   ├── theme/               AppTheme (modelo), Themes (los 7), Shapes, Theme (proveedor, tipografía), Tokens
+│   │   ├── theme/               AppTheme (modelo), Themes (los 12), Shapes (incl. OrganicBlobShape), Theme (proveedor, tipografía), Tokens
 │   │   ├── color/               Mood, ExtractAccent, Palette (color dinámico de Aurora)
 │   │   ├── components/          Cover (portadas y decoración), Backdrop (fondos), Controls, Rows, Common, Icons
 │   │   ├── screens/             pantallas móviles + Ajustes y Letra (compartidas con escritorio)
@@ -117,7 +117,7 @@ app-music/
 │   │   ├── data/                SettingsRepository (persistente), LibraryRepository (escaneo), sample/
 │   │   ├── platform/            interfaces: KeyValueStore, MediaSource, PlatformServices (expect)
 │   │   └── player/              PlayerController, DefaultPlayerController (cola), AudioEngine, QueueRules
-│   ├── commonMain/composeResources/font/   13 fuentes de los 7 temas (OFL)
+│   ├── commonMain/composeResources/font/   21 fuentes de los 12 temas (OFL)
 │   ├── commonTest/              pruebas: color, biblioteca, LRC, cola, nombres, mezclas, ajustes, temas
 │   ├── desktopMain/             Main.kt (ventana 1280×800, mínimo 960×600), DesktopPlatform (ajustes en
 │   │                            archivo), DesktopMediaSource (escaneo + jaudiotagger), Mp4, VlcAudioEngine
@@ -152,6 +152,18 @@ escritorio (`TypeScale.h1` / `h1Desktop`, etc.).
 reproductor, mayúsculas, etiquetas técnicas). **Ningún componente usa colores, formas o fuentes fijas**:
 todo se lee con `Ui.colors`, `Ui.type`, `Ui.shapes` y `Ui.theme`. Solo Aurora tiene color dinámico
 (fondo y énfasis por canción). El tema se elige en Ajustes, se aplica con transición de 600 ms y se guarda.
+
+Los rasgos que antes eran `if (theme.id == …)` sueltos por los componentes son opciones con nombre del modelo, así
+un tema nuevo se arma con datos: `hero` (portada grande: brillo, marco, anillos, carátula con cinta, gota, marco de
+cobre, sombra profunda, vinilo…), `backdrop` (fondo), `controlStyle` (botones o teclas de grabadora),
+`timeStyle` (tiempo o contador de cinta), `smallCoverStyle` (marco de las portadas pequeñas), `playDecoration`
+(halo, sombra, aros o sombra dura del botón principal), `headingDecoration` (cuadrito o línea en los
+subtítulos), `lyricUsesBody`, `accentHeadings` y `heroSizes`. Las animaciones de portada y fondo usan
+`rememberPlayClock`: solo avanzan mientras suena y se apagan con "Reducir movimiento". Los widgets de Android
+tienen su versión de cada tema en `androidMain/widget/WidgetTheme.kt` (colores, recorte de portada y fuente del sistema).
+
+Capturas para revisar temas: `AURORA_SHOTS=/ruta [AURORA_THEMES=CASETE,…] ./gradlew :composeApp:desktopTest --tests app.aurora.ThemeShotsTest`
+(Inicio, Reproductor, Letra y sonando en móvil; Inicio y Reproduciendo en escritorio; y el selector de temas).
 
 ## 6. Modelo de datos
 
@@ -295,7 +307,7 @@ Play Store exige una **política de privacidad** pública (se publicará en el r
 | Fase | Contenido |
 |---|---|
 | **F1** ✅ | Documentos, proyecto KMP, sistema de color con pruebas, pantallas, reproductor simulado |
-| **F1.5** ✅ | Ajustes con carpetas, escaneo real (escritorio y Android), audio real con VLC en escritorio, 7 temas, interfaz de escritorio de 3 columnas, mezclas automáticas |
+| **F1.5** ✅ | Ajustes con carpetas, escaneo real (escritorio y Android), audio real con VLC en escritorio, 7 temas (12 desde octubre de 2026), interfaz de escritorio de 3 columnas, mezclas automáticas |
 | **F1.6** ✅ | Reproductor de video en escritorio (modo cine, pantalla completa, solo audio), listas propias y Me gusta guardados, audio sin saturación |
 | **F2** | Media3 + MediaSession en Android (audio y video), AVPlayer en iOS; BD Room con caché del escaneo; subtítulos |
 | **F3** | Información de la pista, hoja de opciones (spec §2.6), cola editable, `navigation-compose` |

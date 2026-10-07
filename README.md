@@ -8,13 +8,21 @@ depende del tempo y el color de énfasis sale de la portada.
 
 ![](docs/capturas/escritorio-inicio.jpg)
 
-**Los 7 temas** — Aurora, Póster, Pétalo, Seda, Carbono, Estadio y Bruma
+**Los 12 temas** — Aurora, Póster, Pétalo, Seda, Carbono, Estadio, Bruma, Casete, Acuarela, Bosque, Grafito y Rockola
 
-![](docs/capturas/escritorio-7-temas.jpg)
-![](docs/capturas/movil-7-temas.jpg)
+![](docs/capturas/escritorio-12-temas.jpg)
+![](docs/capturas/movil-12-temas.jpg)
 
-> Estado: busca tu música y tus videos en las carpetas que elijas (Ajustes), los reproduce con VLC en escritorio
-> (modo cine y pantalla completa), permite crear listas y tiene 7 temas. Audio y video en Android llegan en la próxima fase.
+Cada tema tiene su paleta, sus fuentes, una forma de portada propia y una decoración de fondo: la cinta con
+carretes de Casete, la gota de Acuarela, el marco de cobre y las curvas de nivel de Bosque, el vinilo que gira en
+Rockola… Las animaciones solo corren mientras suena y se apagan con "Reducir movimiento".
+
+> Estado: busca tu música y tus videos en las carpetas que elijas, los reproduce con VLC en escritorio (modo cine y
+> pantalla completa) y con Media3 en Android (notificación, pantalla de bloqueo y 3 widgets), letras sincronizadas,
+> listas, ecualizador y 12 temas. Descargas para Android, Windows y Linux en la
+> [página de la última versión](https://github.com/lial97/proyecto-aurora-app/releases/latest).
+
+**Modo video**
 
 ![](docs/capturas/escritorio-video.jpg)
 > Ver la hoja de ruta en [ARQUITECTURA.md](ARQUITECTURA.md#10-hoja-de-ruta) y los cambios en [BITACORA.md](BITACORA.md).
@@ -22,8 +30,8 @@ depende del tempo y el color de énfasis sale de la portada.
 ## Requisitos
 
 - JDK 21
-- Escritorio: **VLC** con sus decodificadores para escuchar y ver videos
-  (Arch: `sudo pacman -S vlc vlc-plugin-ffmpeg` · Debian/Ubuntu: `sudo apt install vlc`)
+- Escritorio: los instaladores ya traen **VLC** adentro. Para `./gradlew :composeApp:run` sin el VLC empaquetado,
+  instala VLC con sus decodificadores (Arch: `sudo pacman -S vlc vlc-plugin-ffmpeg` · Debian/Ubuntu: `sudo apt install vlc`)
 - Android: SDK de Android (Android Studio) — opcional
 - iOS: Mac con Xcode — opcional
 
@@ -33,12 +41,15 @@ depende del tempo y el color de énfasis sale de la portada.
 ./gradlew :composeApp:run            # app de escritorio
 ./gradlew :composeApp:desktopTest    # pruebas
 ./gradlew :androidApp:assembleRelease  # APK optimizado (si hay SDK de Android)
-./gradlew :composeApp:packageDistributionForCurrentOS   # instalador de escritorio
+bash scripts/empaquetar-linux.sh      # .deb y AppImage (con Docker), en AURORA-APP/
+build-windows.bat                     # instalador .exe de Windows (en Windows, con Java 21)
 ```
+
+Más detalles en [docs/COMPILAR.md](docs/COMPILAR.md).
 
 Si tienes el SDK de Android, crea `local.properties` con `sdk.dir=/ruta/al/Android/Sdk`
 (o define `ANDROID_HOME`) para activar el módulo Android.
 
 ## Licencia
 
-[GPL-3.0](LICENSE). Fuentes Syne y DM Sans bajo [SIL Open Font License](docs/licencias/).
+[GPL-3.0](LICENSE). Todas las fuentes (Syne, DM Sans, Archivo, Fraunces, Nunito, Cormorant, Jost, Chakra Petch, Inter, Bebas Neue, Barlow, Manrope, Shrikhand, DM Serif Display, Quicksand, Zilla Slab, IBM Plex Sans, Figtree, Lobster y Rubik) son de Google Fonts, bajo la [SIL Open Font License](docs/licencias/).

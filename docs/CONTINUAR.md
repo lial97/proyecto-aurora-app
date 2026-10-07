@@ -27,7 +27,10 @@ cp androidApp/build/outputs/apk/release/androidApp-release.apk AURORA-APP/Aurora
 
 ## Estado actual (2026-10-07)
 
-- **App ligera en Linux y Android (HECHA, sin commit):** cola con `LazyColumn` (abría lento y retenía 727 MB de portadas), tempo en paralelo y en segundo plano, APK de release con R8, sin respaldo de Android, `postrm` del .deb y `--desinstalar` del AppImage. Detalle en la bitácora. Falta que el usuario lo pruebe.
+- **12 temas** (5 nuevos: Casete, Acuarela, Bosque, Grafito, Rockola), widgets estables en el APK de release y la primera canción en Linux ya no se corta. Todo en la bitácora.
+- **Windows:** falta compilar en el PC con Windows (`git pull` y doble clic en `build-windows.bat`) y subir el `.exe` a la Release v0.3.0 (`gh release upload v0.3.0 AURORA-APP\Aurora-0.3.0.exe --clobber`). El APK, el .deb y el AppImage ya están subidos.
+- **Pendiente:** prueba de contraste WCAG (el usuario decidió no tocarla por ahora); "Lado B" y "Tus cintas" en Casete; el primer toque de un widget con la app cerrada aún puede ocultarlo un momento.
+- **Capturas de temas:** `AURORA_SHOTS=/ruta AURORA_THEMES=CASETE ./gradlew :composeApp:desktopTest --tests app.aurora.ThemeShotsTest`. Las del README: `ReadmeShotsTest` (ver su comentario).
 
 ## Estado anterior (2026-10-06)
 

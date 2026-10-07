@@ -11,6 +11,39 @@ Formato de cada entrada:
 **Pendiente:** lo que queda abierto (opcional).
 ```
 
+## 2026-10-07 — Linux: la primera canción se cortaba unos 5 s
+**Qué:** al abrir la app y reproducir la primera canción, el sonido se cortaba varias veces durante ~5 s. Se midió con una prueba de diagnóstico (`desktopTest/VlcStartupProbe.kt`) que usa el VLC del AppImage, PipeWire y una canción real:
+- No era el tempo ni el índice de complementos: sin análisis de tempo pasaba igual y crear los VLC tarda 171 ms y 1 ms.
+- Era el ahorro de energía del controlador de sonido (`snd_hda_intel power_save=10`): tras 10 s de silencio la tarjeta se apaga y tarda ~0,5 s en volver. VLC arrancaba con la tarjeta apagada, su audio llegaba tarde y vaciaba el búfer ("playback way too late: flushing buffers"). Tras 70 s de silencio: 3 vaciados en cada prueba con PulseAudio, 1 con ALSA.
+- Arreglo: `desktopMain/player/SoundCardWake.kt` (solo Linux). Si no sonó nada en 8 s, manda 200 ms de silencio con Java Sound y espera a que suenen antes de que VLC empiece (~0,6 s). Resultado: 0 vaciados, también con 4 análisis de tempo a la vez.
+- `VlcEngine`: cargar, reproducir, pausar y detener van en orden por el hilo de VLC (`onVlc`), así la espera no traba la ventana y una pausa no se adelanta a un "reproducir".
+- AppImage: se monta en una carpeta distinta cada vez y es de solo lectura; ya no se pide `--reset-plugins-cache` en cada arranque ni se deja un `vlc-indice-*` nuevo por apertura (`BundledVlc`).
+**Archivos:** `player/SoundCardWake.kt`, `player/VlcEngine.kt`, `player/BundledVlc.kt`, `desktopTest/VlcStartupProbe.kt`.
+
+## 2026-10-07 — Widgets: desaparecían, cambiaban de forma y los botones no respondían
+**Qué:** tres problemas, encontrados con el registro del A35:
+- **R8** (APK de release) quitaba constructores que WorkManager crea por reflexión (`OverwritingInputMerger has no zero argument constructor`); Glance lo usa para dibujar y para los botones. Reglas nuevas en `androidApp/proguard-rules.pro` (InputMerger, ListenableWorker, ActionCallback, GlanceAppWidget y su receptor).
+- **Dos dibujos compitiendo:** la sesión de Glance escuchaba el estado y se redibujaba sola, y `WidgetUpdater` también; además dos `push()` podían correr a la vez con temas distintos. Ahora `push()` va con candado, un dibujo empezado termina para todos los widgets (`NonCancellable`) y la sesión de Glance solo lee el estado cuando Android la pide (`WidgetStore.current`).
+- **El launcher de Samsung oculta el widget al tocarlo** (prepara la animación de abrir una app aunque el botón no abre ninguna) hasta que recibe una vista; la nuestra tardaba 1–2 s y los toques en ese rato se perdían. `WidgetAction` reenvía al instante la última vista armada (`WidgetUpdater.reshow`). Probado: 3 toques seguidos en "Siguiente", 12 capturas, el widget nunca desaparece y cambian 3 canciones.
+- "Continuar": en el 4×2 ocupa toda la fila (al lado de Me gusta no entraba) y usa la fuente del sistema.
+**Archivos:** `androidApp/proguard-rules.pro`, `widget/WidgetUpdater.kt`, `widget/WidgetUi.kt`, `widget/PlayerWidget.kt`, `widget/BarWidget.kt`, `widget/CoverWidget.kt`.
+
+## 2026-10-07 — 5 temas nuevos: Casete, Acuarela, Bosque, Grafito y Rockola (12 en total)
+**Qué:** maquetas `files/Aurora · Tema Casete.html` y `files/Aurora · 4 temas nuevos.html`.
+- **Modelo (paso 0):** opciones con nombre en `AppTheme` en lugar de `if (theme.id == …)`: `controlStyle`, `timeStyle`, `lyricUsesBody`, `smallCoverStyle`, `playDecoration` (Aurora GLOW, Pétalo SHADOW, Seda RING), `headingDecoration` (reemplaza `headingMarker`), `heroSizes`, `accentHeadings`; estilos nuevos de portada y fondo. Se comprobó que los 7 temas no cambiaron: 35 capturas idénticas píxel a píxel antes y después (y en cada tema siguiente).
+- **Fuentes (OFL, Google Fonts):** Shrikhand, DM Serif Display, Quicksand, Zilla Slab 600/700, IBM Plex Sans, Figtree, Lobster y Rubik; DM Sans y Rubik con peso 800. Licencias en `docs/licencias`.
+- **Grafito:** sombra profunda con reflejo azul, sin fondo.
+- **Bosque:** marco de cobre, coordenadas bajo la portada (dibujadas, ocultas para lectores de pantalla), curvas de nivel con la fórmula de la maqueta (en caché, no se animan), línea de cobre tras los subtítulos y contorno en portadas pequeñas.
+- **Acuarela:** `OrganicBlobShape(phase)` (el `border-radius` de la maqueta con curvas de Bézier), la portada cambia de forma en 12 s solo mientras suena, 3 manchas que flotan; la barra usa los 3 colores del degradado.
+- **Casete:** teclas de grabadora (se hunden 3 dp en 80 ms) en reproductor, barra de escritorio, letra, mini reproductor, pestaña activa y lateral; carátula en su estuche con lomo y la cinta con carretes que giran y pasan la cinta según el progreso; "LADO A · álbum"; contador de cinta; letra en hoja rayada con subrayado mostaza; franja retro y grano de papel. En escritorio la franja va al final del panel derecho (en el fondo quedaba detrás del texto de la cola). La barra de 8 dp no se vuelve onda.
+- **Rockola:** vinilo de 262 dp que gira (2,4 s por vuelta) con la portada como etiqueta, botón píldora con aros crema y cromo, portadas pequeñas con aro negro, subtítulos cereza, franja de cuadros en el borde de la barra de pestañas o de reproducción (nunca detrás de texto) y estrella menta en el móvil.
+- **Selector:** las 12 tarjetas miden lo mismo; la configuración inicial se desplaza. **Widgets:** colores, recorte de portada (borde crema, gota, marco de cobre, disco) y fuente del sistema de cada tema.
+- **Pruebas:** `ThemeShotsTest` (capturas por tema y del selector, con `AURORA_SHOTS`), `ThemesTest` para 12 temas. La prueba de contraste WCAG quedó para más adelante (fallan el texto secundario de Póster, Pétalo y Bruma y el ícono del botón de Pétalo y Estadio).
+**Pendiente:** "Lado B" y "Tus cintas" en Casete (opcional).
+
+## 2026-10-07 — Capturas del README
+**Qué:** `escritorio-inicio` y `escritorio-video` con la biblioteca real (prueba `ReadmeShotsTest`: VLC real en silencio, ajustes en memoria), `escritorio-12-temas` y `movil-12-temas` (con `ThemeShotsTest`). Todas con el menú nuevo (Inicio, Biblioteca, Videos, Buscar, Ajustes).
+
 ## 2026-10-07 — Nuevo orden del menú: Inicio, Biblioteca, Videos, Buscar, Ajustes
 **Qué:** a pedido del usuario, Biblioteca pasa al segundo lugar en el lateral de escritorio (`navItems`) y en la barra inferior del móvil (`Tab`). Las pestañas se guardan por nombre (`Tab.valueOf`), así que el historial de Atrás no se ve afectado.
 **Archivos:** `desktop/Chrome.kt`, `components/Rows.kt`, `ARQUITECTURA.md`.
