@@ -11,6 +11,11 @@ Formato de cada entrada:
 **Pendiente:** lo que queda abierto (opcional).
 ```
 
+## 2026-10-08 — El teclado ya no tapa los diálogos en Android; Linux con el arreglo del panel
+**Qué:** el contenedor de los diálogos (`components/Dialogs.kt`) lleva `imePadding()`: la hoja inferior ("¿Cómo te llamamos?", nueva lista, renombrar…) sube encima del teclado. Se recompilaron el APK, el .deb y el AppImage 0.3.1 con este cambio y con el del panel Cola/Info/Artista (`e0a8061`).
+**Por qué:** con `enableEdgeToEdge()` el `adjustResize` ya no encoge la ventana; la hoja quedaba debajo del teclado y no se veía lo que se escribía.
+**Archivos:** `composeApp/src/commonMain/kotlin/app/aurora/components/Dialogs.kt`.
+
 ## 2026-10-07 — Mezcla del día, vista de video primero, Inicio sin videos y menos botones repetidos (v0.3.1)
 **Qué:**
 - **Mezcla del día** (`domain/DailyMix.kt`, `data/DailyMixRepository.kt`, `components/DailyMixCard.kt`):

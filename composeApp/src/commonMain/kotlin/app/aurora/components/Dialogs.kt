@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -106,7 +107,8 @@ fun DialogHost(state: AppState, tracks: List<Track>) {
         d != null, Modifier.fillMaxSize(),
         enter = fadeIn() + slideInVertically { it / 6 }, exit = fadeOut() + slideOutVertically { it / 6 },
     ) {
-        Box(Modifier.fillMaxSize(), contentAlignment = if (Ui.isDesktop) Alignment.Center else Alignment.BottomCenter) {
+        // imePadding: con edge-to-edge el teclado no encoge la ventana; así la hoja sube encima de él.
+        Box(Modifier.fillMaxSize().imePadding(), contentAlignment = if (Ui.isDesktop) Alignment.Center else Alignment.BottomCenter) {
             when (val dlg = last) {
                 is AppDialog.TrackMenu -> TrackMenu(state, dlg, dismiss)
                 is AppDialog.TrackDetails -> TrackDetails(state, dlg.track, dismiss)
