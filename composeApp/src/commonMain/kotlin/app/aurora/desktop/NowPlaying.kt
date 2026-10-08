@@ -37,6 +37,9 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -110,6 +113,9 @@ fun DesktopNowPlaying(state: AppState, playback: PlaybackState, tracks: List<Tra
     var tab by remember { mutableStateOf(RTab.QUEUE) }
     var lyricScale by remember { mutableFloatStateOf(1f) }
     var rightOpen by remember { mutableStateOf(false) }
+    // Dónde termina la barra de la letra: el panel superpuesto se dibuja debajo para no taparla.
+    var toolbarBottom by remember { mutableStateOf(0.dp) }
+    val density = LocalDensity.current
     val focus = state.nowPlayingFocus
     BoxWithConstraints(Modifier.fillMaxSize().padding(start = 28.dp, end = 20.dp, bottom = 12.dp)) {
         // Este ancho ya descuenta el lateral (232) y los márgenes (48): ventana ≥ 1440 → tres columnas;
@@ -123,7 +129,7 @@ fun DesktopNowPlaying(state: AppState, playback: PlaybackState, tracks: List<Tra
             }
             Column(Modifier.weight(1f).fillMaxHeight()) {
                 // Pista con video: el mismo selector Canción | Video que en la vista de video.
-                if (playback.hasVideo) app.aurora.components.SongVideoSwitch(false, true, onSong = {}, onVideo = onShowVideo, modifier = Modifier.padding(bottom = 12.dp))
+                if (playback.hasVideo) app.aurora.components.SongVideoSwitch(false, true, onSong = {}, onVideo = onShowVideo, modifier = Modifier.padding(bottom = 8.dp))
                 if (compact && !focus) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 10.dp)) {
                         Artwork(track, 72.dp, large = true)
@@ -133,7 +139,9 @@ fun DesktopNowPlaying(state: AppState, playback: PlaybackState, tracks: List<Tra
                         }
                     }
                 }
-                LyricsToolbar(state, track, lyricScale, { lyricScale = it }, showPanelButton = !three && !focus, panelOpen = rightOpen) { rightOpen = !rightOpen }
+                LyricsToolbar(state, track, lyricScale, { lyricScale = it }, showPanelButton = !three && !focus, panelOpen = rightOpen,
+                    modifier = Modifier.onGloballyPositioned { toolbarBottom = with(density) { (it.positionInParent().y + it.size.height).toDp() } },
+                ) { rightOpen = !rightOpen }
                 LyricsView(
                     state.lyrics, playback, state.player::seekTo, Modifier.weight(1f).fillMaxWidth(),
                     onRetry = { state.loadLyrics(track, force = true) },
@@ -149,7 +157,7 @@ fun DesktopNowPlaying(state: AppState, playback: PlaybackState, tracks: List<Tra
         if (!focus && !three && rightOpen) {
             RightTabs(
                 state, playback, tracks, tab, { tab = it },
-                Modifier.align(Alignment.CenterEnd).width(330.dp).fillMaxHeight().padding(vertical = 4.dp)
+                Modifier.align(Alignment.TopEnd).padding(top = toolbarBottom + 8.dp, bottom = 4.dp).width(330.dp).fillMaxHeight()
                     .shadow(24.dp, Ui.shapes.card).background(Ui.colors.background, Ui.shapes.card).padding(10.dp),
             )
         }
@@ -160,12 +168,12 @@ fun DesktopNowPlaying(state: AppState, playback: PlaybackState, tracks: List<Tra
 @Composable
 private fun LyricsToolbar(
     state: AppState, track: Track, scale: Float, onScale: (Float) -> Unit,
-    showPanelButton: Boolean, panelOpen: Boolean, onPanel: () -> Unit,
+    showPanelButton: Boolean, panelOpen: Boolean, modifier: Modifier = Modifier, onPanel: () -> Unit,
 ) {
     val c = Ui.colors
     val l = state.lyrics
     val synced = l is LyricsState.Found && l.synced
-    Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(modifier.fillMaxWidth().padding(bottom = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         val src = when {
             l is LyricsState.Found -> if (l.source == LyricsSource.LRCLIB) "LRCLIB" else if (l.source == LyricsSource.FILE) "Archivo" else "Ejemplo"
             else -> null
