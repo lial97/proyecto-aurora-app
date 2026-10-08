@@ -16,6 +16,9 @@ Todos los archivos están en la página de descargas:
 Los archivos de Linux y Windows pesan más de 100 MB, por eso en GitHub están en la página de descargas y no en
 esta carpeta. Al compilarlos en tu equipo (ver abajo) sí quedan aquí, en `AURORA-APP/`, junto al APK.
 
+¿Primera vez? Lee la [guía rápida](../docs/GUIA-RAPIDA.md) (2 minutos) o el
+[manual de usuario](../docs/MANUAL.md) completo.
+
 ## Para quien desarrolla
 
 Todos los instaladores quedan en esta carpeta, `AURORA-APP/`:

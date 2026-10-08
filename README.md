@@ -25,6 +25,8 @@ Rockola… Las animaciones solo corren mientras suena y se apagan con "Reducir m
 > listas, ecualizador y 12 temas. Descargas para Android, Windows y Linux en la
 > [página de la última versión](https://github.com/lial97/proyecto-aurora-app/releases/latest).
 
+¿Cómo se usa? Lee la [guía rápida](docs/GUIA-RAPIDA.md) o el [manual de usuario](docs/MANUAL.md).
+
 **Modo video**
 
 ![](docs/capturas/escritorio-video.jpg)
