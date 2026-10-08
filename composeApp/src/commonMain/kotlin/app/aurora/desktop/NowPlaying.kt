@@ -122,6 +122,8 @@ fun DesktopNowPlaying(state: AppState, playback: PlaybackState, tracks: List<Tra
                 Spacer(Modifier.width(28.dp))
             }
             Column(Modifier.weight(1f).fillMaxHeight()) {
+                // Pista con video: el mismo selector Canción | Video que en la vista de video.
+                if (playback.hasVideo) app.aurora.components.SongVideoSwitch(false, true, onSong = {}, onVideo = onShowVideo, modifier = Modifier.padding(bottom = 12.dp))
                 if (compact && !focus) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 10.dp)) {
                         Artwork(track, 72.dp, large = true)

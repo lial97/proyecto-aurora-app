@@ -17,6 +17,7 @@ import app.aurora.domain.Playlist
 import app.aurora.domain.Track
 import app.aurora.domain.autoMixes
 import app.aurora.domain.resolve
+import kotlinx.datetime.toLocalDateTime
 import app.aurora.platform.PlatformServices
 import app.aurora.player.DefaultPlayerController
 import kotlinx.coroutines.CoroutineScope
@@ -46,10 +47,15 @@ sealed interface AppDialog {
     data class DeletePlaylist(val playlist: Playlist) : AppDialog
     /** Cambiar el nombre del saludo. */
     data object EditName : AppDialog
+    /** "¿Te gustó la mezcla de hoy?" (tras escuchar 3 canciones de ella). */
+    data object DailyMixFeedback : AppDialog
 }
 
 /** Estado compartido por la interfaz móvil y la de escritorio. */
 /** Temporizador de apagado: a una hora concreta o al terminar la canción actual. */
+/** "Tu mezcla de hoy" lista para mostrar: la lista (con su nombre por géneros) y la respuesta del usuario. */
+data class DailyMixView(val playlist: Playlist, val answer: app.aurora.data.MixAnswer)
+
 data class SleepTimer(val atMs: Long?, val endOfTrack: Boolean, val label: String)
 
 class AppState(private val scope: CoroutineScope, val platform: PlatformServices) {
@@ -69,6 +75,11 @@ class AppState(private val scope: CoroutineScope, val platform: PlatformServices
     val covers = CoverCache { t -> customCover(t.id) ?: platform.media.loadCover(t) }
     val previews = app.aurora.components.PreviewCache { platform.media.loadPreviewFrames(it) }
     private val lists = PlaylistRepository(platform.store)
+    private val dailyMixRepo = app.aurora.data.DailyMixRepository(platform.store)
+
+    /** "Tu mezcla de hoy" (null hasta que la biblioteca está lista o si no hay canciones). */
+    var dailyMix by mutableStateOf<DailyMixView?>(null)
+        private set
     val lyricsRepo = app.aurora.data.LyricsRepository(platform.http, platform.textCache, platform.store)
     val metadata = app.aurora.data.MetadataRepository(platform.http)
 
@@ -171,6 +182,17 @@ class AppState(private val scope: CoroutineScope, val platform: PlatformServices
             }
         }
         scope.launch { library.state.collect { l -> if (l.scannedOnce && !l.usingSamples) restoreIfNeeded(l.tracks) } }
+        // La mezcla del día: al tener la biblioteca y, con la app abierta, cuando cambia el día.
+        scope.launch {
+            library.state.collect { l -> if (l.scannedOnce && !l.usingSamples && l.tracks.isNotEmpty()) refreshDailyMix(l.tracks) }
+        }
+        scope.launch {
+            while (true) {
+                kotlinx.coroutines.delay(15 * 60_000L)
+                val l = library.state.value
+                if (l.scannedOnce && !l.usingSamples && dailyMix?.let { dailyMixRepo.current()?.dateKey != todayKey() } != false) refreshDailyMix(l.tracks)
+            }
+        }
         // El modo aleatorio se recuerda (notificación, widgets y app lo comparten).
         if (platform.store.get(KEY_SHUFFLE) == "1" && !player.state.value.shuffle) player.toggleShuffle()
         scope.launch {
@@ -205,6 +227,9 @@ class AppState(private val scope: CoroutineScope, val platform: PlatformServices
     companion object {
         const val KEY_SHUFFLE = "aleatorio"
         const val KEY_LAST = "ultima_cancion"
+        const val DAILY_MIX_ID = "mix-today"
+        /** Canciones de la mezcla que deben sonar antes de preguntar si gustó. */
+        const val DAILY_MIX_ASK_AFTER = 3
     }
 
     // --- Estadísticas y "recordar dónde quedé" ---
@@ -219,8 +244,60 @@ class AppState(private val scope: CoroutineScope, val platform: PlatformServices
             countedFor = t.id
             stats.record(t.id, kotlin.time.Clock.System.now().toEpochMilliseconds())
             statsVersion++
+            onDailyMixPlay(t.id)
         }
         if (p.positionSec < 2) countedFor = countedFor.takeIf { it == t.id && p.positionSec > 0 }
+    }
+
+    // --- Mezcla del día ---
+
+    private fun todayKey(): String =
+        kotlin.time.Clock.System.now().toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()).date.toString()
+
+    /** Crea (o recupera) la mezcla de hoy y la deja lista para la interfaz. */
+    private suspend fun refreshDailyMix(tracks: List<Track>) {
+        val key = todayKey()
+        val likedNow = liked.toSet()
+        val saved = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            dailyMixRepo.ensure(key) { previous ->
+                app.aurora.domain.DailyMix.build(
+                    tracks, { id -> stats.get(id).let { app.aurora.domain.PlayHistory(it.count, it.lastMs) } }, likedNow,
+                    kotlin.time.Clock.System.now().toEpochMilliseconds(), key, previous,
+                ).map { it.id }
+            }
+        }
+        val byId = tracks.associateBy { it.id }
+        val mixTracks = saved.trackIds.mapNotNull { byId[it] }
+        if (mixTracks.isEmpty()) { dailyMix = null; return }
+        val name = app.aurora.domain.DailyMix.name(mixTracks)
+        dailyMix = DailyMixView(
+            Playlist(DAILY_MIX_ID, name, mixTracks.map { it.id }, listOf(0xFFFF8A3D, 0xFFFF3D8B, 0xFF7A5CFF), "Tu mezcla de hoy · ${mixTracks.size} canciones"),
+            saved.answer,
+        )
+    }
+
+    /** Sonó una canción de la mezcla: a la tercera se pregunta si gustó. */
+    private fun onDailyMixPlay(trackId: String) {
+        val mix = dailyMix ?: return
+        if (mix.answer != app.aurora.data.MixAnswer.PENDING || trackId !in mix.playlist.trackIds) return
+        if (dailyMixRepo.recordPlay(trackId) == DAILY_MIX_ASK_AFTER && dialog == null) dialog = AppDialog.DailyMixFeedback
+    }
+
+    /** "Sí": se guarda como lista propia. "No": se marca, y mañana se crea otra. */
+    fun answerDailyMix(yes: Boolean) {
+        val mix = dailyMix ?: return
+        dailyMixRepo.answer(yes)
+        dailyMix = mix.copy(answer = if (yes) app.aurora.data.MixAnswer.YES else app.aurora.data.MixAnswer.NO)
+        if (yes) {
+            val tracks = mix.playlist.resolve(library.state.value.tracks.associateBy { it.id })
+            val name = mix.playlist.name.let { n ->
+                if (userPlaylists.none { it.name.equals(n, ignoreCase = true) }) n
+                else n + " · " + kotlin.time.Clock.System.now().toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()).date.let {
+                    "${it.day} ${listOf("ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic")[it.month.ordinal]}"
+                }
+            }
+            createPlaylist(name, tracks)
+        } else show("Mañana tendrás una mezcla nueva")
     }
 
     fun saveResumePoint(p: app.aurora.player.PlaybackState) {
@@ -411,7 +488,8 @@ class AppState(private val scope: CoroutineScope, val platform: PlatformServices
 
     /** Listas del usuario primero, luego las automáticas (o las de ejemplo). */
     fun playlists(tracks: List<Track>, usingSamples: Boolean): List<Playlist> =
-        userPlaylists + if (usingSamples) SampleData.playlists else autoMixes(tracks, liked)
+        userPlaylists + listOfNotNull(dailyMix?.takeIf { it.answer != app.aurora.data.MixAnswer.YES }?.playlist) +
+            if (usingSamples) SampleData.playlists else autoMixes(tracks, liked)
 
     fun tracksOf(playlist: Playlist, tracks: List<Track>): List<Track> {
         val live = if (playlist.isUser) lists.get(playlist.id) ?: playlist else playlist

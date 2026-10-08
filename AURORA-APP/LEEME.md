@@ -4,14 +4,14 @@ Aurora es un reproductor de música y video. **No hace falta instalar nada más*
 todo lo necesario (Java y VLC van adentro).
 
 Todos los archivos están en la página de descargas:
-**https://github.com/lial97/proyecto-aurora-app/releases** (Windows: v0.3.1; Android y Linux: v0.3.0)
+**https://github.com/lial97/proyecto-aurora-app/releases** (versión 0.3.1)
 
 | Sistema | Archivo | Cómo se instala |
 |---|---|---|
-| **Android** | [Aurora-0.3.0-android.apk](Aurora-0.3.0-android.apk) (está en esta carpeta) | Ábrelo en el celular y toca **Instalar**. Si el celular lo pide, permite "instalar apps de fuentes desconocidas". |
+| **Android** | [Aurora-0.3.1-android.apk](Aurora-0.3.1-android.apk) (está en esta carpeta) | Ábrelo en el celular y toca **Instalar**. Si el celular lo pide, permite "instalar apps de fuentes desconocidas". |
 | **Windows** | [Aurora-0.3.1.exe](https://github.com/lial97/proyecto-aurora-app/releases/download/v0.3.1/Aurora-0.3.1.exe) | Doble clic → **Siguiente** → **Siguiente** → **Finalizar**. Si aparece "Windows protegió su PC", toca **Más información** → **Ejecutar de todas formas**. |
-| **Ubuntu, Linux Mint, Debian** | [aurora_0.3.0_amd64.deb](https://github.com/lial97/proyecto-aurora-app/releases/download/v0.3.0/aurora_0.3.0_amd64.deb) | Doble clic → **Instalar**. Aurora aparece en el menú de aplicaciones. |
-| **Arch y cualquier otro Linux** | [Aurora-0.3.0-x86_64.AppImage](https://github.com/lial97/proyecto-aurora-app/releases/download/v0.3.0/Aurora-0.3.0-x86_64.AppImage) | Clic derecho → **Propiedades** → marca **Permitir ejecutar** → doble clic. La primera vez se agrega solo al menú de aplicaciones. |
+| **Ubuntu, Linux Mint, Debian** | [aurora_0.3.1_amd64.deb](https://github.com/lial97/proyecto-aurora-app/releases/download/v0.3.1/aurora_0.3.1_amd64.deb) | Doble clic → **Instalar**. Aurora aparece en el menú de aplicaciones. |
+| **Arch y cualquier otro Linux** | [Aurora-0.3.1-x86_64.AppImage](https://github.com/lial97/proyecto-aurora-app/releases/download/v0.3.1/Aurora-0.3.1-x86_64.AppImage) | Clic derecho → **Propiedades** → marca **Permitir ejecutar** → doble clic. La primera vez se agrega solo al menú de aplicaciones. |
 
 Los archivos de Linux y Windows pesan más de 100 MB, por eso en GitHub están en la página de descargas y no en
 esta carpeta. Al compilarlos en tu equipo (ver abajo) sí quedan aquí, en `AURORA-APP/`, junto al APK.

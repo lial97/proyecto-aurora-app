@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Mantiene los widgets al día sin gastar batería: solo se dibujan al cambiar de canción, al reproducir o
@@ -38,6 +39,15 @@ import kotlinx.coroutines.withContext
  */
 object WidgetUpdater {
     private const val PROGRESS_EVERY_MS = 5_000L
+    /** Si dibujar los widgets tarda más que esto (teléfono lento), el progreso se actualiza cada [SLOW_PROGRESS_MS]. */
+    private const val SLOW_RENDER_MS = 500L
+    private const val SLOW_PROGRESS_MS = 15_000L
+    /** Tiempo máximo para armar un widget; si se pasa, lo dibuja la sesión de Glance. */
+    private const val RENDER_TIMEOUT_MS = 4_000L
+    private const val TAG = "AuroraWidget"
+
+    /** Cuánto tardó el último dibujo completo (todos los widgets). */
+    @Volatile private var lastRenderMs = 0L
 
     /** Lo que, si cambia, obliga a dibujar de nuevo (la posición no: va por tiempo). */
     private data class Key(val trackId: String?, val durationKnown: Boolean, val playing: Boolean, val shuffle: Boolean, val liked: Boolean, val next: List<String>, val theme: String, val wallpaper: Boolean, val covers: Int, val names: String?)
@@ -71,13 +81,16 @@ object WidgetUpdater {
     /** Portadas pequeñas (128 px) de las 2 siguientes; se borran las que ya no hacen falta. */
     private suspend fun saveNextCovers(ctx: Context, app: AppState, next: List<WidgetNext>) {
         val keep = next.map { WidgetStore.nextCoverFile(ctx, it.id).name }.toSet()
-        ctx.filesDir.listFiles { f -> f.name.startsWith("widget_siguiente_") && f.name !in keep }?.forEach { it.delete() }
-        for (n in next) {
+        // Los archivos, fuera del hilo principal.
+        val missing = withContext(Dispatchers.IO) {
+            ctx.filesDir.listFiles { f -> f.name.startsWith("widget_siguiente_") && f.name !in keep }?.forEach { it.delete() }
+            next.filterNot { WidgetStore.nextCoverFile(ctx, it.id).exists() }
+        }
+        for (n in missing) {
             val file = WidgetStore.nextCoverFile(ctx, n.id)
-            if (file.exists()) continue
             val track = app.player.state.value.queue.getOrNull(n.index)?.takeIf { it.id == n.id } ?: continue
             val img = runCatching { app.covers.get(track) }.getOrNull() ?: continue
-            withContext(Dispatchers.Default) { file.writeBytes(AuroraRuntime.jpeg(AuroraRuntime.square(img.asAndroidBitmap(), 128))) }
+            withContext(Dispatchers.IO) { file.writeBytes(AuroraRuntime.jpeg(AuroraRuntime.square(img.asAndroidBitmap(), 128))) }
         }
     }
 
@@ -101,11 +114,14 @@ object WidgetUpdater {
                     if (k.covers != lastCovers) {
                         // Cambió alguna portada: se vuelven a guardar la grande y las de "A continuación".
                         lastCovers = k.covers; coverFor = null
-                        context.filesDir.listFiles { f -> f.name.startsWith("widget_siguiente_") }?.forEach { it.delete() }
+                        withContext(Dispatchers.IO) { context.filesDir.listFiles { f -> f.name.startsWith("widget_siguiente_") }?.forEach { it.delete() } }
                     }
                     push()
                     val power = context.getSystemService(android.os.PowerManager::class.java)
-                    while (k.playing) { delay(PROGRESS_EVERY_MS); if (power?.isInteractive != false) push() }
+                    while (k.playing) {
+                        delay(if (lastRenderMs > SLOW_RENDER_MS) SLOW_PROGRESS_MS else PROGRESS_EVERY_MS)
+                        if (power?.isInteractive != false) push(progressOnly = true)
+                    }
                 }
         }
     }
@@ -128,8 +144,16 @@ object WidgetUpdater {
     /** Un dibujo a la vez: dos a la vez (receptor y cambio de estado) podían dejar cada widget con un tema distinto. */
     private val lock = kotlinx.coroutines.sync.Mutex()
 
-    /** Se llama también al poner un widget nuevo (si la app ya está abierta). */
-    suspend fun push() = lock.withLock { pushLocked() }
+    /**
+     * Se llama también al poner un widget nuevo (si la app ya está abierta). Con [progressOnly] (el avance de la barra
+     * mientras suena) no se hace fila: si ya hay un dibujo en curso, se salta. En un teléfono lento, las
+     * actualizaciones del progreso se amontonaban detrás del candado.
+     */
+    suspend fun push(progressOnly: Boolean = false) {
+        if (!progressOnly) return lock.withLock { pushLocked() }
+        if (!lock.tryLock()) { android.util.Log.d(TAG, "progreso salteado: hay un dibujo en curso"); return }
+        try { pushLocked() } finally { lock.unlock() }
+    }
 
     private suspend fun pushLocked() {
         val ctx = context ?: return
@@ -182,6 +206,7 @@ object WidgetUpdater {
      * Fuera del hilo principal: antes trababa la app (~1,5 s) en cada actualización.
      */
     private suspend fun render(ctx: Context) = withContext(Dispatchers.Default) {
+        val started = System.nanoTime()
         val glance = GlanceAppWidgetManager(ctx)
         val manager = AppWidgetManager.getInstance(ctx)
         for (widget in WIDGETS) for (id in glance.getGlanceIds(widget.javaClass)) {
@@ -192,17 +217,23 @@ object WidgetUpdater {
             val minH = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 110)
             val maxH = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, minH)
             val portrait = DpSize(minW.dp, maxH.dp)
-            val views = runCatching {
-                if (Build.VERSION.SDK_INT >= 31) {
+            val views = withTimeoutOrNull(RENDER_TIMEOUT_MS) {
+                runCatching {
                     val landscape = DpSize(maxW.dp, minH.dp)
-                    RemoteViews(mapOf(
-                        SizeF(portrait.width.value, portrait.height.value) to widget.compose(ctx, id, options, portrait),
-                        SizeF(landscape.width.value, landscape.height.value) to widget.compose(ctx, id, options, landscape),
-                    ))
-                } else widget.compose(ctx, id, options, portrait)
-            }.getOrNull()
+                    // Horizontal solo si mide distinto (en muchos launchers son iguales: la mitad del trabajo).
+                    if (Build.VERSION.SDK_INT >= 31 && landscape != portrait) {
+                        RemoteViews(mapOf(
+                            SizeF(portrait.width.value, portrait.height.value) to widget.compose(ctx, id, options, portrait),
+                            SizeF(landscape.width.value, landscape.height.value) to widget.compose(ctx, id, options, landscape),
+                        ))
+                    } else widget.compose(ctx, id, options, portrait)
+                }.getOrNull()
+            }
+            if (views == null) android.util.Log.w(TAG, "widget $appWidgetId: no se pudo armar a tiempo; lo dibuja Glance")
             // Si algo falla, la sesión normal de Glance (más lenta pero segura).
             if (views != null) { lastViews[appWidgetId] = views; manager.updateAppWidget(appWidgetId, views) } else widget.update(ctx, id)
         }
+        lastRenderMs = (System.nanoTime() - started) / 1_000_000
+        android.util.Log.d(TAG, "widgets dibujados en $lastRenderMs ms")
     }
 }

@@ -274,6 +274,13 @@ VLC en escritorio (`VlcAudioEngine`), pendiente Media3 en Android y AVPlayer en 
 5. **Aplicar**: actualizar BD, descargar portada, buscar letra (7.2), y **opcionalmente escribir las etiquetas en el archivo** (jaudiotagger).
 6. Más adelante: **AcoustID + Chromaprint** para reconocer la canción por su huella de audio sin preguntar.
 
+### 7.3.1 Mezcla del día (✅)
+`domain/DailyMix.kt` (función pura, probada en `DailyMixTest`) elige 25 canciones por afinidad de género y artista con
+lo que más se escucha (`PlayStatsRepository`: veces y última vez, con caída por antigüedad) más novedad, y le pone
+nombre por géneros. `DailyMixRepository` guarda la del día y la respuesta; `AppState` la crea al tener la biblioteca
+(y revisa cada 15 min si cambió el día), cuenta las canciones de la mezcla que suenan y a la tercera pregunta si gustó.
+"Sí" la guarda como lista propia; si no, al día siguiente se reemplaza.
+
 ### 7.4 Color dinámico (✅)
 `buildPalette(bpm, extractAccent(portada48x48))` → `AuroraTheme` anima los 5 colores en 1,2 s →
 `AmbientBackground` mueve las 3 luces con velocidad `--spd` y se detiene en pausa.

@@ -57,17 +57,17 @@ fun HomeScreen(
     onPlay: (List<Track>, Int) -> Unit,
     onOpenPlaylist: (Playlist) -> Unit,
     onOpenSettings: () -> Unit,
-    onOpenVideos: () -> Unit,
     onMore: (Track) -> Unit = {},
     userName: String = "",
     onEditName: () -> Unit = {},
     /** Última vez que sonó cada pista (ms), para "Sigue escuchando". */
     lastPlayed: (Track) -> Long? = { null },
+    /** "Tu mezcla de hoy" (arriba, debajo del saludo). */
+    dailyMix: @Composable () -> Unit = {},
 ) {
     val type = Ui.type
     val songs = remember(lib.tracks) { lib.tracks.songs() }
     val recent = remember(songs) { songs.sortedBy(SortOrder.DATE_ADDED) }
-    val videos = remember(lib.tracks) { lib.tracks.videos() }
     val continueList = remember(songs, recent) {
         val played = songs.filter { lastPlayed(it) != null }.sortedByDescending { lastPlayed(it) }
         (played + recent.filter { it !in played }).take(12)
@@ -78,6 +78,7 @@ fun HomeScreen(
             BasicText(todayLabel(), style = type.caption)
             app.aurora.components.GreetingTitle(greeting(userName), onEditName, Modifier.fillMaxWidth())
             LibraryBanner(lib, onOpenSettings)
+            dailyMix()
             SectionTitle("Sigue escuchando")
         }
         item {
@@ -86,12 +87,6 @@ fun HomeScreen(
                     val t = continueList[i]
                     CoverCard(t, t.title, t.artist, { onPlay(continueList, i) }, Modifier.width(AuroraDimens.CoverCard), AuroraDimens.CoverCard, menuTrack = t)
                 }
-            }
-        }
-        if (videos.isNotEmpty()) item {
-            SectionTitle("Videos musicales", trailing = "Ver todo".takeIf { videos.size > 3 }, modifier = Modifier.pressable("Ver todos los videos", .98f, onClick = onOpenVideos))
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                items(videos.take(10), key = { it.id }) { v -> VideoCard(v, { onPlay(videos, videos.indexOf(v)) }, Modifier.width(210.dp), onMore = { onMore(v) }) }
             }
         }
         item { SectionTitle("Añadidas hace poco") }

@@ -13,6 +13,9 @@ depende del tempo y el color de énfasis sale de la portada.
 ![](docs/capturas/escritorio-12-temas.jpg)
 ![](docs/capturas/movil-12-temas.jpg)
 
+**Tu mezcla de hoy:** cada día, 25 canciones según los géneros y artistas que más escuchas. Si te gusta, se guarda
+en tus listas; si no, al día siguiente llega otra.
+
 Cada tema tiene su paleta, sus fuentes, una forma de portada propia y una decoración de fondo: la cinta con
 carretes de Casete, la gota de Acuarela, el marco de cobre y las curvas de nivel de Bosque, el vinilo que gira en
 Rockola… Las animaciones solo corren mientras suena y se apagan con "Reducir movimiento".
@@ -52,9 +55,9 @@ Si tienes el SDK de Android, crea `local.properties` con `sdk.dir=/ruta/al/Andro
 
 ## Problemas conocidos
 
-- **Android, Moto G84: los widgets traban la app.** Si hay un widget de Aurora en la pantalla de inicio, la app
-  se traba y deja de funcionar. Mientras se corrige, quita los widgets de Aurora de la pantalla de inicio.
-  Detalles en [BITACORA.md](BITACORA.md).
+- **Android, Moto G84: los widgets podían trabar la app.** En la 0.3.1 los widgets dibujan menos y nunca hacen fila,
+  pero falta confirmarlo en ese teléfono. Si se traba, quita los widgets de Aurora de la pantalla de inicio y
+  avísanos. Detalles en [BITACORA.md](BITACORA.md).
 
 ## Licencia
 

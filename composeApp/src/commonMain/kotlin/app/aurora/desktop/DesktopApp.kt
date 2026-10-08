@@ -105,7 +105,13 @@ class DesktopNav {
         current = forward.removeAt(forward.lastIndex)
     }
 
-    fun toggleNowPlaying() = if (current == DView.NowPlaying) back() else go(DView.NowPlaying)
+    /** Si lo que suena es un video y el usuario no eligió "Canción" (lo pone [DesktopApp]). */
+    var showVideo: () -> Boolean = { false }
+
+    /** Entrar al reproductor: la vista de video si suena un video, si no la de la canción. */
+    fun openPlayer() = go(if (showVideo()) DView.Video else DView.NowPlaying)
+
+    fun toggleNowPlaying() = if (current == DView.NowPlaying || current == DView.Video) back() else openPlayer()
 }
 
 /** Separador entre columnas: 3 dp del color del texto en Póster, línea fina en los demás. */
@@ -134,6 +140,9 @@ fun DesktopApp(state: AppState, lib: LibraryState, playback: PlaybackState) {
     val nowPlaying = nav.current == DView.NowPlaying
     // Al empezar un video se abre el modo cine.
     LaunchedEffect(state.videoRequests) { if (state.videoRequests > 0) { state.videoInBackground = false; nav.go(DView.Video) } }
+    nav.showVideo = { playback.current?.mediaType == app.aurora.domain.MediaType.VIDEO && !state.videoInBackground }
+    // Elegir "Canción" vale mientras se está en el reproductor: al volver a entrar, un video se ve como video.
+    LaunchedEffect(nav.current) { if (nav.current != DView.NowPlaying && nav.current != DView.Video) state.videoInBackground = false }
     // Cambio automático: si el reproductor está abierto y la cola llega a un video, se muestra el video;
     // si llega a una canción, se vuelve a portada y letra. Fuera del reproductor aparece el mini video.
     val currentId = playback.current?.id
@@ -212,7 +221,7 @@ fun DesktopApp(state: AppState, lib: LibraryState, playback: PlaybackState) {
                     Box(Modifier.width(separatorWidth()).fillMaxHeight().background(separatorColor()))
                     Box(Modifier.weight(1f).fillMaxHeight()) {
                         Column(Modifier.fillMaxSize()) {
-                            TopBar(nav, onOpenSettings = { nav.go(DView.Settings) })
+                            TopBar(nav)
                             AnimatedContent(
                                 targetState = nav.current,
                                 transitionSpec = {
@@ -261,7 +270,8 @@ fun DesktopApp(state: AppState, lib: LibraryState, playback: PlaybackState) {
                     }
                 }
                 Box(Modifier.fillMaxWidth().height(separatorWidth()).background(separatorColor()))
-                PlayerBar(state, playback, nav, togglePanel, panelVisible = if (full) docked else floatingOpen)
+                PlayerBar(state, playback, nav, togglePanel, panelVisible = if (full) docked else floatingOpen,
+                    panelAvailable = !nowPlaying && nav.current != DView.Settings)
             }
             // Pantalla completa: el video ocupa toda la ventana (Esc o F para salir).
             if (state.videoFullscreen && playback.hasVideo) {

@@ -15,8 +15,8 @@ Este archivo sirve para retomar el trabajo en una conversación nueva. La histor
 ```bash
 ./gradlew :composeApp:desktopTest            # pruebas
 ./gradlew :androidApp:assembleRelease        # APK optimizado → androidApp/build/outputs/apk/release/androidApp-release.apk
-cp androidApp/build/outputs/apk/release/androidApp-release.apk AURORA-APP/Aurora-0.3.0-android.apk
-~/Android/Sdk/platform-tools/adb install -r AURORA-APP/Aurora-0.3.0-android.apk
+cp androidApp/build/outputs/apk/release/androidApp-release.apk AURORA-APP/Aurora-0.3.1-android.apk
+~/Android/Sdk/platform-tools/adb install -r AURORA-APP/Aurora-0.3.1-android.apk
 ~/Android/Sdk/platform-tools/adb exec-out screencap -p > captura.png
 ```
 
@@ -25,12 +25,12 @@ cp androidApp/build/outputs/apk/release/androidApp-release.apk AURORA-APP/Aurora
   - El usuario usa el celular mientras se prueba. Mirar la pantalla antes de tocar, no cambiar sus ajustes sin devolverlos y avisar de cualquier toque equivocado.
 - **Capturas sin el celular:** pruebas temporales en `composeApp/src/desktopTest`, con `ImageComposeScene` de 360–420 dp. La variable `AURORA_SHOTS=/ruta` guarda las imágenes. Ejemplos: `ScrollMemoryTest.kt` y `ContextMenuTest.kt`.
 
-## Estado actual (2026-10-07)
+## Estado actual (2026-10-07, v0.3.1)
 
-- **12 temas** (5 nuevos: Casete, Acuarela, Bosque, Grafito, Rockola), widgets estables en el APK de release y la primera canción en Linux ya no se corta. Todo en la bitácora.
-- **Windows:** falta compilar en el PC con Windows (`git pull` y doble clic en `build-windows.bat`) y subir el `.exe` a la Release v0.3.0 (`gh release upload v0.3.0 AURORA-APP\Aurora-0.3.0.exe --clobber`). El APK, el .deb y el AppImage ya están subidos.
-- **Pendiente:** prueba de contraste WCAG (el usuario decidió no tocarla por ahora); "Lado B" y "Tus cintas" en Casete; el primer toque de un widget con la app cerrada aún puede ocultarlo un momento.
-- **Capturas de temas:** `AURORA_SHOTS=/ruta AURORA_THEMES=CASETE ./gradlew :composeApp:desktopTest --tests app.aurora.ThemeShotsTest`. Las del README: `ReadmeShotsTest` (ver su comentario).
+- **Hecho hoy:** 12 temas, widgets estables en el APK de release (y cambios preventivos para el Moto G84), la primera canción en Linux sin cortes, menos CPU en Windows (0.3.1), mezcla del día con "¿Te gustó?", vista de video primero, Inicio sin videos y sin botones repetidos. Todo en la bitácora.
+- **Release v0.3.1:** APK, .deb, AppImage y .exe. Cada instalador nuevo de Windows necesita una versión mayor (`packageVersion` y `auroraVersion` en `composeApp/build.gradle.kts`; Android: `versionName` y `versionCode` en `androidApp/build.gradle.kts`).
+- **Pendiente:** confirmar el G84 con un registro (`adb logcat -s AuroraWidget`, `/data/anr`); prueba de contraste WCAG (el usuario decidió no tocarla por ahora); "Lado B" y "Tus cintas" en Casete.
+- **Capturas:** temas con `ThemeShotsTest` (`AURORA_SHOTS`, `AURORA_THEMES`); README con `ReadmeShotsTest` (biblioteca real; `AURORA_EXTRA=1` suma las de la vista de video).
 
 ## Estado anterior (2026-10-06)
 

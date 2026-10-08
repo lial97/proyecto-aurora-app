@@ -11,6 +11,23 @@ Formato de cada entrada:
 **Pendiente:** lo que queda abierto (opcional).
 ```
 
+## 2026-10-07 — Mezcla del día, vista de video primero, Inicio sin videos y menos botones repetidos (v0.3.1)
+**Qué:**
+- **Mezcla del día** (`domain/DailyMix.kt`, `data/DailyMixRepository.kt`, `components/DailyMixCard.kt`):
+  - 25 canciones elegidas por afinidad con lo que más se escucha: veces que sonó cada canción con caída por antigüedad (vida media de 30 días) y Me gusta, sumadas por género y por artista.
+  - Puntaje = 0,45 género + 0,35 artista + 0,20 novedad; deja fuera lo que sonó hoy y penaliza lo de la mezcla anterior. Como mucho 3 por artista, sin videos y con la fecha como semilla (el mismo día da la misma mezcla).
+  - Nombre por géneros: los que tienen al menos el 10 % de las canciones, hasta 3 ("Rock/Pop" con 18 de rock y 3 de pop). Sin géneros (pasa en Android), los artistas que más aparecen.
+  - Tarjeta arriba en Inicio (móvil y escritorio) con Reproducir y "¿Te gustó?" Sí / No. Tras 3 canciones de la mezcla aparece el diálogo `AppDialog.DailyMixFeedback`.
+  - "Sí" la guarda como lista propia (con la fecha si el nombre ya existe). "No" o sin respuesta: al día siguiente se reemplaza.
+- **Vista de video primero:** entrar al reproductor con un video abre la vista de video (móvil: mini reproductor; escritorio: `DesktopNav.openPlayer()` desde la barra, la tecla L y la tarjeta de letra). Elegir "Canción" vale mientras se está en el reproductor: al salir, `videoInBackground` vuelve a `false`. La vista de audio de escritorio muestra también el selector Canción | Video.
+- **Inicio sin videos** (móvil y escritorio): sin la sección "Videos musicales" ni el chip "Videos"; los videos quedan en su sección y en Buscar.
+- **Escritorio:** sin el engranaje de la barra superior (Ajustes está en el lateral y con Ctrl+,). El botón de panel de la barra de reproducción solo aparece con el panel oculto.
+- **Widgets, preventivo para el G84** (sin poder reproducirlo): el progreso no hace fila si hay un dibujo en curso, el tamaño horizontal solo se arma si es distinto, el trabajo con archivos va fuera del hilo principal y cada widget tiene 4 s como máximo. Si dibujar tarda más de 500 ms, el progreso pasa de cada 5 s a cada 15 s. El registro `AuroraWidget` muestra cuánto tarda cada dibujo (en el A35, 277–493 ms).
+- Versión 0.3.1 también en Android (`versionName`, `versionCode` 2) y en los paquetes de Linux.
+**Archivos:** los de arriba, `AppState.kt`, `MobileApp.kt`, `screens/HomeScreen.kt`, `desktop/DesktopApp.kt`, `desktop/DesktopViews.kt`, `desktop/Chrome.kt`, `desktop/NowPlaying.kt`, `components/Dialogs.kt`, `widget/WidgetUpdater.kt`; pruebas `commonTest/domain/DailyMixTest.kt` y capturas extra en `ReadmeShotsTest` (`AURORA_EXTRA=1`).
+**Pruebas:** 116 pruebas pasan. Con la biblioteca real: Inicio con "Tu mezcla de hoy" (Pop/Latin Music/Christian), sin videos ni engranaje; con un video, "Canción" muestra el selector y al volver a entrar abre el video. En el A35: 3 toques seguidos en el widget sin que desaparezca y la tarjeta en Inicio.
+**Pendiente:** confirmar el G84 con un registro (`adb logcat -s AuroraWidget` y `/data/anr`).
+
 ## 2026-10-07 — Bug conocido: los widgets traban la app en el Moto G84 (sin resolver)
 **Qué:** reporte del usuario: en el Moto G84 (Android), si hay un widget de Aurora en la pantalla de inicio, la app se traba y no funciona. Sin widgets funciona.
 **Por qué:** aún no se sabe; no se ha reproducido ni hay registro (`adb logcat`) del G84. En el A35 los widgets funcionan tras el arreglo del mismo día ("Widgets: desaparecían…"). Sospechas a revisar: el redibujo de los widgets (`WidgetUpdater.push`, con candado y `NonCancellable`) bloqueando o compitiendo con el hilo principal, la sesión de Glance/WorkManager y la frecuencia de actualización del progreso.

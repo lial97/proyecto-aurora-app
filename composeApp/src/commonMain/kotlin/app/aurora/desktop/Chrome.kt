@@ -158,22 +158,21 @@ private fun NavRow(label: String, icon: AuroraIcon, active: Boolean, compact: Bo
     }
 }
 
-/** Atrás / Adelante, búsqueda y acceso a Ajustes. */
+/** Atrás / Adelante y búsqueda (Ajustes está en el menú lateral y con Ctrl+,). */
 @Composable
-fun TopBar(nav: DesktopNav, onOpenSettings: () -> Unit) {
+fun TopBar(nav: DesktopNav) {
     Row(Modifier.fillMaxWidth().padding(start = 28.dp, end = 28.dp, top = 14.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         IconButton(AuroraIcon.Back, "Atrás", nav::back, tint = if (nav.canBack) Ui.colors.ink else Ui.colors.mute)
         IconButton(AuroraIcon.Forward, "Adelante", nav::forward, tint = if (nav.canForward) Ui.colors.ink else Ui.colors.mute)
         SearchField(nav.query, { q -> nav.query = q; if (q.isNotBlank()) nav.go(DView.Search) }, Modifier.padding(start = 8.dp).widthIn(max = 380.dp).weight(1f, fill = false),
             fieldModifier = Modifier.focusRequester(nav.searchFocus))
         Spacer(Modifier.weight(1f))
-        IconButton(AuroraIcon.Settings, "Ajustes", onOpenSettings)
     }
 }
 
 /** Barra de reproducción fija (86 dp): portada y título · controles y progreso · letra, panel y volumen. */
 @Composable
-fun PlayerBar(state: AppState, playback: PlaybackState, nav: DesktopNav, onTogglePanel: () -> Unit, panelVisible: Boolean) {
+fun PlayerBar(state: AppState, playback: PlaybackState, nav: DesktopNav, onTogglePanel: () -> Unit, panelVisible: Boolean, panelAvailable: Boolean = true) {
     val c = Ui.colors
     val type = Ui.type
     val player = state.player
@@ -187,7 +186,7 @@ fun PlayerBar(state: AppState, playback: PlaybackState, nav: DesktopNav, onToggl
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        Row(Modifier.width(300.dp).trackContextMenu(track).pressable("Abrir Reproduciendo", .99f) { if (track != null) nav.go(DView.NowPlaying) }, verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.width(300.dp).trackContextMenu(track).pressable("Abrir Reproduciendo", .99f) { if (track != null) nav.openPlayer() }, verticalAlignment = Alignment.CenterVertically) {
             Artwork(track, 56.dp)
             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                 BasicText(track?.title ?: "Nada sonando", style = type.rowTitle, maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -219,7 +218,8 @@ fun PlayerBar(state: AppState, playback: PlaybackState, nav: DesktopNav, onToggl
             IconButton(AuroraIcon.Lyrics, "Letra (L)", nav::toggleNowPlaying, tint = if (nav.current == DView.NowPlaying) c.accent else c.ink)
             IconButton(AuroraIcon.Video, "Video (V)", { nav.go(if (playback.hasVideo) DView.Video else DView.Videos) },
                 tint = if (nav.current == DView.Video) c.accent else c.ink)
-            IconButton(AuroraIcon.Panel, "Mostrar u ocultar panel", onTogglePanel, tint = if (panelVisible) c.accent else c.ink)
+            // Con el panel a la vista, se oculta con su propio botón (arriba): aquí solo hace falta para mostrarlo.
+            if (panelAvailable && !panelVisible) IconButton(AuroraIcon.Panel, "Mostrar panel", onTogglePanel)
             IconButton(AuroraIcon.Volume, "Volumen", { state.setVolume(if (playback.volume > 0f) 0f else .8f) })
             VolumeSlider(playback.volume, state::setVolume)
         }
@@ -295,7 +295,7 @@ fun RightPanel(
         }
         // Letra grande con karaoke: aprovecha el alto del panel de escritorio.
         Column(
-            Modifier.padding(top = 16.dp).fillMaxWidth().pressable("Abrir letra", .99f) { nav.go(DView.NowPlaying) }
+            Modifier.padding(top = 16.dp).fillMaxWidth().pressable("Abrir letra", .99f) { nav.openPlayer() }
                 .surface().padding(horizontal = 16.dp, vertical = 14.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {

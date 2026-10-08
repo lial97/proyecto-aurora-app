@@ -148,6 +148,18 @@ fun DialogHost(state: AppState, tracks: List<Track>) {
                     BasicText("Las canciones no se borran de tu dispositivo, solo la lista.", style = Ui.type.rowSubtitle)
                     Buttons(dismiss, "Borrar") { state.deletePlaylist(dlg.playlist); dismiss() }
                 }
+                AppDialog.DailyMixFeedback -> Card {
+                    val mix = state.dailyMix
+                    Title("¿Te gustó la mezcla de hoy?")
+                    BasicText(
+                        "${mix?.playlist?.name ?: "Tu mezcla"}: si te gustó, la guardamos en tus listas. Si no, mañana tendrás otra.",
+                        style = Ui.type.rowSubtitle,
+                    )
+                    Row(Modifier.fillMaxWidth().padding(top = 18.dp), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
+                        Chip("No", false, { state.answerDailyMix(false); dismiss() })
+                        Chip("Sí, guardarla", true, { state.answerDailyMix(true); dismiss() })
+                    }
+                }
                 null -> {}
             }
         }

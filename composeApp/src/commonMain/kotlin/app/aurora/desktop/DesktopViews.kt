@@ -168,7 +168,6 @@ fun <T> GridRows(items: List<T>, cols: Int, gap: Dp = Gap, cell: @Composable (T,
 fun DesktopHome(state: AppState, lib: LibraryState, playlists: List<Playlist>, playback: PlaybackState, nav: DesktopNav) {
     val songs = remember(lib.tracks) { lib.tracks.songs() }
     val recent = remember(songs) { songs.sortedBy(SortOrder.DATE_ADDED) }
-    val videos = remember(lib.tracks) { lib.tracks.videos() }
     var chip by remember { mutableStateOf(0) }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = desktopPadding()) {
         item {
@@ -176,19 +175,17 @@ fun DesktopHome(state: AppState, lib: LibraryState, playlists: List<Playlist>, p
             val userName by state.settings.userName.collectAsState()
             app.aurora.components.GreetingTitle(greeting(userName), { state.dialog = AppDialog.EditName }, Modifier.fillMaxWidth(.75f))
             Row(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("Todo", "Música", "Videos", "Mezclas").forEachIndexed { k, c ->
-                    Chip(c, k == chip, { chip = k; if (k == 2) nav.go(DView.Videos); if (k == 1) nav.go(DView.Library) })
+                // Los videos tienen su propia sección (Videos): Inicio es para la música.
+                listOf("Todo", "Música", "Mezclas").forEachIndexed { k, c ->
+                    Chip(c, k == chip, { chip = k; if (k == 1) nav.go(DView.Library) })
                 }
             }
             LibraryBanner(lib, { nav.go(DView.Settings) }, Modifier.fillMaxWidth(.7f))
+            app.aurora.components.DailyMixCard(state, { nav.go(DView.PlaylistView(it)) }, Modifier.padding(top = 18.dp).fillMaxWidth(.7f))
             SectionTitle("Sigue escuchando", trailing = "Ver todo")
             GridRows(recent.take(5), 5) { t, w ->
                 CoverCard(t, t.title, t.artist, { state.play(recent, recent.indexOf(t), "Inicio") }, size = w, menuTrack = t)
             }
-        }
-        if (videos.isNotEmpty()) item {
-            SectionTitle("Videos musicales", trailing = "Ver todo")
-            GridRows(videos.take(3), 3) { v, _ -> VideoCard(v, { state.play(videos, videos.indexOf(v), "Videos") }, onMore = { state.dialog = AppDialog.TrackMenu(v) }) }
         }
         if (playlists.isNotEmpty()) item {
             SectionTitle("Tus mezclas")

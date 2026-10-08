@@ -158,11 +158,11 @@ fun MobileApp(state: AppState, lib: LibraryState, playback: PlaybackState) {
                     onPlay = { q, i -> state.play(q, i, "Inicio") },
                     onOpenPlaylist = { overlay = Overlay.OpenPlaylist(it) },
                     onOpenSettings = openSettings,
-                    onOpenVideos = { selectTab(Tab.Videos) },
                     onMore = menu,
                     lastPlayed = { state.stats.get(it.id).lastMs },
                     userName = userName,
                     onEditName = { state.dialog = AppDialog.EditName },
+                    dailyMix = { app.aurora.components.DailyMixCard(state, { overlay = Overlay.OpenPlaylist(it) }, Modifier.padding(top = 16.dp)) },
                 )
                 t == Tab.Search -> SearchScreen(tracks, bottomPadding, { q, i -> state.play(q, i, "Búsqueda") }, menu)
                 t == Tab.Library -> LibraryScreen(
@@ -196,7 +196,8 @@ fun MobileApp(state: AppState, lib: LibraryState, playback: PlaybackState) {
                     MiniPlayer(
                         current, playback.isPlaying,
                         progress = playback.progress,
-                        onOpen = { layer = Layer.Player },
+                        // Si suena un video, se abre la vista de video (no la de la canción).
+                        onOpen = { layer = if (currentIsVideo) Layer.Video else Layer.Player },
                         onToggle = player::togglePlay,
                         modifier = Modifier.padding(top = 8.dp, bottom = 8.dp),
                         onOpenVideo = if (playback.hasVideo) ({ layer = Layer.Video }) else null,
@@ -208,6 +209,8 @@ fun MobileApp(state: AppState, lib: LibraryState, playback: PlaybackState) {
 
         // Reproductor y video: capa que entra desde abajo (500 ms) encima de la pantalla actual.
         BackHandler(enabled = immersive && !state.videoFullscreen) { layer = null }
+        // Elegir "Canción" vale mientras se está en el reproductor: al volver a entrar, un video se ve como video.
+        LaunchedEffect(layer) { if (layer == null) state.videoInBackground = false }
         AnimatedContent(
             targetState = layer,
             transitionSpec = {
