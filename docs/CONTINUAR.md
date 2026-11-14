@@ -43,7 +43,7 @@ bash scripts/medir-android.sh arranque|memoria|cpu|cuadros   # rendimiento (ver 
   - probar el ahorro de batería con la pantalla apagada y la ventanita en Android 8 a 11;
   - `OnboardingFlowTest.keyboardWalksTheStepsAndFinishes` falla a veces ("LayoutNode not found in RectList"), es intermitente;
   - .deb y AppImage 0.4.0 ya armados en `AURORA-APP/` (Docker con `echo 'bash scripts/empaquetar-linux.sh' | newgrp docker`; este sistema no tiene `sg`);
-  - fusionar `v0.4` en `main` y publicar la Release v0.4.0 cuando el usuario lo apruebe (el .exe se arma en Windows).
+  - `v0.4` ya está fusionada en `main` (PR #1) y la Release v0.4.0 está publicada con el APK, el .deb y el AppImage. Falta el .exe: armarlo en Windows con `build-windows.bat` y subirlo con `gh release upload v0.4.0 AURORA-APP/Aurora-0.4.0.exe --clobber`.
 
 ## Estado anterior (2026-10-07, v0.3.1)
 
