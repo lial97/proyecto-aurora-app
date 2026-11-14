@@ -1,5 +1,6 @@
 package app.aurora.components
 
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
@@ -99,7 +100,7 @@ fun SongRow(
 /** Mini reproductor (móvil): portada, título, artista, reproducir/pausa y línea de progreso de 2 dp. */
 @Composable
 fun MiniPlayer(
-    track: Track, playing: Boolean, progress: Float, onOpen: () -> Unit, onToggle: () -> Unit,
+    track: Track, playing: Boolean, progress: () -> Float, onOpen: () -> Unit, onToggle: () -> Unit,
     modifier: Modifier = Modifier, onOpenVideo: (() -> Unit)? = null,
     onDismiss: (() -> Unit)? = null,
 ) {
@@ -161,7 +162,8 @@ fun MiniPlayer(
             if (Ui.theme.controlStyle == app.aurora.theme.ControlStyle.KEYS) PlayButton(playing, 36.dp, onToggle, width = 40.dp)
             else IconButton(if (playing) AuroraIcon.Pause else AuroraIcon.Play, if (playing) "Pausar" else "Reproducir", onToggle)
         }
-        Box(Modifier.align(Alignment.BottomStart).fillMaxWidth(progress.coerceIn(0f, 1f)).height(2.dp).background(c.accent))
+        // Se lee al dibujar: la línea avanza sin recomponer el mini reproductor.
+        Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(2.dp).graphicsLayer().drawBehind { drawRect(c.accent, size = size.copy(width = size.width * progress())) })
     }
 }
 

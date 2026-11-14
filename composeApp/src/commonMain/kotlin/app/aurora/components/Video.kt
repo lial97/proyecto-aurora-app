@@ -1,5 +1,6 @@
 package app.aurora.components
 
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
@@ -149,8 +150,8 @@ fun VideoSurface(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 IconButton(if (playback.isPlaying) AuroraIcon.Pause else AuroraIcon.Play, "Reproducir o pausar", player::togglePlay, tint = Color.White)
-                Box(Modifier.weight(1f)) { VideoProgress(playback.positionSec, duration, player::seekTo) }
-                BasicText("${formatTime(playback.positionSec)} / ${formatTime(duration)}", style = Ui.type.caption.copy(color = Color.White))
+                Box(Modifier.weight(1f)) { VideoProgress(duration, player::seekTo) }
+                VideoTime(duration)
                 val h = img?.height ?: 0
                 if (h >= 720) {
                     BasicText(
@@ -166,14 +167,15 @@ fun VideoSurface(
 
 /** Progreso del video: relleno con el color de énfasis; tocar o arrastrar salta. */
 @Composable
-private fun VideoProgress(positionSec: Int, durationSec: Int, onSeek: (Int) -> Unit) {
+private fun VideoProgress(durationSec: Int, onSeek: (Int) -> Unit) {
     val c = Ui.colors
+    val progress = rememberProgress(durationSec)
     // Igual que ProgressBar: se salta una sola vez al soltar, no en cada movimiento.
     var dragPos by remember { mutableStateOf<Float?>(null) }
     fun at(x: Float, w: Int) = (x / w).coerceIn(0f, 1f)
     fun seek(f: Float) { if (durationSec > 0) onSeek((f * durationSec).toInt()) }
     Canvas(
-        Modifier.fillMaxWidth().height(16.dp)
+        Modifier.fillMaxWidth().height(16.dp).graphicsLayer()
             .pointerInput(durationSec) { detectTapGestures { seek(at(it.x, size.width)) } }
             .pointerInput(durationSec) {
                 detectHorizontalDragGestures(
@@ -186,9 +188,15 @@ private fun VideoProgress(positionSec: Int, durationSec: Int, onSeek: (Int) -> U
         val h = 4.dp.toPx()
         val y = size.height / 2 - h / 2
         drawRect(Color.White.copy(alpha = .3f), Offset(0f, y), Size(size.width, h))
-        val f = dragPos ?: if (durationSec > 0) positionSec.toFloat() / durationSec else 0f
+        val f = dragPos ?: progress()
         drawRect(c.accent, Offset(0f, y), Size(size.width * f, h))
     }
+}
+
+/** "1:02 / 3:45" sobre el video (solo este texto se recompone cada segundo). */
+@Composable
+fun VideoTime(durationSec: Int, color: Color = Color.White) {
+    BasicText("${formatTime(currentPositionSec())} / ${formatTime(durationSec)}", style = Ui.type.caption.copy(color = color))
 }
 
 /**
@@ -246,9 +254,9 @@ fun PipVideo(playback: PlaybackState, player: PlayerController, onExpand: () -> 
             IconButton(AuroraIcon.Close, "Cerrar mini video (el sonido sigue)", onClose,
                 Modifier.background(Color.Black.copy(alpha = .45f), CircleShape), tint = Color.White, size = 30.dp, iconSize = 16.dp)
         }
-        val duration = playback.durationSec.takeIf { it > 0 } ?: playback.current?.durationSec ?: 0
-        val f = if (duration > 0) playback.positionSec.toFloat() / duration else 0f
-        Box(Modifier.align(Alignment.BottomStart).fillMaxWidth(f).height(3.dp).background(Ui.colors.accent))
+        val progress = rememberProgress(playback.totalSec)
+        val accent = Ui.colors.accent
+        Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(3.dp).graphicsLayer().drawBehind { drawRect(accent, size = size.copy(width = size.width * progress())) })
     }
 }
 

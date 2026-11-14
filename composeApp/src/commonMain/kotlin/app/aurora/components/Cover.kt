@@ -213,7 +213,7 @@ private inline fun DrawScope.translateScaled(dx: Float, dy: Float, k: Float, blo
  *   estática de una lista, sin animación ni detalles del reproductor.
  */
 @Composable
-fun Hero(track: Track?, size: Dp, modifier: Modifier = Modifier, scale: Float = 1f, playing: Boolean? = null, progress: Float = 0f) {
+fun Hero(track: Track?, size: Dp, modifier: Modifier = Modifier, scale: Float = 1f, playing: Boolean? = null, progress: () -> Float = { 0f }) {
     val theme = Ui.theme
     val c = Ui.colors
     val shape = Ui.shapes.artLarge
@@ -402,12 +402,11 @@ private fun Modifier.creamFrame(shape: Shape, ink: Color, cream: Color) = drawBe
  * reproductor ([playing] no nulo) lleva además la etiqueta "LADO A · álbum".
  */
 @Composable
-private fun CassetteHero(track: Track?, size: Dp, modifier: Modifier, playing: Boolean?, progress: Float) {
+private fun CassetteHero(track: Track?, size: Dp, modifier: Modifier, playing: Boolean?, progress: () -> Float) {
     val c = Ui.colors
     val cream = c.surface
     val orange = Color(0xFFD9542B)
     val clock = rememberPlayClock(playing == true && !Ui.reduceMotion, 1f)
-    val p = progress.coerceIn(0f, 1f)
     Column(modifier.width(size + 6.dp), horizontalAlignment = Alignment.Start) {
         Box(Modifier.size(size)) {
             val shape = RoundedCornerShape(8.dp)
@@ -420,7 +419,7 @@ private fun CassetteHero(track: Track?, size: Dp, modifier: Modifier, playing: B
             Box(Modifier.offset(x = (-4).dp, y = 12.dp).width(4.dp).height(size - 24.dp).clip(RoundedCornerShape(2.dp)).background(orange))
         }
         // Cinta: tira café con dos carretes crema.
-        Canvas(Modifier.offset(y = (-18).dp).padding(horizontal = 14.dp).fillMaxWidth().height(56.dp).clearAndSetSemantics { }) {
+        Canvas(Modifier.offset(y = (-18).dp).padding(horizontal = 14.dp).fillMaxWidth().height(56.dp).graphicsLayer().clearAndSetSemantics { }) {
             val h = this.size.height
             val w = this.size.width
             drawRoundRect(Color.Black.copy(alpha = .25f), topLeft = Offset(0f, 3.dp.toPx()), size = this.size, cornerRadius = CornerRadius(h / 2))
@@ -436,6 +435,8 @@ private fun CassetteHero(track: Track?, size: Dp, modifier: Modifier, playing: B
                 drawRect(if (dark) Color(0xFF4D2C18) else brown, Offset(x, h / 2 - bandH / 2), Size(minOf(3.dp.toPx(), right.x - x), bandH))
                 x += 3.dp.toPx(); dark = !dark
             }
+            // El progreso se lee al dibujar: la cinta avanza sin recomponer la portada.
+            val p = progress().coerceIn(0f, 1f)
             val min = 21.dp.toPx(); val max = 27.dp.toPx()
             drawCircle(brown, min + (max - min) * (1f - p), left)
             drawCircle(brown, min + (max - min) * p, right)

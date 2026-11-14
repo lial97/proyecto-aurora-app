@@ -42,3 +42,33 @@ Según `top -H`, con música en Inicio el reparto es: `RenderThread` 32 %, hilo 
 | Inicio, sonando | 23,7 % | 8,4 % | 37 |
 | Reproductor, sonando | 18,5 % | 8,5 % | 37 |
 | Pausa | 0,1 % | 0,0 % | — |
+
+## Fase 2 de la 0.4: menos redibujo (2026-11-14)
+
+Cambios:
+- **Fondo:** el reloj solo corre en los temas cuyo fondo se mueve (Aurora, Póster, Pétalo/Seda con círculos, Acuarela). El fondo va en su propia capa.
+- **Posición:** sale del estado de reproducción (`LocalPositionMs`). La leen solo la barra, los tiempos, los mini reproductores, el video, la letra y la cinta de Casete, y casi siempre al dibujar.
+- **Barra de progreso:** sigue el ritmo de las animaciones (`animatePacedFloat`) en todas las plataformas, no los 120 Hz de la pantalla.
+- **Android:** las animaciones continuas van a ~30 fps (antes 60).
+- La barra, la línea del mini reproductor, las barras del video y la cinta de Casete tienen capa propia.
+
+**Android (A35, mismo tema de cuadrícula)**
+
+| Medición | Antes | Después |
+|---|---|---|
+| Inicio, sonando | 77–82 % · ~64 cuadros/s | **19 % · ~4 cuadros/s** |
+| Reproductor, sonando (con la onda) | 93 % · ~116 cuadros/s | **57 % · ~31 cuadros/s** |
+| Vista de video (1080p 60 fps) | 72 % · ~77 cuadros/s | 71 % · ~29 cuadros/s |
+| Mini video + mini reproductor | 92 % · ~78 cuadros/s | **72 % · ~29 cuadros/s** |
+| Memoria (reproductor / mini video) | 163 / 174 MB | 155 / 183 MB |
+| En pausa | 0 % | 0 % |
+
+En el reproductor, lo que queda es la onda a 30 fps: cada cuadro compone la ventana entera en la GPU. "Reducir movimiento" la apaga. El video depende sobre todo de decodificarlo y mostrarlo (`MediaCodec`, `TextureView`).
+
+**Escritorio (Linux, tema Aurora con luces animadas)**
+
+| Pantalla | Antes | Después |
+|---|---|---|
+| Inicio, sonando | 23,7 % · 37 FPS | **19,8 % · 34 FPS** |
+| Reproductor, sonando | 18,5 % · 37 FPS | **17,3 % · 34 FPS** |
+| Pausa | 0,1 % | 0,1 % |

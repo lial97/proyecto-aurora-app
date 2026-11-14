@@ -177,7 +177,7 @@ fun PlayerScreen(
             Box(
                 Modifier.fillMaxWidth().padding(top = 22.dp),
                 contentAlignment = if (theme.leftAlignedHero) Alignment.TopStart else Alignment.TopCenter,
-            ) { Hero(track, heroSize, scale = heroScale(playback.isPlaying), playing = playback.isPlaying, progress = playback.progress) }
+            ) { Hero(track, heroSize, scale = heroScale(playback.isPlaying), playing = playback.isPlaying, progress = app.aurora.components.rememberProgress(playback.totalSec)) }
 
             // Tarjeta: origen, título, me gusta, etiquetas y progreso.
             val cardShape = androidx.compose.foundation.shape.RoundedCornerShape(22.dp)
@@ -204,11 +204,11 @@ fun PlayerScreen(
                     )
                 }
                 PlayerTags(track, prefs.eq, state.sleep != null, Modifier.padding(top = 10.dp))
-                ProgressBar(playback.positionSec, duration, player::seekTo, Modifier.padding(top = 14.dp), wavePlaying = playback.isPlaying)
+                ProgressBar(duration, player::seekTo, Modifier.padding(top = 14.dp), wavePlaying = playback.isPlaying)
                 Row(Modifier.fillMaxWidth()) {
-                    app.aurora.components.PositionText(playback.positionSec)
+                    app.aurora.components.PositionText()
                     Spacer(Modifier.weight(1f))
-                    BasicText("-" + formatTime(duration - playback.positionSec), style = type.caption)
+                    app.aurora.components.RemainingText(duration)
                 }
             }
 
@@ -384,7 +384,7 @@ private fun SheetLyrics(state: app.aurora.AppState, playback: PlaybackState, tra
             IconButton(AuroraIcon.Previous, "Anterior", player::previous, key = true)
             PlayButton(playback.isPlaying, 46.dp, player::togglePlay)
             IconButton(AuroraIcon.Next, "Siguiente", player::next, key = true)
-            ProgressBar(playback.positionSec, duration, player::seekTo, Modifier.weight(1f).padding(start = 8.dp))
+            ProgressBar(duration, player::seekTo, Modifier.weight(1f).padding(start = 8.dp))
         }
     }
 }

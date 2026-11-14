@@ -1,5 +1,6 @@
 package app.aurora.components
 
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -72,13 +73,17 @@ fun Backdrop(
     val alpha by animateFloatAsState(intensity, tween(600))
     val veilAlpha by animateFloatAsState(veil, tween(600))
     val lights = Ui.prefs.backgroundLights
-    val clock = rememberPlayClock(playing && !Ui.reduceMotion, c.speed)
-    Box(
-        modifier
-            .fillMaxSize()
-            .background(c.background)
-            .drawBehind {
-                val t = clock.value
+    // El reloj solo corre si el fondo de este tema se mueve. Antes corría siempre que sonaba algo y, como se leía
+    // al dibujar, los temas de fondo fijo (cuadrícula, rayas, curvas…) redibujaban la pantalla a 60 fps sin cambiar.
+    val animated = lights && style in AnimatedBackdrops
+    val clock = rememberPlayClock(playing && animated && !Ui.reduceMotion, c.speed)
+    Box(modifier.fillMaxSize().background(c.background)) {
+        // El fondo va en su propia capa: cuando se mueve, solo se vuelve a dibujar él y no el contenido de encima.
+        Box(
+            Modifier.matchParentSize()
+                .graphicsLayer()
+                .drawBehind {
+                val t = if (animated) clock.value else 0f
                 if (lights) when (style) {
                     BackdropStyle.AURORA_LIGHTS -> auroraLights(c, t, alpha, desk)
                     BackdropStyle.SPINNING_DOT -> spinningDot(c, t, desk)
@@ -96,9 +101,15 @@ fun Backdrop(
                 }
                 if (veilAlpha > 0f) drawRect(c.background.copy(alpha = veilAlpha))
             },
-        content = content,
-    )
+        )
+        content()
+    }
 }
+
+/** Fondos que se mueven mientras suena (usan el reloj); los demás se dibujan una vez. */
+private val AnimatedBackdrops = setOf(
+    BackdropStyle.AURORA_LIGHTS, BackdropStyle.SPINNING_DOT, BackdropStyle.GOLD_CIRCLES, BackdropStyle.WATERCOLOR_BLOBS,
+)
 
 private fun DrawScope.blob(color: Color, center: Offset, radius: Float, alpha: Float) = drawCircle(
     Brush.radialGradient(

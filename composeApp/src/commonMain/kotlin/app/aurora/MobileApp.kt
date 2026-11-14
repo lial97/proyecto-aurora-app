@@ -238,7 +238,7 @@ fun MobileApp(state: AppState, lib: LibraryState, playback: PlaybackState) {
                 if (current != null && state.miniPlayerHiddenFor != current.id) {
                     MiniPlayer(
                         current, playback.isPlaying,
-                        progress = playback.progress,
+                        progress = app.aurora.components.rememberProgress(playback.totalSec),
                         // Si suena un video, se abre la vista de video (no la de la canción).
                         onOpen = { layer = if (currentIsVideo) Layer.Video else Layer.Player },
                         onToggle = player::togglePlay,

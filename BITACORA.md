@@ -11,6 +11,35 @@ Formato de cada entrada:
 **Pendiente:** lo que queda abierto (opcional).
 ```
 
+## 2026-11-14 — Versión 0.4, fase 2: menos redibujo (batería)
+**Qué:**
+- **`Backdrop.kt`:**
+  - el reloj de animación solo corre en los temas cuyo fondo se mueve (`AnimatedBackdrops`);
+  - el fondo se dibuja en su propia capa, detrás del contenido.
+- **Posición fuera del estado:**
+  - `App.kt` pasa a las pantallas un estado "lento", sin cambios de posición (`distinctUntilChanged`);
+  - la posición va en `LocalPositionMs` (`components/FramePacing.kt`), con `currentPositionSec()` y `rememberProgress()`;
+  - `ProgressBar`, `PositionText()`, `RemainingText()`, `MiniPlayer`, `PipVideo`, `VideoProgress`/`VideoTime`, `FullscreenProgress`, la cinta de Casete (`Hero(progress = () -> Float)`) y `rememberSmoothPositionMs` la leen por su cuenta, casi siempre al dibujar.
+- **Barra de progreso:** siempre con `animatePacedFloat` (antes `animateFloatAsState`, que en Android y Linux iba a la frecuencia de la pantalla).
+- **Capas propias** (`graphicsLayer`) en las piezas que cambian seguido.
+- **Android:** `animationFrameIntervalMs = 33` (~30 fps, como en escritorio).
+- Nuevo `PlaybackState.totalSec`.
+
+**Por qué:** la línea base mostró que, mientras sonaba algo, la app gastaba 77–93 % de un núcleo en el A35, redibujando a 60–120 fps aunque no cambiara nada.
+
+**Resultado** (detalle en `docs/RENDIMIENTO.md`):
+
+| Pantalla (sonando) | Antes | Después |
+|---|---|---|
+| A35 · Inicio | 82 % | 19 % |
+| A35 · Reproductor | 93 % | 57 % |
+| A35 · Mini video | 92 % | 72 % |
+| Escritorio · Inicio | 23,7 % | 19,8 % |
+
+**Archivos:** `App.kt`, `MobileApp.kt`, `player/PlayerController.kt`, `components/{FramePacing,Backdrop,Controls,Rows,Video,FullscreenVideo,Cover}.kt`, `screens/{Player,Lyrics}Screen.kt`, `desktop/{Chrome,NowPlaying}.kt`, `androidApp/.../MainActivity.kt`, `desktopTest/WaveProgressTest.kt`.
+
+**Pruebas:** 122 pruebas pasan. En el A35, con el APK de release: Inicio, reproductor, vista de video y mini video; las barras y los tiempos avanzan bien.
+
 ## 2026-11-14 — Versión 0.4, fase 1: arreglos de la revisión
 **Qué:**
 - **Videos:** el buscador cerraba el teclado con la primera letra (estaba dentro de `key(searching)` y se recreaba). Ahora la cabecera (título, buscador y contador) queda fija fuera de la lista, con `imePadding`. El estado vacío usa el ícono de video (`EmptyState(icon = …)`).

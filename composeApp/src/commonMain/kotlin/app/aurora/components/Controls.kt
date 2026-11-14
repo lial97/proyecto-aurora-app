@@ -1,5 +1,6 @@
 package app.aurora.components
 
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateDpAsState
@@ -240,7 +241,6 @@ fun PlayButton(playing: Boolean, size: Dp, onClick: () -> Unit, modifier: Modifi
 /** Barra de progreso del tema: tocar o arrastrar salta; la bolita aparece al pasar el cursor en escritorio. */
 @Composable
 fun ProgressBar(
-    positionSec: Int,
     durationSec: Int,
     onSeek: (Int) -> Unit,
     modifier: Modifier = Modifier,
@@ -255,9 +255,12 @@ fun ProgressBar(
     // Mientras se arrastra, la barra sigue al dedo/cursor y el salto se hace una sola vez al soltar:
     // saltar en cada movimiento (60–120 veces por segundo) trababa VLC y la ventana, sobre todo en Windows.
     var dragFraction by remember { mutableStateOf<Float?>(null) }
+    // La posición se lee aquí (LocalPositionMs): solo esta barra se recompone, una vez por segundo.
+    val positionSec = currentPositionSec()
     val target = if (durationSec > 0) positionSec.toFloat() / durationSec else 0f
-    // Se lee al dibujar: la barra avanza sin recomponer.
-    val animated = if (strictPacing) animatePacedFloat(target, 900) else animateFloatAsState(target, tween(900, easing = LinearEasing))
+    // Se lee al dibujar: la barra avanza sin recomponer. Siempre al ritmo de las animaciones (no a 120 Hz):
+    // avanza unos pocos píxeles por segundo y con `animateFloatAsState` pedía cada fotograma de la pantalla.
+    val animated = animatePacedFloat(target, 900)
     val desk = Ui.isDesktop
     val showThumb = !desk || hovered
     val thinBar = Ui.theme.progressHeight < 8f
@@ -275,6 +278,8 @@ fun ProgressBar(
         modifier
             .fillMaxWidth()
             .height(maxOf(22.dp, barHeight + 8.dp))
+            // Capa propia: la onda y el avance redibujan solo la barra, no toda la pantalla.
+            .graphicsLayer()
             .hoverable(source)
             .semantics { contentDescription = "Progreso" }
             .pointerInput(durationSec) { detectTapGestures { seek(at(it.x, size.width)) } }
@@ -335,6 +340,15 @@ private fun DrawScope.drawWave(w: Float, stroke: Float, amplitude: Float, phase:
  * Tiempo actual de la canción. En Casete es el contador de una casetera ("01:05"): pastilla café con dígitos
  * mostaza en negrita y cifras tabulares.
  */
+@Composable
+fun PositionText(modifier: Modifier = Modifier) = PositionText(currentPositionSec(), modifier)
+
+/** Tiempo que falta ("-1:03"), con la posición de [LocalPositionMs]. */
+@Composable
+fun RemainingText(durationSec: Int, modifier: Modifier = Modifier) {
+    BasicText("-" + formatTime((durationSec - currentPositionSec()).coerceAtLeast(0)), style = Ui.type.caption, modifier = modifier, maxLines = 1)
+}
+
 @Composable
 fun PositionText(sec: Int, modifier: Modifier = Modifier) {
     if (Ui.theme.timeStyle == TimeStyle.TAPE_COUNTER) {

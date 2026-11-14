@@ -80,14 +80,23 @@ import app.aurora.theme.title
  */
 @Composable
 fun rememberSmoothPositionMs(playback: PlaybackState): State<Long> {
-    val now = remember { mutableLongStateOf(playback.positionMs) }
-    LaunchedEffect(playback.positionMs, playback.isPlaying, playback.current?.id) {
-        val anchor = playback.positionMs
+    // La posición del motor se lee aquí dentro (LocalPositionMs), no al componer: la letra no se recompone con
+    // cada aviso, solo cambia este estado, que se lee al dibujar.
+    val source = app.aurora.components.LocalPositionMs.current
+    val now = remember { mutableLongStateOf(source.value) }
+    LaunchedEffect(playback.isPlaying, playback.current?.id, source) {
+        if (!playback.isPlaying) {
+            // En pausa solo cambia al saltar.
+            androidx.compose.runtime.snapshotFlow { source.value }.collect { now.longValue = it }
+            return@LaunchedEffect
+        }
+        var anchor = source.value
         now.longValue = anchor
-        if (!playback.isPlaying) return@LaunchedEffect
-        val t0 = withFrameNanos { it }
+        var t0 = withFrameNanos { it }
         while (true) {
             app.aurora.components.awaitAnimationFrame { t ->
+                val reported = source.value
+                if (reported != anchor) { anchor = reported; t0 = t }
                 now.longValue = anchor + ((t - t0) / 1_000_000).coerceAtMost(1500)
             }
         }
@@ -249,11 +258,11 @@ fun LyricsScreen(playback: PlaybackState, player: PlayerController, lyrics: Lyri
             }
         }
         LyricsView(lyrics, playback, player::seekTo, Modifier.weight(1f).fillMaxWidth().padding(top = 8.dp), onRetry, onSave, offsetMs = offsetMs)
-        ProgressBar(playback.positionSec, duration, player::seekTo)
+        ProgressBar(duration, player::seekTo)
         Row(Modifier.fillMaxWidth()) {
-            app.aurora.components.PositionText(playback.positionSec)
+            app.aurora.components.PositionText()
             Spacer(Modifier.weight(1f))
-            BasicText("-" + formatTime(duration - playback.positionSec), style = type.caption)
+            app.aurora.components.RemainingText(duration)
         }
         Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
             IconButton(AuroraIcon.Previous, "Anterior", player::previous, size = 48.dp, key = true)

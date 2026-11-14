@@ -23,6 +23,8 @@ import app.aurora.theme.AppThemeProvider
 import app.aurora.theme.FormFactor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 
 /**
@@ -56,7 +58,13 @@ fun App(
     DisposableEffect(Unit) { onDispose { if (external == null) state.player.release() } }
 
     val theme by state.settings.theme.collectAsState()
-    val playback by state.player.state.collectAsState()
+    // Estado "lento": cola, pista, reproducir/pausa, duración… La posición (hasta 4 avisos por segundo) va aparte
+    // en LocalPositionMs; así la app no se recompone entera con cada avance de la canción.
+    val playback by remember {
+        state.player.state.distinctUntilChanged { a, b -> a.copy(positionSec = 0, positionMs = 0) == b.copy(positionSec = 0, positionMs = 0) }
+    }.collectAsState(state.player.state.value)
+    val positionMs = remember { state.player.state.map { it.positionMs }.distinctUntilChanged() }
+        .collectAsState(state.player.state.value.positionMs)
     val lib by state.library.state.collectAsState()
     LaunchedEffect(state.toast) {
         if (state.toast != null) {
@@ -98,6 +106,7 @@ fun App(
             AppThemeProvider(t, palette, form, dynamic = prefs.dynamicColor, highContrast = prefs.highContrast, fadeMs = if (state.onboarding) 600 else null) {
                 CompositionLocalProvider(
                     LocalCoverCache provides state.covers,
+                    app.aurora.components.LocalPositionMs provides positionMs,
                     app.aurora.components.LocalPreviewCache provides state.previews,
                     app.aurora.components.LocalPickFolders provides { state.pickAndAddFolder(app.aurora.domain.MediaType.AUDIO) },
                     app.aurora.components.LocalTrackMenu provides { tr, p, anchor -> state.dialog = AppDialog.TrackMenu(tr, p?.takeIf { it.isUser }, anchor) },
