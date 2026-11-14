@@ -46,7 +46,7 @@ Según `top -H`, con música en Inicio el reparto es: `RenderThread` 32 %, hilo 
 ## Fase 2 de la 0.4: menos redibujo (2026-11-14)
 
 Cambios:
-- **Fondo:** el reloj solo corre en los temas cuyo fondo se mueve (Aurora, Póster, Pétalo/Seda con círculos, Acuarela). El fondo va en su propia capa.
+- **Fondo:** el reloj solo corre en los temas cuyo fondo se mueve (Aurora, Póster, Seda y Acuarela). El fondo va en su propia capa.
 - **Posición:** sale del estado de reproducción (`LocalPositionMs`). La leen solo la barra, los tiempos, los mini reproductores, el video, la letra y la cinta de Casete, y casi siempre al dibujar.
 - **Barra de progreso:** sigue el ritmo de las animaciones (`animatePacedFloat`) en todas las plataformas, no los 120 Hz de la pantalla.
 - **Android:** las animaciones continuas van a ~30 fps (antes 60).
