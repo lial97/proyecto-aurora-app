@@ -230,7 +230,7 @@ private fun SongCard(
     val stats = state.stats.get(track.id)
     Column(modifier.verticalScroll(rememberScrollState())) {
         Box(Modifier.fillMaxWidth(), contentAlignment = if (theme.leftAlignedHero) Alignment.CenterStart else Alignment.Center) {
-            Hero(track, theme.heroSizes.nowPlaying.dp, Modifier.trackContextMenu(track), scale = heroScale(playback.isPlaying), playing = playback.isPlaying, progress = playback.progress)
+            Hero(track, theme.heroSizes.nowPlaying.dp, Modifier.trackContextMenu(track), scale = heroScale(playback.isPlaying), playing = playback.isPlaying, progress = app.aurora.components.rememberProgress(playback.totalSec))
         }
         BasicText(theme.title(track.title), style = Ui.type.panelTitle.copy(fontSize = Ui.type.panelTitle.fontSize * 1.15f), modifier = Modifier.padding(top = 16.dp), maxLines = 3, overflow = TextOverflow.Ellipsis)
         Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {

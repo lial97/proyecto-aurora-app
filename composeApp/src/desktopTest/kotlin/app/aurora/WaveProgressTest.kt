@@ -25,7 +25,10 @@ class WaveProgressTest {
             val scene = ImageComposeScene(360 * 2, 80 * 2, Density(2f)) {
                 AppThemeProvider(theme, buildPalette(null, null), FormFactor.MOBILE) {
                     Column(Modifier.fillMaxSize().background(theme.colors.background).padding(20.dp)) {
-                        ProgressBar(78, 214, {}, wavePlaying = playing)
+                        // La posición llega por LocalPositionMs (como en la app), no como parámetro.
+                        androidx.compose.runtime.CompositionLocalProvider(
+                            app.aurora.components.LocalPositionMs provides androidx.compose.runtime.mutableLongStateOf(78_000L),
+                        ) { ProgressBar(214, {}, wavePlaying = playing) }
                     }
                 }
             }

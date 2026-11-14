@@ -10,6 +10,8 @@ No es Spotify: no necesita internet ni cuenta, y no tiene anuncios. Es gratis.
 - 🎤 **Letras tipo karaoke**: se descargan solas y van marcando la línea que suena.
 - ✨ **Tu mezcla de hoy**: cada día, 25 canciones según lo que más escuchas.
 - 📋 **Listas propias**, con canciones y videos mezclados.
+- 📺 **Videos como en YouTube** (celular): los de una lista se ven a pantalla completa y, si sales de la app con un
+  video sonando, sigue en una ventanita.
 - 🎚️ **Ecualizador** de 10 bandas con 18 ajustes listos (Rock, Pop, Graves…).
 - 😴 **Apagar en** 15 min, 30 min, 1 hora o al terminar la canción.
 - 📱 **En Android**: controles en la notificación y la pantalla de bloqueo, y 3 widgets para la pantalla de inicio.
@@ -26,6 +28,8 @@ No es Spotify: no necesita internet ni cuenta, y no tiene anuncios. Es gratis.
 - **¿Necesita internet?** No. Solo lo usa para bajar letras y corregir nombres de canciones (y se puede apagar).
 - **¿Mis canciones salen con nombres raros?** Abre el menú **⋯** de la canción → **Corregir datos…**
 - **¿Cómo hago una lista?** **⋯** en cualquier canción → **Añadir a una lista…** → **Nueva lista…**
+- **¿Dónde está Ajustes en el celular?** En el **engranaje ⚙** de arriba a la derecha de cada sección.
+- **¿Dónde están mis listas en el celular?** En la sección **Listas** de la barra de abajo.
 - **¿Cómo cambio el tema?** **Ajustes** → **Apariencia** → **Tema**.
 - **¿No aparece mi música?** **Ajustes** → **Biblioteca** → **Añadir carpeta**.
 - **¿Se borran mis canciones si borro una lista?** No. Nunca se borra nada de tu equipo.

@@ -15,8 +15,9 @@ Este archivo sirve para retomar el trabajo en una conversación nueva. La histor
 ```bash
 ./gradlew :composeApp:desktopTest            # pruebas
 ./gradlew :androidApp:assembleRelease        # APK optimizado → androidApp/build/outputs/apk/release/androidApp-release.apk
-cp androidApp/build/outputs/apk/release/androidApp-release.apk AURORA-APP/Aurora-0.3.1-android.apk
-~/Android/Sdk/platform-tools/adb install -r AURORA-APP/Aurora-0.3.1-android.apk
+cp androidApp/build/outputs/apk/release/androidApp-release.apk AURORA-APP/Aurora-0.4.0-android.apk
+~/Android/Sdk/platform-tools/adb install -r AURORA-APP/Aurora-0.4.0-android.apk
+bash scripts/medir-android.sh arranque|memoria|cpu|cuadros   # rendimiento (ver docs/RENDIMIENTO.md)
 ~/Android/Sdk/platform-tools/adb exec-out screencap -p > captura.png
 ```
 
@@ -25,10 +26,29 @@ cp androidApp/build/outputs/apk/release/androidApp-release.apk AURORA-APP/Aurora
   - El usuario usa el celular mientras se prueba. Mirar la pantalla antes de tocar, no cambiar sus ajustes sin devolverlos y avisar de cualquier toque equivocado.
 - **Capturas sin el celular:** pruebas temporales en `composeApp/src/desktopTest`, con `ImageComposeScene` de 360–420 dp. La variable `AURORA_SHOTS=/ruta` guarda las imágenes. Ejemplos: `ScrollMemoryTest.kt` y `ContextMenuTest.kt`.
 
-## Estado actual (2026-10-07, v0.3.1)
+## Estado actual (2026-11-14, v0.4.0, rama `v0.4`)
+
+- **Hecho (fases 0 a 6, detalle en la bitácora):**
+  - línea base y medición de rendimiento (`docs/RENDIMIENTO.md`, `scripts/medir-android.sh`);
+  - bugs de la revisión;
+  - menos redibujo (A35, Inicio sonando: 82 % → 13–19 % de un núcleo);
+  - pestaña **Listas** y Ajustes con el engranaje de arriba;
+  - videos de una lista a pantalla completa;
+  - un solo mini reproductor;
+  - **ventanita del sistema** (PiP) para el video en segundo plano;
+  - versión 0.4.0;
+  - arreglos: videos de WhatsApp en Movies y "Elegir carpeta de videos" que abría los temas (Xiaomi).
+- **Versión:** una sola fuente en `gradle.properties` (`aurora.version`, `aurora.versionCode`). De ahí salen los instaladores, `versionName` de Android y `APP_VERSION` (generado) en Ajustes › Acerca de.
+- **Pendiente:**
+  - probar el ahorro de batería con la pantalla apagada y la ventanita en Android 8 a 11;
+  - `OnboardingFlowTest.keyboardWalksTheStepsAndFinishes` falla a veces ("LayoutNode not found in RectList"), es intermitente;
+  - .deb y AppImage 0.4.0 ya armados en `AURORA-APP/` (Docker con `echo 'bash scripts/empaquetar-linux.sh' | newgrp docker`; este sistema no tiene `sg`);
+  - fusionar `v0.4` en `main` y publicar la Release v0.4.0 cuando el usuario lo apruebe (el .exe se arma en Windows).
+
+## Estado anterior (2026-10-07, v0.3.1)
 
 - **Hecho hoy:** 12 temas, widgets estables en el APK de release (y cambios preventivos para el Moto G84), la primera canción en Linux sin cortes, menos CPU en Windows (0.3.1), mezcla del día con "¿Te gustó?", vista de video primero, Inicio sin videos y sin botones repetidos. Todo en la bitácora.
-- **Release v0.3.1:** APK, .deb, AppImage y .exe. Cada instalador nuevo de Windows necesita una versión mayor (`packageVersion` y `auroraVersion` en `composeApp/build.gradle.kts`; Android: `versionName` y `versionCode` en `androidApp/build.gradle.kts`).
+- **Release v0.3.1:** APK, .deb, AppImage y .exe. Cada instalador nuevo de Windows necesita una versión mayor (desde la 0.4: `aurora.version` en `gradle.properties`; en Android, también `aurora.versionCode`).
 - **Pendiente:** confirmar el G84 con un registro (`adb logcat -s AuroraWidget`, `/data/anr`); prueba de contraste WCAG (el usuario decidió no tocarla por ahora); "Lado B" y "Tus cintas" en Casete.
 - **Capturas:** temas con `ThemeShotsTest` (`AURORA_SHOTS`, `AURORA_THEMES`); README con `ReadmeShotsTest` (biblioteca real; `AURORA_EXTRA=1` suma las de la vista de video).
 

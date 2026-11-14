@@ -1,5 +1,8 @@
 package app.aurora
 
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.first
 import org.jetbrains.compose.resources.decodeToImageBitmap
 import app.aurora.domain.needsCorrection
@@ -45,6 +48,8 @@ sealed interface AppDialog {
     data class NewPlaylist(val tracks: List<Track> = emptyList()) : AppDialog
     data class RenamePlaylist(val playlist: Playlist) : AppDialog
     data class DeletePlaylist(val playlist: Playlist) : AppDialog
+    /** Opciones al mantener pulsada una lista en Inicio. */
+    data class PlaylistMenu(val playlist: Playlist) : AppDialog
     /** Cambiar el nombre del saludo. */
     data object EditName : AppDialog
     /** "¿Te gustó la mezcla de hoy?" (tras escuchar 3 canciones de ella). */
@@ -57,6 +62,13 @@ sealed interface AppDialog {
 data class DailyMixView(val playlist: Playlist, val answer: app.aurora.data.MixAnswer)
 
 data class SleepTimer(val atMs: Long?, val endOfTrack: Boolean, val label: String)
+
+/** Selector a pantalla completa: crear una lista nueva o añadir canciones a [target]. */
+data class PlaylistSelectorState(
+    val name: String,
+    val target: Playlist? = null,
+    val initialIds: Set<String> = emptySet(),
+)
 
 class AppState(private val scope: CoroutineScope, val platform: PlatformServices) {
     // Sin carpetas por defecto: el usuario elige (las habituales aparecen como sugerencias en la configuración inicial).
@@ -88,8 +100,23 @@ class AppState(private val scope: CoroutineScope, val platform: PlatformServices
     private var lyricsFor: String? = null
 
     var toast by mutableStateOf<String?>(null)
+    /** Acción opcional del aviso (por ejemplo, "Abrir" la lista recién creada). */
+    var toastActionLabel by mutableStateOf<String?>(null)
+    var toastAction by mutableStateOf<(() -> Unit)?>(null)
     var source by mutableStateOf("Tu biblioteca")
+
+    /** Lista desde la que empezó la cola actual (`null` = otra procedencia). */
+    var playingPlaylistId by mutableStateOf<String?>(null)
+        private set
+
+    /** Pista para la que se cerró el mini reproductor deslizándolo (solo en pausa). */
+    var miniPlayerHiddenFor by mutableStateOf<String?>(null)
+        private set
+
     var dialog by mutableStateOf<AppDialog?>(null)
+
+    /** Selector de canciones y videos para crear una lista o añadir a una existente. */
+    var playlistSelector by mutableStateOf<PlaylistSelectorState?>(null)
 
     /** Rectángulo del menú contextual abierto (en coordenadas de la ventana), para cerrar al hacer clic fuera. */
     var contextMenuBounds: androidx.compose.ui.geometry.Rect? = null
@@ -106,9 +133,23 @@ class AppState(private val scope: CoroutineScope, val platform: PlatformServices
     var videoRequests by mutableIntStateOf(0)
         private set
 
+    /**
+     * Aumenta cuando empieza un video desde una lista: el móvil lo abre a pantalla completa (horizontal si el video
+     * lo es). Los cambios automáticos a un video dentro de la lista los detecta la propia interfaz.
+     */
+    var fullscreenRequests by mutableIntStateOf(0)
+        private set
+
     /** Aumenta cuando algo de fuera de la app (un widget) pide abrir el reproductor. */
     var playerRequests by mutableIntStateOf(0)
         private set
+
+    /** Aumenta cuando el estado vacío de Videos pide abrir Ajustes › Biblioteca. */
+    var settingsLibraryRequests by mutableIntStateOf(0)
+        private set
+
+    fun requestSettingsLibrary() { settingsLibraryRequests++ }
+
 
     /** Con la app recién abierta la cola tarda un momento en volver: se espera hasta 10 s. */
     fun requestPlayer() {
@@ -118,11 +159,24 @@ class AppState(private val scope: CoroutineScope, val platform: PlatformServices
         }
     }
 
-    /** Pista de video para la que el usuario cerró el mini video flotante (el sonido sigue). */
+    /**
+     * Pista de video para la que el usuario cerró el mini video flotante con × (el sonido sigue).
+     * Dura hasta que cambia la pista: pausar y reanudar no lo vuelve a mostrar.
+     */
     var pipClosedFor by mutableStateOf<String?>(null)
+
+    /** Pista para la que se quitó el mini video deslizándolo en pausa: vuelve al reanudar ([revealMiniPlayers]). */
+    var pipHiddenFor by mutableStateOf<String?>(null)
+        private set
 
     /** El usuario eligió "Canción" con un video sonando: los videos siguientes no se abren solos. */
     var videoInBackground by mutableStateOf(false)
+
+    /**
+     * Android: la app está en la ventanita de imagen en imagen del sistema (salió con un video sonando).
+     * La interfaz muestra solo el video. Lo cambia MainActivity.
+     */
+    var inSystemPip by mutableStateOf(false)
 
     /** Video a pantalla completa. */
     var videoFullscreen by mutableStateOf(false)
@@ -154,7 +208,8 @@ class AppState(private val scope: CoroutineScope, val platform: PlatformServices
         private set
 
     init {
-        library.rescan()
+        // Con la biblioteca guardada, la música ya se ve; el escaneo corre callado de fondo.
+        library.startupScan()
         // Las preferencias se aplican al instante y cada vez que cambian.
         scope.launch {
             prefsRepo.prefs.collect { p ->
@@ -181,10 +236,22 @@ class AppState(private val scope: CoroutineScope, val platform: PlatformServices
                 if (p.positionSec % 5 == 0) saveResumePoint(p)
             }
         }
-        scope.launch { library.state.collect { l -> if (l.scannedOnce && !l.usingSamples) restoreIfNeeded(l.tracks) } }
+        // La última canción vuelve al mini reproductor en cuanto hay biblioteca (la guardada sirve: no espera al escaneo).
+        scope.launch { library.state.collect { l -> if ((l.scannedOnce || l.fromCache) && !l.usingSamples) restoreIfNeeded(l.tracks) } }
+        // Al terminar el primer escaneo, la cola restaurada con la biblioteca guardada toma los datos frescos (las letras
+        // .lrc no se guardan): si la canción actual ganó letra, se vuelve a cargar.
+        scope.launch {
+            library.state.map { it.scannedOnce }.distinctUntilChanged().filter { it }.collect {
+                val fresh = library.state.value.scanned.associateBy { it.id }
+                val before = player.state.value.current
+                player.state.value.queue.forEach { q -> fresh[q.id]?.takeIf { it != q }?.let(player::updateTrack) }
+                val now = player.state.value.current
+                if (before != null && now != null && now.lyrics.isNotEmpty() && before.lyrics.isEmpty()) { lyricsFor = null; loadLyrics(now) }
+            }
+        }
         // La mezcla del día: al tener la biblioteca y, con la app abierta, cuando cambia el día.
         scope.launch {
-            library.state.collect { l -> if (l.scannedOnce && !l.usingSamples && l.tracks.isNotEmpty()) refreshDailyMix(l.tracks) }
+            library.state.collect { l -> if ((l.scannedOnce || l.fromCache) && !l.usingSamples && l.tracks.isNotEmpty()) refreshDailyMix(l.tracks) }
         }
         scope.launch {
             while (true) {
@@ -321,6 +388,7 @@ class AppState(private val scope: CoroutineScope, val platform: PlatformServices
         val cur = ids.getOrNull(index)?.let { byId[it] } ?: return
         player.restore(queue, queue.indexOf(cur), pos)
         source = "Donde lo dejaste"
+        playingPlaylistId = null
     }
 
     // --- Temporizador de apagado ---
@@ -407,17 +475,44 @@ class AppState(private val scope: CoroutineScope, val platform: PlatformServices
         it.mediaType == MediaType.AUDIO && it.filePath != null && it.needsCorrection()
     }
 
-    fun show(message: String) { toast = message }
+    fun show(message: String, actionLabel: String? = null, action: (() -> Unit)? = null) {
+        toast = message
+        toastActionLabel = actionLabel
+        toastAction = action
+    }
 
-    fun play(queue: List<Track>, index: Int, from: String = source) {
+    fun play(queue: List<Track>, index: Int, from: String = source, playlist: Playlist? = null) {
         val track = queue.getOrNull(index) ?: return
         if (track.mediaType == MediaType.VIDEO && !canPlayVideo) {
             show(if (platform.isDesktop) "Para ver videos instala VLC" else "El video en ${platform.name} llega en la próxima fase")
             return
         }
         source = from
+        playingPlaylistId = playlist?.id
         player.play(queue, index)
-        if (track.mediaType == MediaType.VIDEO) videoRequests++
+        if (track.mediaType == MediaType.VIDEO) {
+            videoRequests++
+            if (playlist != null) fullscreenRequests++
+        }
+    }
+
+    /**
+     * Cierra los dos mini reproductores (audio y video) al deslizar uno: solo si está en pausa.
+     * Devuelve `false` si no se pudo (empezó a sonar mientras se deslizaba): la tarjeta vuelve a su sitio.
+     */
+    fun dismissMiniPlayers(): Boolean {
+        val s = player.state.value
+        if (s.isPlaying) return false
+        val id = s.current?.id ?: return false
+        miniPlayerHiddenFor = id
+        pipHiddenFor = id
+        return true
+    }
+
+    /** Vuelve a mostrar los dos mini reproductores (al cambiar de pista o al reanudar). */
+    fun revealMiniPlayers() {
+        if (miniPlayerHiddenFor != null) miniPlayerHiddenFor = null
+        if (pipHiddenFor != null) pipHiddenFor = null
     }
 
     /** Busca la letra de la pista actual. [force] vuelve a preguntar a LRCLIB aunque antes no estuviera. */
@@ -514,6 +609,29 @@ class AppState(private val scope: CoroutineScope, val platform: PlatformServices
                 n == 0 -> "Ya estaba en ${playlist.name}"
                 n == 1 -> "Guardada en ${playlist.name}"
                 else -> "$n canciones guardadas en ${playlist.name}"
+            },
+        )
+    }
+
+    /**
+     * Deja [playlist] con lo marcado en el selector: añade lo nuevo al final y quita lo que se desmarcó.
+     * El orden de lo que ya estaba no cambia.
+     */
+    fun syncPlaylist(playlist: Playlist, selected: List<Track>) {
+        val keep = selected.map { it.id }.toSet()
+        // Lo que no está en la biblioteca no se ve en el selector: se deja como está (puede volver a aparecer).
+        val known = library.state.value.tracks.mapTo(HashSet()) { it.id }
+        val removed = playlist.trackIds.filter { it !in keep && it in known }
+        removed.forEach { lists.remove(playlist.id, it) }
+        val added = lists.add(playlist.id, selected.filter { it.id !in playlist.trackIds })
+        userPlaylists = lists.playlists.value
+        fun n(k: Int) = if (k == 1) "1 elemento" else "$k elementos"
+        show(
+            when {
+                added == 0 && removed.isEmpty() -> "Sin cambios en ${playlist.name}"
+                removed.isEmpty() -> "${n(added)} ${if (added == 1) "añadido" else "añadidos"} a ${playlist.name}"
+                added == 0 -> "${n(removed.size)} ${if (removed.size == 1) "quitado" else "quitados"} de ${playlist.name}"
+                else -> "${playlist.name}: ${n(added)} más y ${n(removed.size)} menos"
             },
         )
     }

@@ -1,5 +1,6 @@
 package app.aurora.components
 
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -81,7 +82,8 @@ fun FullscreenVideo(playback: PlaybackState, player: PlayerController, onExit: (
     // Al pausar (desde aquí, la notificación o los auriculares) los controles vuelven a verse.
     LaunchedEffect(playback.isPlaying) { if (!playback.isPlaying) visible = true }
     LaunchedEffect(skipCount) { if (skip != 0) { delay(700); skip = 0 } }
-    val pos by rememberUpdatedState(playback.positionSec)
+    // Se lee en el doble toque (no al componer): la pantalla no se recompone con cada avance.
+    val positionMs = LocalPositionMs.current
     val dur by rememberUpdatedState(duration)
     val fade = tween<Float>(250)
 
@@ -94,7 +96,7 @@ fun FullscreenVideo(playback: PlaybackState, player: PlayerController, onExit: (
                     onTap = { visible = !visible; touches++ },
                     onDoubleTap = { o ->
                         val dir = if (o.x < size.width / 2) -1 else 1
-                        player.seekTo((pos + dir * 10).coerceIn(0, maxOf(0, dur - 1)))
+                        player.seekTo(((positionMs.value / 1000).toInt() + dir * 10).coerceIn(0, maxOf(0, dur - 1)))
                         skip = dir; skipCount++; touches++
                     },
                 )
@@ -143,9 +145,9 @@ fun FullscreenVideo(playback: PlaybackState, player: PlayerController, onExit: (
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     val time = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 13.sp, fontFeatureSettings = "tnum")
-                    BasicText(formatTime(playback.positionSec), style = time)
+                    PositionLabel(time)
                     Box(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                        FullscreenProgress(playback.positionSec, duration, { player.seekTo(it); touches++ }, { dragging = it; touches++ })
+                        FullscreenProgress(duration, { player.seekTo(it); touches++ }, { dragging = it; touches++ })
                     }
                     BasicText(formatTime(duration), style = time)
                     IconButton(AuroraIcon.Shrink, "Salir de pantalla completa", onExit, tint = Color.White, modifier = Modifier.padding(start = 4.dp))
@@ -165,12 +167,13 @@ private fun RoundButton(icon: AuroraIcon, label: String, size: androidx.compose.
 
 /** Barra de progreso de pantalla completa: área táctil de 32 dp; avisa mientras se arrastra. */
 @Composable
-private fun FullscreenProgress(positionSec: Int, durationSec: Int, onSeek: (Int) -> Unit, onDragging: (Boolean) -> Unit) {
+private fun FullscreenProgress(durationSec: Int, onSeek: (Int) -> Unit, onDragging: (Boolean) -> Unit) {
+    val progress = rememberProgress(durationSec)
     var dragPos by remember { mutableStateOf<Float?>(null) }
     val accent = app.aurora.theme.Ui.colors.accent
     fun at(x: Float, w: Int) = (x / w).coerceIn(0f, 1f)
     Canvas(
-        Modifier.fillMaxWidth().height(32.dp)
+        Modifier.fillMaxWidth().height(32.dp).graphicsLayer()
             .semantics { contentDescription = "Progreso del video" }
             .pointerInput(durationSec) { detectTapGestures { if (durationSec > 0) onSeek((at(it.x, size.width) * durationSec).toInt()) } }
             .pointerInput(durationSec) {
@@ -182,9 +185,13 @@ private fun FullscreenProgress(positionSec: Int, durationSec: Int, onSeek: (Int)
             },
     ) {
         val h = 4.dp.toPx(); val y = size.height / 2
-        val f = dragPos ?: if (durationSec > 0) positionSec.toFloat() / durationSec else 0f
+        val f = dragPos ?: progress()
         drawRoundRect(Color.White.copy(alpha = .3f), Offset(0f, y - h / 2), Size(size.width, h), CornerRadius(h))
         drawRoundRect(accent, Offset(0f, y - h / 2), Size(size.width * f, h), CornerRadius(h))
         drawCircle(accent, if (dragPos != null) 9.dp.toPx() else 7.dp.toPx(), Offset(size.width * f, y))
     }
 }
+
+/** Tiempo actual (solo este texto se recompone cada segundo). */
+@Composable
+private fun PositionLabel(style: androidx.compose.ui.text.TextStyle) = BasicText(formatTime(currentPositionSec()), style = style)

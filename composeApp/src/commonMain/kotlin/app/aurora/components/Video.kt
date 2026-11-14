@@ -1,6 +1,9 @@
 package app.aurora.components
 
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
@@ -31,6 +34,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,7 +49,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -53,6 +60,8 @@ import app.aurora.domain.videoCaption
 import app.aurora.player.PlaybackState
 import app.aurora.player.PlayerController
 import app.aurora.theme.Ui
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 
 /**
  * Cuadro de video. Dibuja los fotogramas del motor dentro de Compose (con la forma del tema) y pone
@@ -141,8 +150,8 @@ fun VideoSurface(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 IconButton(if (playback.isPlaying) AuroraIcon.Pause else AuroraIcon.Play, "Reproducir o pausar", player::togglePlay, tint = Color.White)
-                Box(Modifier.weight(1f)) { VideoProgress(playback.positionSec, duration, player::seekTo) }
-                BasicText("${formatTime(playback.positionSec)} / ${formatTime(duration)}", style = Ui.type.caption.copy(color = Color.White))
+                Box(Modifier.weight(1f)) { VideoProgress(duration, player::seekTo) }
+                VideoTime(duration)
                 val h = img?.height ?: 0
                 if (h >= 720) {
                     BasicText(
@@ -158,14 +167,15 @@ fun VideoSurface(
 
 /** Progreso del video: relleno con el color de énfasis; tocar o arrastrar salta. */
 @Composable
-private fun VideoProgress(positionSec: Int, durationSec: Int, onSeek: (Int) -> Unit) {
+private fun VideoProgress(durationSec: Int, onSeek: (Int) -> Unit) {
     val c = Ui.colors
+    val progress = rememberProgress(durationSec)
     // Igual que ProgressBar: se salta una sola vez al soltar, no en cada movimiento.
     var dragPos by remember { mutableStateOf<Float?>(null) }
     fun at(x: Float, w: Int) = (x / w).coerceIn(0f, 1f)
     fun seek(f: Float) { if (durationSec > 0) onSeek((f * durationSec).toInt()) }
     Canvas(
-        Modifier.fillMaxWidth().height(16.dp)
+        Modifier.fillMaxWidth().height(16.dp).graphicsLayer()
             .pointerInput(durationSec) { detectTapGestures { seek(at(it.x, size.width)) } }
             .pointerInput(durationSec) {
                 detectHorizontalDragGestures(
@@ -178,23 +188,62 @@ private fun VideoProgress(positionSec: Int, durationSec: Int, onSeek: (Int) -> U
         val h = 4.dp.toPx()
         val y = size.height / 2 - h / 2
         drawRect(Color.White.copy(alpha = .3f), Offset(0f, y), Size(size.width, h))
-        val f = dragPos ?: if (durationSec > 0) positionSec.toFloat() / durationSec else 0f
+        val f = dragPos ?: progress()
         drawRect(c.accent, Offset(0f, y), Size(size.width * f, h))
     }
+}
+
+/** "1:02 / 3:45" sobre el video (solo este texto se recompone cada segundo). */
+@Composable
+fun VideoTime(durationSec: Int, color: Color = Color.White) {
+    BasicText("${formatTime(currentPositionSec())} / ${formatTime(durationSec)}", style = Ui.type.caption.copy(color = color))
 }
 
 /**
  * Mini video flotante: aparece cuando hay un video sonando y no estás en su vista (segundo plano).
  * Tocarlo o "ampliar" abre el video; "cerrar" lo oculta y el sonido sigue.
+ * Se puede deslizar a la derecha para quitarlo, pero solo en pausa (igual que el mini reproductor).
  */
 @Composable
-fun PipVideo(playback: PlaybackState, player: PlayerController, onExpand: () -> Unit, onClose: () -> Unit, modifier: Modifier = Modifier, width: androidx.compose.ui.unit.Dp = 300.dp) {
+fun PipVideo(playback: PlaybackState, player: PlayerController, onExpand: () -> Unit, onClose: () -> Unit, modifier: Modifier = Modifier, width: androidx.compose.ui.unit.Dp = 300.dp, onSwipeDismiss: (() -> Boolean)? = null) {
     val shape = Ui.shapes.card
+    val playing = playback.isPlaying
+    // Deslizar a la derecha lo cierra, pero solo en pausa: con el video sonando el gesto está bloqueado.
+    val offsetX = remember { Animatable(0f) }
+    var widthPx by remember { mutableStateOf(0f) }
+    val extraPx = with(LocalDensity.current) { 24.dp.toPx() }
+    LaunchedEffect(playback.current?.id) { offsetX.snapTo(0f) }
+    LaunchedEffect(playing) { if (playing) offsetX.animateTo(0f, tween(180)) }
     Box(
         modifier.size(width = width, height = width * 9f / 16f)
+            .onSizeChanged { widthPx = it.width.toFloat() }
+            .graphicsLayer { translationX = offsetX.value }
             .shadow(22.dp, shape)
             .clip(shape)
-            .background(Color.Black),
+            .background(Color.Black)
+            // Solo con [onSwipeDismiss] (móvil): en escritorio el ratón no debe cerrarlo al arrastrar.
+            .then(if (onSwipeDismiss == null) Modifier else Modifier.pointerInput(onSwipeDismiss, playing) {
+                coroutineScope {
+                    detectHorizontalDragGestures(
+                        onHorizontalDrag = { change, dragAmount ->
+                            // En reproducción el gesto se consume (no abre el video) pero no mueve la tarjeta.
+                            change.consume()
+                            if (!playing) launch { offsetX.snapTo((offsetX.value + dragAmount).coerceIn(0f, widthPx + extraPx)) }
+                        },
+                        onDragEnd = {
+                            if (!playing) launch {
+                                if (widthPx > 0f && offsetX.value > widthPx * .35f) {
+                                    offsetX.animateTo(widthPx + extraPx, tween(220))
+                                    if (!onSwipeDismiss()) offsetX.animateTo(0f, tween(220))
+                                } else {
+                                    offsetX.animateTo(0f, tween(220))
+                                }
+                            }
+                        },
+                        onDragCancel = { if (!playing) launch { offsetX.animateTo(0f, tween(220)) } },
+                    )
+                }
+            }),
     ) {
         VideoSurface(playback, player, Modifier.matchParentSize(), controls = false, shape = shape, onTap = onExpand)
         Row(Modifier.align(Alignment.TopEnd).padding(4.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -205,9 +254,9 @@ fun PipVideo(playback: PlaybackState, player: PlayerController, onExpand: () -> 
             IconButton(AuroraIcon.Close, "Cerrar mini video (el sonido sigue)", onClose,
                 Modifier.background(Color.Black.copy(alpha = .45f), CircleShape), tint = Color.White, size = 30.dp, iconSize = 16.dp)
         }
-        val duration = playback.durationSec.takeIf { it > 0 } ?: playback.current?.durationSec ?: 0
-        val f = if (duration > 0) playback.positionSec.toFloat() / duration else 0f
-        Box(Modifier.align(Alignment.BottomStart).fillMaxWidth(f).height(3.dp).background(Ui.colors.accent))
+        val progress = rememberProgress(playback.totalSec)
+        val accent = Ui.colors.accent
+        Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(3.dp).graphicsLayer().drawBehind { drawRect(accent, size = size.copy(width = size.width * progress())) })
     }
 }
 

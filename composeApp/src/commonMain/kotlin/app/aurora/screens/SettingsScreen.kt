@@ -1,5 +1,6 @@
 package app.aurora.screens
 
+import app.aurora.APP_VERSION
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -31,6 +32,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -124,7 +126,13 @@ private class SettingsCtx(val query: String, val openHelp: String?, val onHelp: 
  * En móvil: chips de sección arriba. @param onBack `null` en escritorio.
  */
 @Composable
-fun SettingsScreen(state: AppState, lib: LibraryState, onBack: (() -> Unit)?, contentPadding: PaddingValues) {
+fun SettingsScreen(
+    state: AppState,
+    lib: LibraryState,
+    onBack: (() -> Unit)?,
+    contentPadding: PaddingValues,
+    openLibraryRequest: Int = 0,
+) {
     var section by rememberSaveable { mutableStateOf(SettingsSection.LIBRARY) }
     var query by rememberSaveable { mutableStateOf("") }
     var help by remember { mutableStateOf<String?>(null) }
@@ -133,11 +141,14 @@ fun SettingsScreen(state: AppState, lib: LibraryState, onBack: (() -> Unit)?, co
 
     // Cada sección recuerda su propio desplazamiento (antes compartían uno y se abrían a media página).
     val scrolls = SettingsSection.entries.associateWith { rememberScrollState() }
-    val content: @Composable (Modifier) -> Unit = { m ->
+    // Se dibuja la sección que se le pasa: en el móvil, la subpágina abierta (`open`), no la última visitada.
+    // Antes el móvil dibujaba siempre `section`: "Elegir carpeta de videos" pedía Biblioteca pero, si antes se había
+    // entrado en Apariencia, se abría la página de temas y no había cómo elegir la carpeta.
+    val content: @Composable (Modifier, SettingsSection) -> Unit = { m, shown ->
         // El desplazamiento ocupa todo el ancho (la rueda funciona en cualquier parte); el contenido, como mucho 760 dp.
-        Column(m.verticalScroll(scrolls.getValue(section))) {
+        Column(m.verticalScroll(scrolls.getValue(shown))) {
             Column(Modifier.widthIn(max = 760.dp)) {
-                when (section) {
+                when (shown) {
                     SettingsSection.LIBRARY -> LibrarySection(state, lib, ctx)
                     SettingsSection.APPEARANCE -> AppearanceSection(state, ctx)
                     SettingsSection.SOUND -> SoundSection(state, ctx)
@@ -190,11 +201,21 @@ fun SettingsScreen(state: AppState, lib: LibraryState, onBack: (() -> Unit)?, co
                 BasicText("↑ ↓ para moverse", style = Ui.type.caption, modifier = Modifier.padding(start = 10.dp, top = 10.dp))
             }
             Spacer(Modifier.width(24.dp))
-            content(Modifier.weight(1f).fillMaxHeight())
+            content(Modifier.weight(1f).fillMaxHeight(), section)
         }
     } else {
         // Móvil: lista de secciones con buscador; cada sección abre su subpágina.
         var open by rememberSaveable { mutableStateOf<SettingsSection?>(null) }
+        // "Elegir carpeta de videos" (Videos vacío) abre directamente Biblioteca una sola vez por petición.
+        var handledLibraryRequest by rememberSaveable { mutableStateOf(0) }
+        LaunchedEffect(openLibraryRequest) {
+            if (openLibraryRequest > handledLibraryRequest) {
+                handledLibraryRequest = openLibraryRequest
+                open = SettingsSection.LIBRARY
+                section = SettingsSection.LIBRARY
+                help = null
+            }
+        }
         val o = open
         @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
         androidx.compose.ui.backhandler.BackHandler(enabled = o != null) { open = null; help = null }
@@ -204,7 +225,7 @@ fun SettingsScreen(state: AppState, lib: LibraryState, onBack: (() -> Unit)?, co
                     IconButton(AuroraIcon.Back, "Volver a Ajustes", { open = null; help = null })
                     BasicText("Ajustes", style = Ui.type.caption, modifier = Modifier.padding(start = 4.dp))
                 }
-                content(Modifier.weight(1f).fillMaxWidth())
+                content(Modifier.weight(1f).fillMaxWidth(), o)
             }
         } else {
             val prefs by state.prefsRepo.prefs.collectAsState()
@@ -241,7 +262,7 @@ fun SettingsScreen(state: AppState, lib: LibraryState, onBack: (() -> Unit)?, co
                         SettingsSection.APPEARANCE -> themeName
                         SettingsSection.SOUND -> if (prefs.eq.enabled) "EQ " + (if (prefs.eq.isCustom) "propio" else Eq.presets[prefs.eq.preset].name) else "EQ apagado"
                         SettingsSection.LYRICS -> "LRCLIB"
-                        SettingsSection.ABOUT -> "v0.3.1"
+                        SettingsSection.ABOUT -> "v$APP_VERSION"
                         else -> null
                     }
                 }
@@ -721,7 +742,7 @@ private fun AboutSection(state: AppState) {
             Column(Modifier.padding(start = 12.dp)) {
                 BasicText("Aurora", style = Ui.type.h2.copy(color = c.ink))
                 androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(top = 4.dp)) {
-                    listOf("Versión 0.3", "GPL-3.0", state.platform.name).forEach { t ->
+                    listOf("Versión $APP_VERSION", "GPL-3.0", state.platform.name).forEach { t ->
                         BasicText(t, style = Ui.type.caption.copy(color = c.ink), maxLines = 1, softWrap = false, modifier = Modifier.border(1.dp, c.surfaceBorder, RoundedCornerShape(20.dp)).padding(horizontal = 9.dp, vertical = 2.dp))
                     }
                 }

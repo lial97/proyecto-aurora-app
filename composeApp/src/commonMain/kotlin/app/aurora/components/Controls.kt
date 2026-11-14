@@ -1,5 +1,6 @@
 package app.aurora.components
 
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateDpAsState
@@ -8,6 +9,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -105,6 +107,30 @@ fun Modifier.pressable(label: String, pressedScale: Float = .9f, hoverBg: Boolea
         .hoverable(source)
         .clickable(interactionSource = source, indication = null, role = Role.Button, onClick = onClick)
         .background(hover, Ui.shapes.card)
+}
+
+/** Como [pressable], pero también responde a una pulsación larga (menú de una lista, por ejemplo). */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+fun Modifier.pressableLong(
+    label: String,
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
+    pressedScale: Float = .96f,
+): Modifier {
+    val source = remember { MutableInteractionSource() }
+    val pressed by source.collectIsPressedAsState()
+    val s by animateFloatAsState(if (pressed) pressedScale else 1f, tween(120))
+    return scale(s)
+        .semantics { contentDescription = label }
+        .hoverable(source)
+        .combinedClickable(
+            interactionSource = source,
+            indication = null,
+            role = Role.Button,
+            onClick = onClick,
+            onLongClick = onLongClick,
+        )
 }
 
 /**
@@ -215,7 +241,6 @@ fun PlayButton(playing: Boolean, size: Dp, onClick: () -> Unit, modifier: Modifi
 /** Barra de progreso del tema: tocar o arrastrar salta; la bolita aparece al pasar el cursor en escritorio. */
 @Composable
 fun ProgressBar(
-    positionSec: Int,
     durationSec: Int,
     onSeek: (Int) -> Unit,
     modifier: Modifier = Modifier,
@@ -230,9 +255,12 @@ fun ProgressBar(
     // Mientras se arrastra, la barra sigue al dedo/cursor y el salto se hace una sola vez al soltar:
     // saltar en cada movimiento (60–120 veces por segundo) trababa VLC y la ventana, sobre todo en Windows.
     var dragFraction by remember { mutableStateOf<Float?>(null) }
+    // La posición se lee aquí (LocalPositionMs): solo esta barra se recompone, una vez por segundo.
+    val positionSec = currentPositionSec()
     val target = if (durationSec > 0) positionSec.toFloat() / durationSec else 0f
-    // Se lee al dibujar: la barra avanza sin recomponer.
-    val animated = if (strictPacing) animatePacedFloat(target, 900) else animateFloatAsState(target, tween(900, easing = LinearEasing))
+    // Se lee al dibujar: la barra avanza sin recomponer. Siempre al ritmo de las animaciones (no a 120 Hz):
+    // avanza unos pocos píxeles por segundo y con `animateFloatAsState` pedía cada fotograma de la pantalla.
+    val animated = animatePacedFloat(target, 900)
     val desk = Ui.isDesktop
     val showThumb = !desk || hovered
     val thinBar = Ui.theme.progressHeight < 8f
@@ -250,6 +278,8 @@ fun ProgressBar(
         modifier
             .fillMaxWidth()
             .height(maxOf(22.dp, barHeight + 8.dp))
+            // Capa propia: la onda y el avance redibujan solo la barra, no toda la pantalla.
+            .graphicsLayer()
             .hoverable(source)
             .semantics { contentDescription = "Progreso" }
             .pointerInput(durationSec) { detectTapGestures { seek(at(it.x, size.width)) } }
@@ -310,6 +340,15 @@ private fun DrawScope.drawWave(w: Float, stroke: Float, amplitude: Float, phase:
  * Tiempo actual de la canción. En Casete es el contador de una casetera ("01:05"): pastilla café con dígitos
  * mostaza en negrita y cifras tabulares.
  */
+@Composable
+fun PositionText(modifier: Modifier = Modifier) = PositionText(currentPositionSec(), modifier)
+
+/** Tiempo que falta ("-1:03"), con la posición de [LocalPositionMs]. */
+@Composable
+fun RemainingText(durationSec: Int, modifier: Modifier = Modifier) {
+    BasicText("-" + formatTime((durationSec - currentPositionSec()).coerceAtLeast(0)), style = Ui.type.caption, modifier = modifier, maxLines = 1)
+}
+
 @Composable
 fun PositionText(sec: Int, modifier: Modifier = Modifier) {
     if (Ui.theme.timeStyle == TimeStyle.TAPE_COUNTER) {
@@ -384,7 +423,13 @@ fun Chip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifie
 
 /** Subtítulo de sección con las mayúsculas del tema y el cuadrito naranja de Carbono. */
 @Composable
-fun SectionTitle(text: String, modifier: Modifier = Modifier, trailing: String? = null, top: Dp = if (Ui.isDesktop) 26.dp else 22.dp) {
+fun SectionTitle(
+    text: String,
+    modifier: Modifier = Modifier,
+    trailing: String? = null,
+    top: Dp = if (Ui.isDesktop) 26.dp else 22.dp,
+    onTrailingClick: (() -> Unit)? = null,
+) {
     val theme = Ui.theme
     Row(modifier.fillMaxWidth().padding(top = top, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         if (theme.headingDecoration == HeadingDecoration.SQUARE_BEFORE) {
@@ -398,7 +443,14 @@ fun SectionTitle(text: String, modifier: Modifier = Modifier, trailing: String? 
                 Box(Modifier.padding(start = 10.dp).size(28.dp, 2.dp).background(Ui.colors.accent))
             }
         } else BasicText(theme.title(text), style = Ui.type.h2, modifier = Modifier.weight(1f))
-        if (trailing != null) BasicText(trailing, style = Ui.type.caption.copy(fontWeight = FontWeight.SemiBold))
+        if (trailing != null) {
+            val press = if (onTrailingClick != null) Modifier.pressable(trailing, .95f, onClick = onTrailingClick) else Modifier
+            BasicText(
+                trailing,
+                style = Ui.type.caption.copy(fontWeight = FontWeight.SemiBold),
+                modifier = press.padding(start = 8.dp, top = 4.dp, bottom = 4.dp),
+            )
+        }
     }
 }
 

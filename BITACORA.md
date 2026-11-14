@@ -11,6 +11,276 @@ Formato de cada entrada:
 **Pendiente:** lo que queda abierto (opcional).
 ```
 
+## 2026-11-14 — Mini reproductor con canción anterior y siguiente
+**Qué:** el mini reproductor del móvil tiene botones ⏮ y ⏭ (40 dp) a los lados de reproducir/pausa (`MiniPlayer(onPrevious, onNext)`, conectados a `player.previous`/`player.next`). Deslizar sigue siendo para quitarlo en pausa.
+**Por qué:** pedido del usuario: cambiar de canción sin abrir el reproductor.
+**Archivos:** `components/Rows.kt`, `MobileApp.kt`.
+**Pruebas:** 135 pruebas pasan. En el A35: ⏭ pasa de "Bones" a "En cambio no" y ⏮ vuelve a "Bones".
+
+## 2026-11-14 — La música aparece al instante al abrir la app
+**Qué:**
+- **Biblioteca guardada** (`data/LibraryCache.kt`, nuevo):
+  - al terminar cada escaneo completo, la lista se guarda en el `BlobStore` (clave `biblioteca`, JSON con versión de formato y carpetas);
+  - `LibraryRepository` la lee al crearse y la muestra desde el primer cuadro (`LibraryState.fromCache`);
+  - el escaneo de arranque (`startupScan`) es callado (sin "Buscando tu música…") y solo cambia la lista si algo cambió;
+  - no se guardan las letras .lrc interpretadas: llegan con el escaneo;
+  - con otras carpetas, o un archivo viejo o dañado, se escanea como antes.
+- **`AppState`:**
+  - la última canción (mini reproductor) y la mezcla del día salen con la biblioteca guardada, sin esperar al escaneo;
+  - al terminar el escaneo, la cola restaurada toma los datos frescos y, si la canción actual ganó letra, se recarga.
+- **Android (`MainActivity`):**
+  - la interfaz se dibuja al instante (antes esperaba la respuesta del pedido de permisos, aunque ya estuvieran dados);
+  - los permisos solo se piden si faltan, y al darlos se vuelve a buscar;
+  - nuevo registro `AuroraArranque` y modo `scripts/medir-android.sh musica`.
+
+**Por qué:** el usuario veía un par de segundos en blanco al abrir y la app parecía lenta.
+
+**Resultado:**
+- A35 (525 pistas): música en pantalla de ~3,2 s a ~0,11 s;
+- interfaz de ~140 a ~60 ms;
+- escritorio (157 pistas): de 919 a 43 ms. Detalle en `docs/RENDIMIENTO.md`.
+
+**Archivos:** `data/{LibraryCache,LibraryRepository}.kt`, `AppState.kt`, `androidApp/.../MainActivity.kt`, `scripts/medir-android.sh`, pruebas `commonTest/data/LibraryCacheTest.kt` y `desktopTest/data/LibraryStartupTest.kt`.
+
+**Pruebas:**
+- 135 pruebas pasan.
+- En el A35, a medio segundo de abrir ya se ven Inicio, la mezcla y el mini reproductor con la última canción ("Bones", tras cerrar la app a la fuerza).
+
+## 2026-11-14 — Versión 0.4, fase 6: versión 0.4.0, medición final y documentación
+**Qué:**
+- **Versión 0.4.0 con una sola fuente:** `gradle.properties` (`aurora.version=0.4.0`, `aurora.versionCode=3`).
+  - De ahí salen `packageVersion` y el .exe (`composeApp/build.gradle.kts`) y `versionName`/`versionCode` de Android.
+  - Ajustes › Acerca de lee `APP_VERSION`, que genera la tarea `generateAppVersion`. Antes decía "Versión 0.3" en un lugar y "v0.3.1" en otro.
+  - `scripts/linux/dentro.sh` lee la versión de `gradle.properties`.
+- **Medición final** (`docs/RENDIMIENTO.md`), en el A35:
+  - Inicio sonando: 82 % → 13 % de un núcleo;
+  - reproductor sonando: 93 % → 30 %;
+  - arranque: 448 → 348 ms.
+
+  En escritorio hay poca diferencia (3 corridas, con ruido).
+- **Documentación:**
+  - `docs/MANUAL.md`: secciones del celular con Listas y el engranaje, videos de lista a pantalla completa, un solo mini reproductor, deslizar en pausa y video en segundo plano;
+  - `docs/GUIA-RAPIDA.md`, `docs/CONTINUAR.md` (estado de la 0.4) y `AURORA-APP/LEEME.md` (enlaces a v0.4.0).
+- **APK:** `AURORA-APP/Aurora-0.4.0-android.apk` reemplaza al de la 0.3.1.
+
+**Pendiente:**
+- ~~El .deb y el AppImage 0.4.0~~: hechos más tarde ese día, con el arranque rápido incluido (`AURORA-APP/aurora_0.4.0_amd64.deb`, `Aurora-0.4.0-x86_64.AppImage`).
+- El .exe se arma en Windows (`build-windows.bat`).
+- Fusionar `v0.4` en `main` y publicar la Release v0.4.0.
+
+## 2026-11-14 — "Elegir carpeta de videos" abría la página de temas (reporte de un Xiaomi)
+**Qué:** en el móvil, Ajustes guarda dos datos: la subpágina abierta (`open`) y la última sección visitada (`section`). La subpágina dibujaba siempre `section`. "Elegir carpeta de videos" (Videos sin carpeta) pedía Biblioteca cambiando solo `open`: si antes se había entrado en Apariencia, se abría la página de temas, sin el botón para añadir carpeta. Ahora `content` recibe la sección que debe dibujar (`open` en el móvil, `section` en escritorio) y la petición también fija `section`.
+**Por qué:** reporte de un amigo del usuario con un Xiaomi. No depende del teléfono: pasa en cualquiera que haya visitado otra sección de Ajustes.
+**Archivos:** `screens/SettingsScreen.kt`.
+**Pruebas:** escena temporal a 400 dp (Ajustes › Apariencia › Atrás › cerrar › Videos vacío › "Elegir carpeta de videos") → abre Biblioteca con "Carpetas de videos". La prueba temporal se retiró. 131 pruebas pasan.
+
+## 2026-11-14 — Versión 0.4, fase 5: video en segundo plano con la ventanita del sistema (Android)
+**Qué:**
+- **Imagen en imagen (PiP) del sistema, como YouTube:** al salir de la app con un video **sonando** (botón o gesto de Inicio, o Atrás en Inicio), el video sigue en una ventanita.
+  - Con el video en pausa, o con una canción, la app se va normal y la música sigue.
+  - Android 12+ entra solo (`setAutoEnterEnabled`, que se actualiza según el estado); en Android 8 a 11 se entra desde `onUserLeaveHint`.
+  - La ventanita tiene la proporción del video y un botón propio de reproducir/pausa (`RemoteAction` → receptor `PIP_TOGGLE`, no exportado).
+- **Cerrar la ventanita con su ×** pausa el video. Ampliarla vuelve a la app tal como estaba (pestaña, posición, mini video).
+- **En la ventanita la interfaz muestra solo el video** (`AppState.inSystemPip`, capa negra encima de todo en `MobileApp`). El fondo no se anima.
+- **Batería:** si la app pasa a segundo plano sin ventanita con un video sonando, se apaga la imagen (`VideoOutput.setEnabled(false)`) y solo se decodifica el audio. Al volver, se enciende.
+- **Manifiesto:** `supportsPictureInPicture` y `resizeableActivity`. `configChanges` ya tenía `screenSize|smallestScreenSize|screenLayout|orientation`, así que la actividad no se recrea al entrar o salir.
+
+**Por qué:** pedido del usuario: seguir viendo el video al salir de la app, solo si no está en pausa.
+
+**Archivos:** `androidApp/.../MainActivity.kt`, `androidApp/src/main/AndroidManifest.xml`, `AppState.kt`, `MobileApp.kt`.
+
+**Pruebas:** 131 pruebas pasan. En el A35 (Android 16), con el APK de release:
+- video sonando + Inicio → ventanita con solo el video;
+- su botón pausa y reanuda;
+- × con el video sonando → queda en pausa;
+- volver a la app conserva la pantalla;
+- video en pausa + Inicio → sin ventanita;
+- canción sonando + Inicio → sin ventanita y la música sigue;
+- Atrás hasta salir con el video sonando → ventanita.
+
+**Pendiente:** probar el ahorro de batería con la pantalla apagada (hay que bloquear el teléfono) y en Android 8 a 11.
+
+## 2026-11-14 — Versión 0.4, fase 4: videos de una lista a pantalla completa y un solo mini reproductor
+**Qué:**
+- **Video de una lista → pantalla completa real** (barras ocultas y horizontal si el video lo es):
+  - al tocarlo en una lista (`AppState.fullscreenRequests`);
+  - cuando le toca dentro de la lista (canción → video y video → video), salvo que se haya elegido "Canción" o "Solo audio".
+  - `MobileApp` abre la vista de video y luego la pantalla completa en cuanto conoce el tamaño del video (hasta 2,5 s). Si el tamaño cambia estando en pantalla completa, vuelve a decidir el giro.
+  - Atrás sale a la vista de video con "A continuación en «lista»".
+- **Un solo mini reproductor** (`MiniPlayers.kt`, función pura `miniPlayers` y `MiniPlayersTest`):
+  - con un video que se ve, solo el mini video flotante;
+  - con una canción, solo el mini reproductor de audio;
+  - si el mini video se cierra con × o el video está en "Solo audio", vuelve el de audio.
+- **Deslizar:** `dismissMiniPlayers()` devuelve si se pudo. Si empezó a sonar a mitad del gesto, la tarjeta vuelve a su sitio en lugar de quedar fuera de la pantalla.
+- **Bug corregido (introducido en la fase 1):** al terminar una canción y empezar un video más corto, la cola se detenía y el video quedaba en negro en 0:00. Había dos causas:
+  - `Media3Engine` avisaba la posición también al cargar la pista siguiente. `currentPosition` aún era la de la canción (3:54) y, con la duración del video (1:46), parecía su final. Ahora solo la avisa en una pausa real (`!playWhenReady && STATE_READY`).
+  - `DefaultPlayerController` ignora, durante 2 s al empezar cada pista, las posiciones lejos del inicio (igual que tras un salto). Además, cada pista tiene un número (`generation`) y los avisos de fin de una pista anterior ya no cuentan.
+  - Pruebas `twoEndNoticesAdvanceOnlyOnce` y `stalePositionOfThePreviousTrackIsIgnored` (la primera falla sin el arreglo).
+
+**Por qué:** pedido del usuario. Los videos de una lista deben verse a pantalla completa, y no debe haber dos mini reproductores a la vez.
+
+**Archivos:** `MobileApp.kt`, `AppState.kt`, `MiniPlayers.kt` (nuevo), `components/{Rows,Video}.kt`, `player/DefaultPlayerController.kt`, `androidMain/player/Media3Engine.kt`, `commonTest/MiniPlayersTest.kt` (nuevo), `commonTest/player/DefaultPlayerControllerTest.kt`.
+
+**Pruebas:** 131 pruebas pasan. En el A35, con el APK de release y "Lista test" (una canción y un video):
+- tocar el video → pantalla completa en horizontal, y Atrás → vista de video con «A continuación en «Lista test»»;
+- canción adelantada al final → empieza el video a pantalla completa en horizontal, sonando;
+- con la canción, solo el mini de audio; con el video, solo el mini video;
+- deslizar con el video sonando no lo mueve, y en pausa se quitan los dos.
+
+## 2026-11-14 — Versión 0.4, fase 3: Ajustes arriba y pestaña "Listas"
+**Qué:**
+- **Pestañas del móvil:** Inicio, Biblioteca, Videos, Buscar y **Listas** (`Tab.Playlists`, ícono nuevo `AuroraIcon.Playlist`). Ajustes ya no está abajo.
+- **Ajustes:**
+  - engranaje arriba a la derecha en las cinco pestañas (`SettingsButton` y `TabHeader` en `components/Common.kt`);
+  - se abre como pantalla encima (`Overlay.Settings` en `MobileApp.kt`), con flecha y Atrás que vuelven a la pestaña donde estabas;
+  - "Elegir carpeta de videos" abre Ajustes › Biblioteca igual que antes.
+- **Pestaña Listas** (`screens/PlaylistsScreen.kt`, nueva):
+  - cuadrícula de 2 columnas con "+ Crear lista", tus listas, la mezcla del día y las mezclas automáticas;
+  - resumen "N listas tuyas y M automáticas";
+  - pulsación larga en una lista propia → Renombrar / Eliminar;
+  - reutiliza `CreatePlaylistCard` y `PlaylistCard` de Inicio, ahora con tamaño configurable.
+- **Navegación entre Inicio y Biblioteca:**
+  - "Ver todas" de Inicio abre la pestaña Listas;
+  - la categoría Listas de Biblioteca se quitó (estaba repetida), igual que su petición de una sola vez (`requestLibraryPlaylists`);
+  - el botón "+" de Biblioteca deja su lugar al engranaje (crear listas está en la pestaña Listas).
+- **Cabeceras:** los títulos de pestaña van alineados a la izquierda (`FitText(alignment = …)`).
+- **Atrás con una pestaña guardada que ya no existe** ("Settings" de la 0.3): vuelve a Inicio en lugar de fallar.
+- El escritorio no cambia (Ajustes sigue en su lateral; Buscar sin engranaje).
+
+**Por qué:** pedido del usuario. Ajustes se usa poco y ocupaba un lugar en la barra; las listas se usan a diario.
+
+**Archivos:** `MobileApp.kt`, `AppState.kt`, `components/{Rows,Common,Icons}.kt`, `screens/{Home,Library,Videos,Search,Playlists}Screen.kt`.
+
+**Pruebas:**
+- 122 pruebas pasan.
+- Capturas temporales a 400 dp en el tema Aurora: Inicio con el engranaje, Listas, Ajustes desde Listas y Atrás, Biblioteca, Videos y Buscar. La prueba temporal se retiró.
+- APK de release instalado en el A35. El teléfono estaba bloqueado, así que falta mirarlo en él.
+
+**Nota:** `OnboardingFlowTest.keyboardWalksTheStepsAndFinishes` falló una vez con un error interno de Compose ("LayoutNode not found in RectList"). Pasó 3 veces sola y en la corrida completa siguiente: es intermitente.
+
+## 2026-11-14 — Versión 0.4, fase 2: menos redibujo (batería)
+**Qué:**
+- **`Backdrop.kt`:**
+  - el reloj de animación solo corre en los temas cuyo fondo se mueve (`AnimatedBackdrops`);
+  - el fondo se dibuja en su propia capa, detrás del contenido.
+- **Posición fuera del estado:**
+  - `App.kt` pasa a las pantallas un estado "lento", sin cambios de posición (`distinctUntilChanged`);
+  - la posición va en `LocalPositionMs` (`components/FramePacing.kt`), con `currentPositionSec()` y `rememberProgress()`;
+  - `ProgressBar`, `PositionText()`, `RemainingText()`, `MiniPlayer`, `PipVideo`, `VideoProgress`/`VideoTime`, `FullscreenProgress`, la cinta de Casete (`Hero(progress = () -> Float)`) y `rememberSmoothPositionMs` la leen por su cuenta, casi siempre al dibujar.
+- **Barra de progreso:** siempre con `animatePacedFloat` (antes `animateFloatAsState`, que en Android y Linux iba a la frecuencia de la pantalla).
+- **Capas propias** (`graphicsLayer`) en las piezas que cambian seguido.
+- **Android:** `animationFrameIntervalMs = 33` (~30 fps, como en escritorio).
+- Nuevo `PlaybackState.totalSec`.
+
+**Por qué:** la línea base mostró que, mientras sonaba algo, la app gastaba 77–93 % de un núcleo en el A35, redibujando a 60–120 fps aunque no cambiara nada.
+
+**Resultado** (detalle en `docs/RENDIMIENTO.md`):
+
+| Pantalla (sonando) | Antes | Después |
+|---|---|---|
+| A35 · Inicio | 82 % | 19 % |
+| A35 · Reproductor | 93 % | 57 % |
+| A35 · Mini video | 92 % | 72 % |
+| Escritorio · Inicio | 23,7 % | 19,8 % |
+
+**Archivos:** `App.kt`, `MobileApp.kt`, `player/PlayerController.kt`, `components/{FramePacing,Backdrop,Controls,Rows,Video,FullscreenVideo,Cover}.kt`, `screens/{Player,Lyrics}Screen.kt`, `desktop/{Chrome,NowPlaying}.kt`, `androidApp/.../MainActivity.kt`, `desktopTest/WaveProgressTest.kt`.
+
+**Pruebas:** 122 pruebas pasan. En el A35, con el APK de release: Inicio, reproductor, vista de video y mini video; las barras y los tiempos avanzan bien.
+
+## 2026-11-14 — Versión 0.4, fase 1: arreglos de la revisión
+**Qué:**
+- **Videos:** el buscador cerraba el teclado con la primera letra (estaba dentro de `key(searching)` y se recreaba). Ahora la cabecera (título, buscador y contador) queda fija fuera de la lista, con `imePadding`. El estado vacío usa el ícono de video (`EmptyState(icon = …)`).
+- **Selector de listas (`PlaylistSelector.kt`):**
+  - el fondo recibe los toques (antes llegaban al mini reproductor y a las pestañas de debajo);
+  - los chips Todo, Canciones y Videos también filtran "Añadidas hace poco" y "Más escuchadas";
+  - "Más escuchadas" lee las reproducciones una vez por pista y deja fuera lo que nunca sonó;
+  - `imePadding` en el contenido.
+- **"Añadir canciones" a una lista:** abre con lo que ya está marcado y guarda los cambios con `AppState.syncPlaylist`: añade lo nuevo y quita lo desmarcado (aviso "N añadidos / N quitados / Sin cambios"). Lo que la lista guarda pero ya no está en la biblioteca no se cuenta ni se toca.
+- **Mini video:**
+  - cerrarlo con × ya no se deshace al pausar y reanudar: "cerrado con ×" (`pipClosedFor`) y "quitado al deslizar" (`pipHiddenFor`) van por separado;
+  - en escritorio el ratón ya no lo cierra al arrastrar.
+- **"A continuación" en el video de una lista** sigue la cola real; con aleatorio, el título lo indica.
+- **Mezcla del día:** `MobileApp` recalcula las listas cuando cambia (antes se perdía el contexto de lista con una mezcla nueva).
+- **Reproductor:** el selector Canción | Video solo aparece con un video (en una canción mostraba "Sin video" apagado).
+- **Listas con videos:**
+  - dicen "N elementos" también en su pantalla;
+  - el conteo de Inicio usa lo que se puede mostrar;
+  - con menos de 4 portadas se usa la primera entera, en lugar de un collage con huecos.
+- **Android:**
+  - el sondeo de posición de `Media3Engine` (cada 250 ms) solo corre mientras suena;
+  - `configChanges` con `smallestScreenSize|uiMode|density` (cambiar a modo oscuro ya no recrea la actividad).
+
+**Por qué:** bugs encontrados en la revisión de la 0.4.
+
+**Descartado:**
+- El video en negro al salir de pantalla completa no pasa: comprobado en el A35, gira a horizontal y al salir el video se ve.
+- No se cambió la lectura inicial de DataStore (`runBlocking`): la app la necesita antes de dibujar y el archivo es pequeño (arranque en frío de 448 ms).
+
+**Archivos:** `screens/{Videos,PlaylistSelector,Video,Player,Playlist,Home}Screen.kt`, `components/{Common,Video}.kt`, `AppState.kt`, `MobileApp.kt`, `androidMain/player/Media3Engine.kt`, `AndroidManifest.xml`.
+
+**Pruebas:** 122 pruebas pasan. En el A35, con el APK de release:
+- escribir "max" en Videos sin que se cierre el teclado;
+- × del mini video, pausar y reanudar → sigue cerrado;
+- pantalla completa y salir;
+- el selector con "2 seleccionadas" correctas;
+- un toque en su barra inferior no cambia de pestaña;
+- el chip Videos sin búsqueda muestra solo videos.
+
+## 2026-11-14 — Android: los videos de chats ya no entran en la biblioteca
+**Qué:** nueva función `isChatVideo` (`domain/FileNames.kt`), con el mismo criterio que `isChatOrVoiceAudio`. Deja fuera los videos con nombre `VID-AAAAMMDD-WA…` y los de carpetas de WhatsApp o Telegram, también cuando están copiados en otra carpeta. `AndroidPlatform.listTree` la aplica a los videos. Prueba `ChatVideoTest`.
+**Por qué:** el usuario agregó `Movies`, que tenía 1 video, pero la app mostraba 5. Los otros 4 estaban en la subcarpeta `Movies/WhatsApp` (uno repetido como `(1)`): el escaneo entra en las subcarpetas.
+**Pruebas:** en el A35, la pestaña Videos muestra "1 video".
+**Pendiente:** las listas que tenían esos videos de WhatsApp ("Lista test") ya no los muestran.
+
+## 2026-11-14 — Versión 0.4, fase 0: línea base de rendimiento
+**Qué:** rama `v0.4` con el trabajo del 2026-11-12 en un commit. La maqueta `menu-videos.html` pasa a `files/` y los `.zip` sueltos de la raíz quedan fuera de git. Script nuevo `scripts/medir-android.sh` (arranque, memoria, CPU y cuadros por adb) y `docs/RENDIMIENTO.md` con la línea base.
+**Por qué:** la 0.4 debe medir el rendimiento antes y después de cada cambio.
+**Resultado:** en el A35 la app gasta 77–93 % de un núcleo mientras suena (Inicio y reproductor), porque redibuja a 60–120 fps aunque no cambie nada. En pausa, 0 %. En escritorio, 18–24 %. Detalle en `docs/RENDIMIENTO.md`.
+**Pendiente:** fases 1 a 6 del plan de la 0.4 (bugs, menos redibujo, pestaña Listas y Ajustes arriba, videos de listas a pantalla completa con un solo mini reproductor, PiP del sistema y versión 0.4.0).
+
+## 2026-11-12 — Móvil: deslizar el mini reproductor y videos con contexto de lista
+**Qué:**
+- **Mini reproductor** (`components/Rows.kt`): se puede deslizar hacia la derecha para cerrarlo, pero solo con la reproducción **en pausa**. Mientras suena audio o video el arrastre horizontal se consume y la tarjeta no se mueve, así que el gesto tampoco abre el reproductor por accidente. Usa `Animatable`.
+- **Mini video flotante (PiP)** (`components/Video.kt`): misma regla. Se desliza a la derecha para quitarlo solo en pausa; con el video sonando el gesto se consume sin mover la tarjeta ni abrir la vista de video.
+- **En conjunto:** deslizar cualquiera de los dos mini reproductores en pausa oculta **ambos** (`AppState.dismissMiniPlayers`); al reanudar o cambiar de pista vuelven los dos (`revealMiniPlayers`).
+- **Videos de una lista:** `AppState.playingPlaylistId` guarda la lista desde la que empezó la cola y `play(...)` acepta una `Playlist?`. La pantalla de video muestra «A continuación en «lista»» con los siguientes elementos de esa lista (canciones y videos), nunca videos sueltos; si el video no viene de una lista sigue mostrando «Más videos».
+- **Transición canción → video:** al pasar automáticamente de una canción a un video dentro de una lista, el video se abre maximizado.
+- **Minimizar:** cerrar la vista de video de una lista vuelve a esa lista, desplazada hasta el elemento actual, para ver los siguientes; el mini video (PiP) se mantiene cuando corresponde.
+- La mezcla del día y las tarjetas de lista pasan su lista al reproducir.
+
+**Por qué:** el mini reproductor no se podía quitar de encima y, al abrir un video de una lista, la pantalla mostraba videos ajenos en lugar de lo que venía en la lista.
+
+**Archivos:** `AppState.kt`, `MobileApp.kt`, `components/{Rows,DailyMixCard,Video}.kt`, `screens/{VideoScreen,PlaylistScreen}.kt`.
+
+**Pruebas:** `./gradlew :composeApp:desktopTest` y `:androidApp:assembleDebug` sin fallos. En el A35 (SM-A356E): deslizar con reproducción activa no cierra ni abre el reproductor, en pausa cierra los dos mini reproductores a la vez (audio y PiP, en ambos sentidos) y al reanudar vuelven ambos; «Lista test» con 4 elementos muestra solo sus siguientes en el video, el cambio canción→video abre el video y Atrás/minimizar vuelve a la lista con el elemento actual a la vista.
+
+## 2026-11-12 — Videos móvil: lista compacta como la referencia
+**Qué:** la pestaña Videos deja las tarjetas 16:9 a todo el ancho y pasa a filas compactas: miniatura 16:9 de 128 × 72 dp con su duración, título en hasta dos líneas, artista debajo y botón ⋮ de 36 dp. Se conservan el buscador, el contador, el × y el Atrás que limpia la consulta. `VideoCard` sigue usándose en "Más videos" del reproductor.
+**Por qué:** con pocos videos solo se veía uno por pantalla; `menu-videos.html` propone una lista más densa y fácil de recorrer.
+**Archivos:** `composeApp/src/commonMain/kotlin/app/aurora/screens/VideosScreen.kt`.
+**Pruebas:** `./gradlew :composeApp:desktopTest` sin fallos; APK debug instalado en el A35 y lista revisada en el teléfono (`/tmp/opencode/videos-nuevo-2.png`).
+**Pendiente:** valorar el selector Lista / Cuadrícula y el menú Ordenar de la referencia, que no forman parte de este ajuste.
+
+## 2026-11-12 — Móvil: búsqueda con alcance, "Tus listas" y selector de canciones
+**Qué:**
+- **Búsqueda con alcance** (`screens/SearchScreen.kt`): `SearchScope { ALL, MUSIC_ONLY, VIDEO_ONLY }` y `searchTracks` con alcance opcional. Busca en título, artista, álbum y género; en los buscadores separados mira también el nombre del archivo. Sin alcance (escritorio) el comportamiento es el de antes.
+- **Biblioteca:** la lupa ya no cambia a la pestaña Buscar. Abre un campo inline que filtra solo música según la categoría (Canciones, Álbumes, Artistas); si la categoría es Listas o Videos, pasa a Canciones. Los resultados tienen su propia posición de desplazamiento y Atrás limpia la búsqueda antes de salir. El título usa `FitText` para no partirse al 130 %.
+- **Videos:** campo "Buscar en tus videos" siempre visible, contador "N resultados" / "N videos" (singular incluido), × para limpiar y Atrás que borra la consulta. Se quitó el engranaje; el estado vacío ofrece "Elegir carpeta de videos", que abre Ajustes › Biblioteca mediante una petición de una sola vez.
+- **Pestaña Buscar:** chips Todo / Canciones / Videos, resultados mixtos con miniatura 16:9 y duración en los videos, y mensaje de vacío según el alcance.
+- **Inicio:** se quitó la sección "Añadidas hace poco" (la lista automática sigue como tarjeta). Nueva sección "Tus listas" con "Ver todas" (abre Biblioteca › Listas): tarjeta fija "+ Crear lista", luego listas propias, mezcla del día y mezclas automáticas. Carátula de collage (o `MixSwatch`), nombre en una línea, "N canciones" / "N elementos" y menú al mantener pulsada solo en listas propias (Renombrar / Eliminar).
+- **Crear o añadir a una lista** (`screens/PlaylistSelector.kt`): el diálogo de nombre pide "Nombre de la lista" con el menor "Lista N" libre y botones Cancelar / Continuar; después se abre un selector a pantalla completa (no es una pestaña). Búsqueda mixta con chips, casillas con rol y descripción "Marcar «título»", selección que se conserva al cambiar de filtro, bloques "Añadidas hace poco" (20) y "Más escuchadas" con la consulta vacía, contador con `liveRegion`, hasta 5 portadas + "+N" (tocar una desmarca), "Seleccionar todo lo visible" (resultados actuales o la unión de los dos bloques), "Limpiar" y "Listo (N)".
+- **Confirmaciones y aviso:** Listo sin nada pregunta "¿Crear la lista vacía?"; cerrar con algo marcado pregunta "¿Descartar la lista?". Nada se guarda hasta Listo. Al crear aparece "Lista «X» creada con N elementos" con acción "Abrir"; `Toast` admite ahora una acción opcional y dura 5,2 s (2,2 s sin acción). El mismo selector se reutiliza en "Añadir canciones" dentro de una lista, sin crear nada nuevo.
+- **Atrás:** primero cierra el selector (o su confirmación), luego limpia el campo de búsqueda y después navega. Las posiciones de desplazamiento de listas y resultados se conservan.
+- **Escritorio intacto:** `DialogHost` sigue creando la lista directamente (sin selector) cuando no recibe el flujo móvil; `SectionTitle` y `Toast` mantienen sus valores por defecto.
+
+**Por qué:** la búsqueda mezclaba música y videos en todos lados, la lupa de Biblioteca cambiaba de pestaña y crear una lista obligaba a añadir canciones de una en una. El flujo nuevo permite elegir todo de una vez y ver el resultado al instante.
+
+**Archivos:** `AppState.kt`, `App.kt`, `MobileApp.kt`, `components/{Common,Controls,Dialogs,Rows}.kt`, `screens/{Home,Library,Playlist,PlaylistSelector,Search,Settings,Videos}Screen.kt` (el selector es nuevo), `commonTest/screens/SearchTracksTest.kt`.
+
+**Pruebas:** `SearchTracksTest` (alcance, archivo y búsqueda vacía), `./gradlew :composeApp:desktopTest` completo y `./gradlew :androidApp:assembleDebug`, sin fallos. Capturas a 130 % de texto en Aurora, Póster, Estadio, Casete y Bruma: chips de Buscar, Inicio con "Tus listas", diálogo de nombre, selector vacío y con selección, aviso con "Abrir" y lista mixta creada. Las pruebas temporales de capturas se retiraron al terminar.
+
+**Pendiente:** probar en un teléfono real con gestos y teclado (ver pasos en la respuesta): foco del campo, Atrás del sistema, pulsación larga en una lista y "Abrir" del aviso.
+
 ## 2026-10-08 — El teclado ya no tapa los diálogos en Android; Linux con el arreglo del panel
 **Qué:** el contenedor de los diálogos (`components/Dialogs.kt`) lleva `imePadding()`: la hoja inferior ("¿Cómo te llamamos?", nueva lista, renombrar…) sube encima del teclado. Se recompilaron el APK, el .deb y el AppImage 0.3.1 con este cambio y con el del panel Cola/Info/Artista (`e0a8061`).
 **Por qué:** con `enableEdgeToEdge()` el `adjustResize` ya no encoge la ventana; la hoja quedaba debajo del teclado y no se veía lo que se escribía.

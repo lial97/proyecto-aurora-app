@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.withFrameNanos
 import kotlinx.coroutines.CompletableDeferred
@@ -91,4 +92,27 @@ fun rememberAnimationSeconds(running: Boolean): State<Float> {
         }
     }
     return seconds
+}
+
+/**
+ * Posición de la pista actual en ms, aparte del estado de reproducción: cambia hasta 4 veces por segundo y,
+ * si fuera en `PlaybackState`, recompondría toda la app cada vez. Solo la leen los elementos que la muestran
+ * (barra, tiempos, mini reproductores, video, letra), y mejor al dibujar.
+ */
+val LocalPositionMs = androidx.compose.runtime.staticCompositionLocalOf<State<Long>> { mutableLongStateOf(0L) }
+
+/** Segundo actual de la pista (recompone a quien lo llama una vez por segundo como mucho). */
+@Composable
+fun currentPositionSec(): Int {
+    val ms = LocalPositionMs.current
+    return androidx.compose.runtime.remember(ms) { androidx.compose.runtime.derivedStateOf { (ms.value / 1000).toInt() } }.value
+}
+
+/** Avance de 0 a 1 de una pista de [durationSec] segundos, para leer al dibujar (no recompone). */
+@Composable
+fun rememberProgress(durationSec: Int): () -> Float {
+    val ms = LocalPositionMs.current
+    return androidx.compose.runtime.remember(ms, durationSec) {
+        { if (durationSec > 0) (ms.value / 1000f / durationSec).coerceIn(0f, 1f) else 0f }
+    }
 }

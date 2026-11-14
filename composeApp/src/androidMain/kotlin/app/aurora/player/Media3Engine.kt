@@ -62,21 +62,43 @@ class Media3Engine(private val context: Context) : MediaEngine {
                 }
                 override fun onPlayerError(error: PlaybackException) = onError("No se pudo reproducir este archivo")
                 override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) = playingListener(playWhenReady)
+                override fun onIsPlayingChanged(isPlaying: Boolean) {
+                    if (isPlaying) startPolling()
+                    else {
+                        main.removeCallbacks(poll)
+                        // Solo en una pausa de verdad (lista y sin intención de sonar) se avisa la posición exacta.
+                        // Al terminar o al cargar la pista siguiente no: ahí `currentPosition` aún es la de la pista
+                        // anterior y el controlador la tomaba como "el video nuevo ya llegó al final".
+                        if (!c.playWhenReady && c.playbackState == Player.STATE_READY) onPosition(c.currentPosition)
+                    }
+                }
                 override fun onVideoSizeChanged(size: androidx.media3.common.VideoSize) {
                     // El ancho visible tiene en cuenta los píxeles no cuadrados.
                     output.size.value = if (size.width > 0 && size.height > 0) (size.width * size.pixelWidthHeightRatio).toInt() to size.height else null
                 }
             })
             c.volume = volume
+            if (c.isPlaying) startPolling()
             while (pending.isNotEmpty()) pending.removeFirst()(c)
         }, { r -> main.post(r) })
-        // ExoPlayer no avisa de la posición: se consulta 4 veces por segundo.
-        main.post(object : Runnable {
-            override fun run() {
-                controller?.takeIf { it.isPlaying }?.let { onPosition(it.currentPosition) }
-                main.postDelayed(this, 250)
-            }
-        })
+    }
+
+    /**
+     * ExoPlayer no avisa de la posición: se consulta 4 veces por segundo, pero solo mientras suena
+     * (antes el hilo principal despertaba cada 250 ms durante toda la vida del proceso).
+     */
+    private val poll = object : Runnable {
+        override fun run() {
+            val c = controller ?: return
+            if (!c.isPlaying) return
+            onPosition(c.currentPosition)
+            main.postDelayed(this, 250)
+        }
+    }
+
+    private fun startPolling() {
+        main.removeCallbacks(poll)
+        main.post(poll)
     }
 
     private fun withController(block: (MediaController) -> Unit) {

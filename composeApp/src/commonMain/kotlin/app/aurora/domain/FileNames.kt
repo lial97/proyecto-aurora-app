@@ -42,6 +42,19 @@ fun isChatOrVoiceAudio(fileName: String, path: String?): Boolean {
     return dirs.any { it in p }
 }
 
+/**
+ * Videos de chats (WhatsApp, Telegram): los que la app de chat guarda al recibir o enviar un video, también cuando
+ * se copian a otra carpeta (p. ej. `Movies/WhatsApp`). No son videos musicales; se dejan fuera, igual que los
+ * audios de [isChatOrVoiceAudio].
+ */
+fun isChatVideo(fileName: String, path: String?): Boolean {
+    val name = fileName.lowercase()
+    val p = path.orEmpty().lowercase().replace('\\', '/')
+    if (Regex("""^vid-\d{8}-wa\d+""").containsMatchIn(name)) return true
+    val dirs = listOf("/whatsapp/", "com.whatsapp", "whatsapp video", "whatsapp animated gifs", "/telegram/telegram video", "/telegram video/")
+    return dirs.any { it in p }
+}
+
 /** Hay un artista real (no vacío ni "Artista desconocido"). */
 val Track.hasKnownArtist: Boolean get() =
     artist.isNotBlank() && !artist.equals(UNKNOWN_ARTIST, ignoreCase = true) && !artist.equals("unknown", ignoreCase = true)

@@ -209,8 +209,8 @@ fun PlayerBar(state: AppState, playback: PlaybackState, nav: DesktopNav, onToggl
                 IconButton(AuroraIcon.Repeat, "Repetir", player::toggleRepeat, tint = if (playback.repeatOne) c.accent else c.ink, key = true)
             }
             Row(Modifier.widthIn(max = 560.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.widthIn(min = 40.dp)) { app.aurora.components.PositionText(playback.positionSec) }
-                ProgressBar(playback.positionSec, duration, player::seekTo, Modifier.weight(1f), barHeight = if (Ui.theme.id == ThemeId.POSTER) 8.dp else if (Ui.theme.id == ThemeId.SEDA) 2.dp else 4.dp)
+                Box(Modifier.widthIn(min = 40.dp)) { app.aurora.components.PositionText() }
+                ProgressBar(duration, player::seekTo, Modifier.weight(1f), barHeight = if (Ui.theme.id == ThemeId.POSTER) 8.dp else if (Ui.theme.id == ThemeId.SEDA) 2.dp else 4.dp)
                 BasicText(formatTime(duration), style = type.caption.copy(textAlign = TextAlign.End), modifier = Modifier.width(40.dp), maxLines = 1)
             }
         }
@@ -272,7 +272,7 @@ fun RightPanel(
             }
         } else {
             Box(Modifier.fillMaxWidth(), contentAlignment = if (theme.leftAlignedHero) Alignment.CenterStart else Alignment.Center) {
-                Hero(track, heroSize, scale = heroScale(playback.isPlaying), playing = playback.isPlaying, progress = playback.progress)
+                Hero(track, heroSize, scale = heroScale(playback.isPlaying), playing = playback.isPlaying, progress = app.aurora.components.rememberProgress(playback.totalSec))
             }
         }
         if (track == null) {

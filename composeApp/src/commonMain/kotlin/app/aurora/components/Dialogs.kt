@@ -75,7 +75,12 @@ import kotlinx.datetime.toLocalDateTime
 
 /** Muestra la ventana emergente activa de [AppState.dialog]. */
 @Composable
-fun DialogHost(state: AppState, tracks: List<Track>) {
+fun DialogHost(
+    state: AppState,
+    tracks: List<Track>,
+    /** En móvil: pide el nombre y sigue con el selector a pantalla completa. En escritorio queda `null`. */
+    onNewPlaylist: ((String, List<Track>) -> Unit)? = null,
+) {
     val d = state.dialog
     val dismiss = { state.dialog = null }
     // El menú contextual (clic derecho) no oscurece la pantalla: solo cierra al hacer clic fuera.
@@ -134,8 +139,21 @@ fun DialogHost(state: AppState, tracks: List<Track>) {
                     Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) { Chip("Cerrar", false, dismiss) }
                 }
                 is AppDialog.AddToPlaylist -> AddToPlaylist(state, dlg.tracks, dismiss)
-                is AppDialog.NewPlaylist -> NameDialog("Nueva lista", "Crear", "", dismiss) { name ->
-                    state.createPlaylist(name, dlg.tracks); dismiss()
+                is AppDialog.NewPlaylist -> {
+                    val mobileFlow = onNewPlaylist
+                    NameDialog(
+                        if (mobileFlow != null) "Nombre de la lista" else "Nueva lista",
+                        if (mobileFlow != null) "Continuar" else "Crear",
+                        if (mobileFlow != null) defaultPlaylistName(state.userPlaylists) else "",
+                        dismiss,
+                    ) { name ->
+                        if (mobileFlow != null) {
+                            dismiss()
+                            mobileFlow(name, dlg.tracks)
+                        } else {
+                            state.createPlaylist(name, dlg.tracks); dismiss()
+                        }
+                    }
                 }
                 is AppDialog.RenamePlaylist -> NameDialog("Renombrar lista", "Guardar", dlg.playlist.name, dismiss) { name ->
                     state.renamePlaylist(dlg.playlist, name); dismiss()
@@ -149,6 +167,21 @@ fun DialogHost(state: AppState, tracks: List<Track>) {
                     Title("¿Borrar \"${dlg.playlist.name}\"?")
                     BasicText("Las canciones no se borran de tu dispositivo, solo la lista.", style = Ui.type.rowSubtitle)
                     Buttons(dismiss, "Borrar") { state.deletePlaylist(dlg.playlist); dismiss() }
+                }
+                is AppDialog.PlaylistMenu -> Card {
+                    val p = state.latest(dlg.playlist) ?: dlg.playlist
+                    val list = state.tracksOf(p, tracks)
+                    val hasVideo = list.any { it.mediaType == app.aurora.domain.MediaType.VIDEO }
+                    Title(p.name)
+                    BasicText(
+                        if (hasVideo) "${p.trackIds.size} elementos" else "${p.trackIds.size} canciones",
+                        style = Ui.type.rowSubtitle, modifier = Modifier.padding(bottom = 8.dp),
+                    )
+                    Option(AuroraIcon.Edit, "Renombrar") { state.dialog = AppDialog.RenamePlaylist(p) }
+                    Option(AuroraIcon.Trash, "Eliminar", Ui.colors.accent) { state.dialog = AppDialog.DeletePlaylist(p) }
+                    Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
+                        Chip("Cerrar", false, dismiss)
+                    }
                 }
                 AppDialog.DailyMixFeedback -> Card {
                     val mix = state.dailyMix
@@ -307,6 +340,14 @@ private fun PlaylistOption(p: Playlist, onClick: () -> Unit) {
             BasicText("${p.trackIds.size} canciones", style = Ui.type.caption)
         }
     }
+}
+
+/** "Lista 1", "Lista 2"…: el menor número que no esté usado. */
+internal fun defaultPlaylistName(playlists: List<Playlist>): String {
+    val used = playlists.mapNotNull { it.name.trim().removePrefix("Lista ").trim().toIntOrNull() }.toSet()
+    var n = 1
+    while (n in used) n++
+    return "Lista $n"
 }
 
 /** Pide un nombre (crear o renombrar lista). Enter confirma y Esc cancela. */
