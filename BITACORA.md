@@ -11,6 +11,12 @@ Formato de cada entrada:
 **Pendiente:** lo que queda abierto (opcional).
 ```
 
+## 2026-11-14 — Android: los videos de chats ya no entran en la biblioteca
+**Qué:** nueva función `isChatVideo` (`domain/FileNames.kt`), con el mismo criterio que `isChatOrVoiceAudio`. Deja fuera los videos con nombre `VID-AAAAMMDD-WA…` y los de carpetas de WhatsApp o Telegram, también cuando están copiados en otra carpeta. `AndroidPlatform.listTree` la aplica a los videos. Prueba `ChatVideoTest`.
+**Por qué:** el usuario agregó `Movies`, que tenía 1 video, pero la app mostraba 5. Los otros 4 estaban en la subcarpeta `Movies/WhatsApp` (uno repetido como `(1)`): el escaneo entra en las subcarpetas.
+**Pruebas:** en el A35, la pestaña Videos muestra "1 video".
+**Pendiente:** las listas que tenían esos videos de WhatsApp ("Lista test") ya no los muestran.
+
 ## 2026-11-14 — Versión 0.4, fase 0: línea base de rendimiento
 **Qué:** rama `v0.4` con el trabajo del 2026-11-12 en un commit. La maqueta `menu-videos.html` pasa a `files/` y los `.zip` sueltos de la raíz quedan fuera de git. Script nuevo `scripts/medir-android.sh` (arranque, memoria, CPU y cuadros por adb) y `docs/RENDIMIENTO.md` con la línea base.
 **Por qué:** la 0.4 debe medir el rendimiento antes y después de cada cambio.

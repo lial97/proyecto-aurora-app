@@ -27,7 +27,8 @@ Mediciones antes y después de cada cambio, para que la app no se vuelva más pe
 | Cuadros en el reproductor, sonando | **~116 por segundo** (1742 en 15 s) |
 | CPU en pausa | 0 % (0 cuadros) |
 | Desplazar Inicio | 4,5 % de cuadros lentos; p50 9 ms, p90 11 ms, p99 12 ms |
-| Video | Sin medir: el A35 no tiene videos en la biblioteca |
+| Vista de video (1080p 60 fps), sonando | 72 % de un núcleo, ~77 cuadros/s, 174 MB |
+| Mini video de la app + mini reproductor (pestaña Videos) | **92 % de un núcleo**, ~78 cuadros/s |
 
 Según `top -H`, con música en Inicio el reparto es: `RenderThread` 32 %, hilo principal 14 % y controlador de la GPU (mali) ~10 %. ExoPlayer apenas gasta. Casi todo el gasto es redibujar sin necesidad:
 - `Backdrop.kt` lee el reloj de animación en cada dibujo, **aunque el tema tenga un fondo fijo**. Mientras suena, toda la pantalla se redibuja a 60 fps sin que cambie nada.
