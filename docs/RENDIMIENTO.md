@@ -72,3 +72,11 @@ En el reproductor, lo que queda es la onda a 30 fps: cada cuadro compone la vent
 | Inicio, sonando | 23,7 % · 37 FPS | **19,8 % · 34 FPS** |
 | Reproductor, sonando | 18,5 % · 37 FPS | **17,3 % · 34 FPS** |
 | Pausa | 0,1 % | 0,1 % |
+
+## Fase 5 de la 0.4: video en la ventanita del sistema (2026-11-14)
+
+| Medición (A35) | Valor |
+|---|---|
+| Ventanita de imagen en imagen con el video 1080p de 60 fps | 71 % de un núcleo · ~28 cuadros/s (igual que la vista de video) |
+
+En segundo plano sin ventanita (PiP apagado en los ajustes del sistema, o pantalla apagada con la app delante), la imagen del video se apaga y solo se decodifica el audio. Falta medirlo: requiere bloquear el teléfono.

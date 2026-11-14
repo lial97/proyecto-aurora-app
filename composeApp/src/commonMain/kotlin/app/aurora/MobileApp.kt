@@ -172,7 +172,8 @@ fun MobileApp(state: AppState, lib: LibraryState, playback: PlaybackState) {
 
     // Cada pestaña y cada lista guardan su estado (posición de las listas, categoría, búsqueda…).
     val saved = androidx.compose.runtime.saveable.rememberSaveableStateHolder()
-    Backdrop(playing = playback.isPlaying, intensity = if (immersive) 1f else .55f, veil = 0f) {
+    // En la ventanita del sistema el fondo no se anima (no se ve).
+    Backdrop(playing = playback.isPlaying && !state.inSystemPip, intensity = if (immersive) 1f else .55f, veil = 0f) {
         val contentAlpha by animateFloatAsState(if (immersive) 0f else 1f, tween(400))
         AnimatedContent(
             modifier = Modifier.graphicsLayer { alpha = contentAlpha },
@@ -368,6 +369,21 @@ fun MobileApp(state: AppState, lib: LibraryState, playback: PlaybackState) {
                 state.playlistSelector = PlaylistSelectorState(name, initialIds = initial.map { it.id }.toSet())
             },
         )
+        // Ventanita de imagen en imagen del sistema (Android): solo el video, encima de todo. La interfaz de abajo
+        // sigue compuesta para volver tal cual al ampliarla.
+        if (state.inSystemPip) {
+            Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Black)) {
+                if (playback.hasVideo && playback.videoEnabled) {
+                    VideoSurface(
+                        playback, player, Modifier.fillMaxSize(), fullscreen = true, controls = false,
+                        shape = androidx.compose.ui.graphics.RectangleShape, onTap = {},
+                    )
+                } else if (current != null) {
+                    app.aurora.components.Artwork(current, 160.dp, Modifier.align(Alignment.Center))
+                }
+            }
+            return@Backdrop
+        }
         Toast(
             state.toast, Modifier.align(Alignment.TopCenter),
             actionLabel = state.toastActionLabel,

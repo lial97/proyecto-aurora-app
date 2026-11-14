@@ -169,6 +169,12 @@ class AppState(private val scope: CoroutineScope, val platform: PlatformServices
     /** El usuario eligió "Canción" con un video sonando: los videos siguientes no se abren solos. */
     var videoInBackground by mutableStateOf(false)
 
+    /**
+     * Android: la app está en la ventanita de imagen en imagen del sistema (salió con un video sonando).
+     * La interfaz muestra solo el video. Lo cambia MainActivity.
+     */
+    var inSystemPip by mutableStateOf(false)
+
     /** Video a pantalla completa. */
     var videoFullscreen by mutableStateOf(false)
         private set

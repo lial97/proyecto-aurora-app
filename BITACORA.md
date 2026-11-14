@@ -11,6 +11,32 @@ Formato de cada entrada:
 **Pendiente:** lo que queda abierto (opcional).
 ```
 
+## 2026-11-14 — Versión 0.4, fase 5: video en segundo plano con la ventanita del sistema (Android)
+**Qué:**
+- **Imagen en imagen (PiP) del sistema, como YouTube:** al salir de la app con un video **sonando** (botón o gesto de Inicio, o Atrás en Inicio), el video sigue en una ventanita.
+  - Con el video en pausa, o con una canción, la app se va normal y la música sigue.
+  - Android 12+ entra solo (`setAutoEnterEnabled`, que se actualiza según el estado); en Android 8 a 11 se entra desde `onUserLeaveHint`.
+  - La ventanita tiene la proporción del video y un botón propio de reproducir/pausa (`RemoteAction` → receptor `PIP_TOGGLE`, no exportado).
+- **Cerrar la ventanita con su ×** pausa el video. Ampliarla vuelve a la app tal como estaba (pestaña, posición, mini video).
+- **En la ventanita la interfaz muestra solo el video** (`AppState.inSystemPip`, capa negra encima de todo en `MobileApp`). El fondo no se anima.
+- **Batería:** si la app pasa a segundo plano sin ventanita con un video sonando, se apaga la imagen (`VideoOutput.setEnabled(false)`) y solo se decodifica el audio. Al volver, se enciende.
+- **Manifiesto:** `supportsPictureInPicture` y `resizeableActivity`. `configChanges` ya tenía `screenSize|smallestScreenSize|screenLayout|orientation`, así que la actividad no se recrea al entrar o salir.
+
+**Por qué:** pedido del usuario: seguir viendo el video al salir de la app, solo si no está en pausa.
+
+**Archivos:** `androidApp/.../MainActivity.kt`, `androidApp/src/main/AndroidManifest.xml`, `AppState.kt`, `MobileApp.kt`.
+
+**Pruebas:** 131 pruebas pasan. En el A35 (Android 16), con el APK de release:
+- video sonando + Inicio → ventanita con solo el video;
+- su botón pausa y reanuda;
+- × con el video sonando → queda en pausa;
+- volver a la app conserva la pantalla;
+- video en pausa + Inicio → sin ventanita;
+- canción sonando + Inicio → sin ventanita y la música sigue;
+- Atrás hasta salir con el video sonando → ventanita.
+
+**Pendiente:** probar el ahorro de batería con la pantalla apagada (hay que bloquear el teléfono) y en Android 8 a 11.
+
 ## 2026-11-14 — Versión 0.4, fase 4: videos de una lista a pantalla completa y un solo mini reproductor
 **Qué:**
 - **Video de una lista → pantalla completa real** (barras ocultas y horizontal si el video lo es):
