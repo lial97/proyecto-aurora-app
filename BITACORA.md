@@ -11,6 +11,12 @@ Formato de cada entrada:
 **Pendiente:** lo que queda abierto (opcional).
 ```
 
+## 2026-11-14 — El selector de listas muestra toda la biblioteca
+**Qué:** sin texto de búsqueda, el selector (crear lista o "Añadir canciones") mostraba solo 20 "Añadidas hace poco" y 20 "Más escuchadas". Ahora muestra todo lo del filtro, de la A a la Z y con el total: Todo (canciones y videos), Canciones (solo audio) y Videos (solo video). "Seleccionar todo lo visible" marca esa lista completa. Se quitó el parámetro `plays`, que ya no se usaba.
+**Por qué:** reporte del usuario: al crear una lista no se podían elegir todas las canciones.
+**Archivos:** `screens/PlaylistSelector.kt`, `MobileApp.kt`.
+**Pruebas:** 135 pruebas pasan. En el A35: Todo muestra 525 elementos, Canciones 524 y Videos 1.
+
 ## 2026-11-14 — Mini reproductor con canción anterior y siguiente
 **Qué:** el mini reproductor del móvil tiene botones ⏮ y ⏭ (40 dp) a los lados de reproducir/pausa (`MiniPlayer(onPrevious, onNext)`, conectados a `player.previous`/`player.next`). Deslizar sigue siendo para quitarlo en pausa.
 **Por qué:** pedido del usuario: cambiar de canción sin abrir el reproductor.

@@ -70,7 +70,6 @@ fun PlaylistSelector(
     name: String,
     tracks: List<Track>,
     initialIds: Set<String>,
-    plays: (Track) -> Int,
     /** Crear permite guardar la lista vacía; añadir a una lista existente necesita algo marcado. */
     allowEmpty: Boolean,
     onCancel: () -> Unit,
@@ -96,12 +95,9 @@ fun PlaylistSelector(
             SearchScope.VIDEO_ONLY -> tracks.filter { it.mediaType == MediaType.VIDEO }
         }
     }
-    val recent = remember(inScope) { inScope.sortedByDescending { it.dateAddedMs }.take(20) }
-    // Las reproducciones se leen una vez por pista (no en cada comparación) y solo cuenta lo que sonó alguna vez.
-    val mostPlayed = remember(inScope) {
-        inScope.map { it to plays(it) }.filter { it.second > 0 }.sortedByDescending { it.second }.take(20).map { it.first }
-    }
-    val visible = if (searching) results else (recent + mostPlayed).distinctBy { it.id }
+    // Sin búsqueda se ve todo lo del filtro (antes solo 20 "añadidas hace poco" y 20 "más escuchadas"), de la A a la Z.
+    val all = remember(inScope) { inScope.sortedBy { it.title.lowercase() } }
+    val visible = if (searching) results else all
 
     fun toggle(t: Track) {
         selectedOrder = if (t.id in selected) selectedOrder.filterNot { it == t.id } else selectedOrder + t.id
@@ -173,12 +169,16 @@ fun PlaylistSelector(
                         }
                     }
                 } else {
-                    item(key = "recientes-titulo") { SectionTitle("Añadidas hace poco", Modifier.padding(horizontal = AuroraDimens.ScreenPadding)) }
-                    items(recent, key = { "recent:${it.id}" }) { t ->
-                        SelectorRow(t, t.id in selected, { toggle(t) })
+                    item(key = "todo-titulo") {
+                        val n = all.size
+                        val label = when (scope) {
+                            SearchScope.MUSIC_ONLY -> "$n ${if (n == 1) "canción" else "canciones"}"
+                            SearchScope.VIDEO_ONLY -> "$n ${if (n == 1) "video" else "videos"}"
+                            SearchScope.ALL -> "$n ${if (n == 1) "elemento" else "elementos"}"
+                        }
+                        SectionTitle(label, Modifier.padding(horizontal = AuroraDimens.ScreenPadding))
                     }
-                    item(key = "escuchadas-titulo") { SectionTitle("Más escuchadas", Modifier.padding(horizontal = AuroraDimens.ScreenPadding)) }
-                    items(mostPlayed, key = { "played:${it.id}" }) { t ->
+                    items(all, key = { it.id }) { t ->
                         SelectorRow(t, t.id in selected, { toggle(t) })
                     }
                 }

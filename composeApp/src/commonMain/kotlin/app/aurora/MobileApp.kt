@@ -344,7 +344,6 @@ fun MobileApp(state: AppState, lib: LibraryState, playback: PlaybackState) {
                 name = draft.name,
                 tracks = tracks,
                 initialIds = draft.initialIds,
-                plays = { state.stats.get(it.id).count },
                 allowEmpty = draft.target == null,
                 onCancel = { state.playlistSelector = null },
                 onDone = { selected ->
