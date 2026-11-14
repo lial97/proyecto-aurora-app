@@ -11,6 +11,35 @@ Formato de cada entrada:
 **Pendiente:** lo que queda abierto (opcional).
 ```
 
+## 2026-11-14 — La música aparece al instante al abrir la app
+**Qué:**
+- **Biblioteca guardada** (`data/LibraryCache.kt`, nuevo):
+  - al terminar cada escaneo completo, la lista se guarda en el `BlobStore` (clave `biblioteca`, JSON con versión de formato y carpetas);
+  - `LibraryRepository` la lee al crearse y la muestra desde el primer cuadro (`LibraryState.fromCache`);
+  - el escaneo de arranque (`startupScan`) es callado (sin "Buscando tu música…") y solo cambia la lista si algo cambió;
+  - no se guardan las letras .lrc interpretadas: llegan con el escaneo;
+  - con otras carpetas, o un archivo viejo o dañado, se escanea como antes.
+- **`AppState`:**
+  - la última canción (mini reproductor) y la mezcla del día salen con la biblioteca guardada, sin esperar al escaneo;
+  - al terminar el escaneo, la cola restaurada toma los datos frescos y, si la canción actual ganó letra, se recarga.
+- **Android (`MainActivity`):**
+  - la interfaz se dibuja al instante (antes esperaba la respuesta del pedido de permisos, aunque ya estuvieran dados);
+  - los permisos solo se piden si faltan, y al darlos se vuelve a buscar;
+  - nuevo registro `AuroraArranque` y modo `scripts/medir-android.sh musica`.
+
+**Por qué:** el usuario veía un par de segundos en blanco al abrir y la app parecía lenta.
+
+**Resultado:**
+- A35 (525 pistas): música en pantalla de ~3,2 s a ~0,11 s;
+- interfaz de ~140 a ~60 ms;
+- escritorio (157 pistas): de 919 a 43 ms. Detalle en `docs/RENDIMIENTO.md`.
+
+**Archivos:** `data/{LibraryCache,LibraryRepository}.kt`, `AppState.kt`, `androidApp/.../MainActivity.kt`, `scripts/medir-android.sh`, pruebas `commonTest/data/LibraryCacheTest.kt` y `desktopTest/data/LibraryStartupTest.kt`.
+
+**Pruebas:**
+- 135 pruebas pasan.
+- En el A35, a medio segundo de abrir ya se ven Inicio, la mezcla y el mini reproductor con la última canción ("Bones", tras cerrar la app a la fuerza).
+
 ## 2026-11-14 — Versión 0.4, fase 6: versión 0.4.0, medición final y documentación
 **Qué:**
 - **Versión 0.4.0 con una sola fuente:** `gradle.properties` (`aurora.version=0.4.0`, `aurora.versionCode=3`).

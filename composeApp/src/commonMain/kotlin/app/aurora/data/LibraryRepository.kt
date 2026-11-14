@@ -23,6 +23,8 @@ data class LibraryState(
     val progress: ScanProgress? = null,
     /** Ya terminó al menos un escaneo. */
     val scannedOnce: Boolean = false,
+    /** [scanned] viene de la biblioteca guardada (LibraryCache) y el escaneo de fondo aún no terminó. */
+    val fromCache: Boolean = false,
     val error: String? = null,
     /** Ajustes › Biblioteca › Incluir videos = no. */
     val hideVideos: Boolean = false,
@@ -91,7 +93,39 @@ class LibraryRepository(
         byFolder.replaceAll { _, list -> list.map { if (it.id == id) e.applyTo(it) else it } }
     }
 
-    private val _state = MutableStateFlow(LibraryState(noFolders = settings.folders.value.isEmpty() && settings.videoFolders.value.isEmpty()))
+    // --- Biblioteca guardada (LibraryCache) ---
+
+    /** Carpetas vigentes como texto: la biblioteca guardada solo vale para las mismas. */
+    private fun foldersKey() = allFolders().map { "${it.type.name}:${it.path}" }
+
+    /** Lo guardado la vez anterior (se lee al crear el repositorio, antes del primer cuadro), o `null`. */
+    private fun loadCache(): List<Track>? {
+        if (allFolders().isEmpty()) return null
+        val text = runCatching { files?.read(CACHE_KEY)?.decodeToString() }.getOrNull() ?: return null
+        return LibraryCache.decode(text, foldersKey())?.takeIf { it.isNotEmpty() }
+    }
+
+    private var saveJob: Job? = null
+
+    private fun saveCache(tracks: List<Track>) {
+        val f = files ?: return
+        val folders = foldersKey()
+        saveJob?.cancel()
+        saveJob = scope.launch(Dispatchers.Default) {
+            val bytes = LibraryCache.encode(tracks, folders).encodeToByteArray()
+            runCatching { f.write(CACHE_KEY, bytes) }
+        }
+    }
+
+    private val _state = MutableStateFlow(
+        loadCache().let { cached ->
+            LibraryState(
+                noFolders = settings.folders.value.isEmpty() && settings.videoFolders.value.isEmpty(),
+                scanned = cached.orEmpty(),
+                fromCache = cached != null,
+            )
+        },
+    )
     val state: StateFlow<LibraryState> = _state
 
     init {
@@ -239,8 +273,16 @@ class LibraryRepository(
             byFolder.values.flatten().distinctBy { it.id }
         }.map(::withTempo)
         _counts.value = lock.withLock { byFolder.mapValues { it.value.size } }
-        _state.update { it.copy(scanned = merged, scannedOnce = it.scannedOnce || done) }
+        // Si el escaneo da lo mismo que lo guardado, la lista no cambia y nada se recompone (StateFlow compara).
+        _state.update { it.copy(scanned = merged, scannedOnce = it.scannedOnce || done, fromCache = it.fromCache && !done) }
+        if (done) saveCache(merged)
     }
+
+    /**
+     * Escaneo al abrir la app: si se mostró la biblioteca guardada, es callado (sin "Buscando tu música…") y solo
+     * actualiza la lista si algo cambió.
+     */
+    fun startupScan() = rescan(quiet = _state.value.fromCache)
 
     fun rescan(quiet: Boolean = false) {
         job?.cancel()
@@ -287,6 +329,7 @@ class LibraryRepository(
 
     private companion object {
         const val TEMPO_KEY = "tempos"
+        const val CACHE_KEY = "biblioteca"
         /** Hilos para el tempo: pocos, para no competir con la interfaz ni con la reproducción. */
         @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
         val tempoDispatcher = Dispatchers.Default.limitedParallelism(4)

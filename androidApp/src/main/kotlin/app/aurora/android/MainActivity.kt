@@ -11,6 +11,7 @@ import app.aurora.App
 import app.aurora.platform.AndroidPlatform
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 import androidx.lifecycle.lifecycleScope
 
 class MainActivity : ComponentActivity() {
@@ -23,9 +24,14 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
     }
 
-    // La interfaz se muestra después de pedir permiso para leer la música y los videos,
-    // así el primer escaneo ya encuentra los archivos.
-    private val askPermissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+    // La interfaz se muestra al instante (con la biblioteca guardada). El permiso para leer la música y los videos
+    // solo se pide si falta; al darlo se vuelve a buscar, para completar los datos con el índice de Android.
+    private val askPermissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+        if (result.values.any { it }) app.aurora.AuroraRuntime.get(this).library.let { it.rescan(quiet = it.state.value.scanned.isNotEmpty()) }
+    }
+
+    private fun showUi() {
+        logStartup("interfaz")
         setContent {
             // El estado vive con el proceso (lo comparte el servicio de reproducción): la pantalla solo lo muestra.
             App(external = app.aurora.AuroraRuntime.get(this), onState = { st ->
@@ -83,12 +89,21 @@ class MainActivity : ComponentActivity() {
         } else {
             arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
-        askPermissions.launch(perms)
+        showUi()
+        val missing = perms.filter {
+            androidx.core.content.ContextCompat.checkSelfPermission(this, it) != android.content.pm.PackageManager.PERMISSION_GRANTED
+        }
+        if (missing.isNotEmpty()) askPermissions.launch(missing.toTypedArray())
         openFromWidget(intent)
         androidx.core.content.ContextCompat.registerReceiver(
             this, pipReceiver, android.content.IntentFilter(PIP_TOGGLE), androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED,
         )
         watchPip()
+        lifecycleScope.launch {
+            val st = app.aurora.AuroraRuntime.get(this@MainActivity)
+            val l = st.library.state.first { it.scanned.isNotEmpty() || it.scannedOnce }
+            logStartup("musica ${l.scanned.size} pistas")
+        }
     }
 
     // --- Video en segundo plano: imagen en imagen (PiP) del sistema, como YouTube ---
@@ -180,6 +195,15 @@ class MainActivity : ComponentActivity() {
             val st = app.aurora.AuroraRuntime.get(this)
             if (st.player.state.value.videoEnabled) st.player.video?.setEnabled(true)
         }
+    }
+
+    /**
+     * Registro de arranque (`adb logcat -s AuroraArranque`): ms desde que empezó el proceso hasta [what].
+     * Lo usa `scripts/medir-android.sh musica`.
+     */
+    private fun logStartup(what: String) {
+        val ms = android.os.SystemClock.uptimeMillis() - android.os.Process.getStartUptimeMillis()
+        android.util.Log.i("AuroraArranque", "$what $ms ms")
     }
 
     /** Sigue el estado del reproductor para que la ventanita sepa si debe entrar y qué botón mostrar. */

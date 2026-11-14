@@ -106,3 +106,15 @@ En segundo plano sin ventanita (PiP apagado en los ajustes del sistema, o pantal
 (*) Una sola vez, sin repetirse: probablemente una tarea de fondo (letras o miniaturas) durante esos 15 s.
 
 En escritorio la mejora es pequeña: ya iba a 30 fps desde la 0.3.1, y con el tema Aurora las luces del fondo se mueven de verdad.
+
+## Arranque: biblioteca guardada (2026-11-14)
+
+Antes, cada vez que se abría la app había que recorrer todas las carpetas antes de mostrar una sola canción. Ahora se muestra al instante la biblioteca guardada (`data/LibraryCache.kt`) y el escaneo corre callado de fondo.
+
+| Medición | Antes | Después |
+|---|---|---|
+| A35, 525 pistas: interfaz dibujada (ms desde que arranca el proceso) | 117–152 ms | **57–68 ms** |
+| A35, 525 pistas: música en pantalla | **3068–3361 ms** | **107–127 ms** |
+| Escritorio, 157 pistas: música en pantalla | 919 ms | **43 ms** (el escaneo de fondo termina a los 312 ms) |
+
+Medido con `bash scripts/medir-android.sh musica` (registro `AuroraArranque`). El primer arranque después de instalar todavía escanea (~3,1 s), porque aún no hay nada guardado.

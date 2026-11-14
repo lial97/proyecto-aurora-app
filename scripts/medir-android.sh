@@ -2,6 +2,7 @@
 # Mide el rendimiento de Aurora en el celular conectado por adb. Solo lee: no cambia ajustes del teléfono.
 #
 #   bash scripts/medir-android.sh arranque        # arranque en frío (5 veces, cierra la app entre cada una)
+#   bash scripts/medir-android.sh musica          # ms hasta dibujar la interfaz y hasta tener la música (5 veces)
 #   bash scripts/medir-android.sh memoria [etiqueta]   # PSS total de la app en el estado actual
 #   bash scripts/medir-android.sh cuadros [segundos]   # cuadros lentos durante N s (por defecto 15) mientras usas la app
 #   bash scripts/medir-android.sh cpu [segundos]       # % de CPU medio del proceso durante N s (por defecto 15)
@@ -24,6 +25,18 @@ case "${1:-}" in
       sleep 4
     done
     echo "media: $((total / 5)) ms"
+    ;;
+  musica)
+    # Arranque en frío hasta ver la música: ms desde que empieza el proceso hasta que se dibuja la interfaz y hasta
+    # que la biblioteca tiene canciones (registro AuroraArranque de MainActivity). 5 veces.
+    for i in 1 2 3 4 5; do
+      "$ADB" shell am force-stop "$PKG"
+      sleep 2
+      "$ADB" logcat -c
+      "$ADB" shell am start -n "$ACT" > /dev/null
+      sleep 8
+      echo "arranque $i: $("$ADB" logcat -d -s AuroraArranque:I | grep -oE '(interfaz|musica[^0-9]*[0-9]+ pistas) [0-9]+ ms' | tr '\n' ' ')"
+    done
     ;;
   memoria)
     pss=$("$ADB" shell dumpsys meminfo "$PKG" | awk '/TOTAL PSS:/ {print $3; exit} /^ *TOTAL / {print $2; exit}' | tr -d '\r')

@@ -1,5 +1,8 @@
 package app.aurora
 
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.first
 import org.jetbrains.compose.resources.decodeToImageBitmap
 import app.aurora.domain.needsCorrection
@@ -205,7 +208,8 @@ class AppState(private val scope: CoroutineScope, val platform: PlatformServices
         private set
 
     init {
-        library.rescan()
+        // Con la biblioteca guardada, la música ya se ve; el escaneo corre callado de fondo.
+        library.startupScan()
         // Las preferencias se aplican al instante y cada vez que cambian.
         scope.launch {
             prefsRepo.prefs.collect { p ->
@@ -232,10 +236,22 @@ class AppState(private val scope: CoroutineScope, val platform: PlatformServices
                 if (p.positionSec % 5 == 0) saveResumePoint(p)
             }
         }
-        scope.launch { library.state.collect { l -> if (l.scannedOnce && !l.usingSamples) restoreIfNeeded(l.tracks) } }
+        // La última canción vuelve al mini reproductor en cuanto hay biblioteca (la guardada sirve: no espera al escaneo).
+        scope.launch { library.state.collect { l -> if ((l.scannedOnce || l.fromCache) && !l.usingSamples) restoreIfNeeded(l.tracks) } }
+        // Al terminar el primer escaneo, la cola restaurada con la biblioteca guardada toma los datos frescos (las letras
+        // .lrc no se guardan): si la canción actual ganó letra, se vuelve a cargar.
+        scope.launch {
+            library.state.map { it.scannedOnce }.distinctUntilChanged().filter { it }.collect {
+                val fresh = library.state.value.scanned.associateBy { it.id }
+                val before = player.state.value.current
+                player.state.value.queue.forEach { q -> fresh[q.id]?.takeIf { it != q }?.let(player::updateTrack) }
+                val now = player.state.value.current
+                if (before != null && now != null && now.lyrics.isNotEmpty() && before.lyrics.isEmpty()) { lyricsFor = null; loadLyrics(now) }
+            }
+        }
         // La mezcla del día: al tener la biblioteca y, con la app abierta, cuando cambia el día.
         scope.launch {
-            library.state.collect { l -> if (l.scannedOnce && !l.usingSamples && l.tracks.isNotEmpty()) refreshDailyMix(l.tracks) }
+            library.state.collect { l -> if ((l.scannedOnce || l.fromCache) && !l.usingSamples && l.tracks.isNotEmpty()) refreshDailyMix(l.tracks) }
         }
         scope.launch {
             while (true) {
