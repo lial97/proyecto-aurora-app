@@ -19,6 +19,7 @@ import app.aurora.domain.UNKNOWN_ALBUM
 import app.aurora.domain.UNKNOWN_ARTIST
 import app.aurora.domain.guessFromFileName
 import app.aurora.domain.isChatOrVoiceAudio
+import app.aurora.domain.isChatVideo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.ensureActive
@@ -359,6 +360,7 @@ class MediaStoreSource(private val context: Context) : MediaSource {
                         if (type == null) continue
                         val path = pathOf(id)
                         if (type == MediaType.AUDIO && isChatOrVoiceAudio(name, path)) continue
+                        if (type == MediaType.VIDEO && isChatVideo(name, path)) continue
                         out += DocFile(DocumentsContract.buildDocumentUriUsingTree(tree, id), name, type, path, c.getLong(3)).also { it.parentKey = "$parent|${name.substringBeforeLast('.').lowercase()}" }
                     }
                 }

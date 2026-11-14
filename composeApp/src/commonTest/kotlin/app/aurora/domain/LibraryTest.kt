@@ -90,6 +90,19 @@ class ChatAudioTest {
     }
 }
 
+class ChatVideoTest {
+    @Test fun whatsappVideosAreSkipped() {
+        // Copiados a una subcarpeta de Movies (el caso real del A35) y en la carpeta propia de WhatsApp.
+        assertTrue(isChatVideo("VID-20260802-WA0014(1).mp4", "/storage/emulated/0/Movies/WhatsApp/VID-20260802-WA0014(1).mp4"))
+        assertTrue(isChatVideo("clip.mp4", "/storage/emulated/0/Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Video/clip.mp4"))
+        assertTrue(isChatVideo("VID-20261102-WA0026.mp4", null))
+    }
+    @Test fun musicVideosAreKept() {
+        assertFalse(isChatVideo("Max Verstappen s Pole Lap.mp4", "/storage/emulated/0/Movies/Max Verstappen s Pole Lap.mp4"))
+        assertFalse(isChatVideo("Artista - Canción (video oficial).mkv", "/storage/emulated/0/Movies/Videoclips/Artista - Canción (video oficial).mkv"))
+    }
+}
+
 class VideoCaptionTest {
     @Test fun unknownArtistShowsOnlyTheTitle() {
         val t = Track("1", "VID-20260724-WA0082", UNKNOWN_ARTIST, UNKNOWN_ALBUM, 20, MediaType.VIDEO)
