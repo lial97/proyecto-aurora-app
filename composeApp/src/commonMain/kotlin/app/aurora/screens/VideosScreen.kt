@@ -45,6 +45,7 @@ fun VideosScreen(
     onPlay: (List<Track>, Int) -> Unit,
     onChooseVideoFolder: () -> Unit = {},
     onMore: (Track) -> Unit = {},
+    onOpenSettings: () -> Unit = onChooseVideoFolder,
 ) {
     val videos = remember(lib.tracks) { lib.tracks.videos() }
     var query by rememberSaveable { mutableStateOf("") }
@@ -64,7 +65,7 @@ fun VideosScreen(
     // pantalla al bajar por los resultados.
     Column(Modifier.statusBarsPadding()) {
         Column(Modifier.padding(start = AuroraDimens.ScreenPadding, end = AuroraDimens.ScreenPadding, top = 20.dp)) {
-            ScreenTitle("Videos")
+            app.aurora.components.TabHeader("Videos", onOpenSettings)
             SearchField(
                 query, { query = it }, Modifier.padding(top = 10.dp, bottom = 12.dp).fillMaxWidth(),
                 placeholder = "Buscar en tus videos",

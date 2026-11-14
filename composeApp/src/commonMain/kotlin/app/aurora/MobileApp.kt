@@ -48,16 +48,19 @@ import app.aurora.screens.LibraryScreen
 import app.aurora.screens.PlayerScreen
 import app.aurora.screens.PlaylistScreen
 import app.aurora.screens.PlaylistSelector
+import app.aurora.screens.PlaylistsScreen
 import app.aurora.screens.SearchScreen
 import app.aurora.screens.SettingsScreen
 import app.aurora.screens.VideosScreen
 import app.aurora.screens.mobilePadding
 import app.aurora.theme.AuroraMotion
 
-/** Lista abierta encima de una pestaña (la pantalla de abajo). */
+/** Pantalla abierta encima de una pestaña (la de abajo conserva su estado): una lista o Ajustes. */
 private sealed interface Overlay {
     data object None : Overlay
     data class OpenPlaylist(val playlist: Playlist) : Overlay
+    /** Ajustes ya no es una pestaña: se abre con el engranaje de arriba y Atrás vuelve a la pestaña. */
+    data object Settings : Overlay
 }
 
 /** Capa a pantalla completa encima de todo: la pantalla de abajo sigue viva (y conserva su posición). */
@@ -136,14 +139,15 @@ fun MobileApp(state: AppState, lib: LibraryState, playback: PlaybackState) {
     val density = androidx.compose.ui.platform.LocalDensity.current
     var barsHeight by remember { mutableStateOf(0.dp) }
     val bottomPadding = barsHeight + 16.dp
-    val openSettings = { selectTab(Tab.Settings) }
+    val openSettings = { overlay = Overlay.Settings; playlistFocusId = null }
 
     // Atrás (lo más general; lo que está encima registra el suyo después y gana):
     // lista abierta → pestaña anterior → Inicio → la app pasa a segundo plano (la música sigue).
     BackHandler(enabled = !immersive) {
         when {
             overlay != Overlay.None -> closePlaylist()
-            tabHistory.isNotEmpty() -> { tab = Tab.valueOf(tabHistory.last()); tabHistory = tabHistory.dropLast(1) }
+            // Una pestaña guardada que ya no existe (p. ej. "Settings" de la 0.3) vuelve a Inicio.
+            tabHistory.isNotEmpty() -> { tab = Tab.entries.firstOrNull { it.name == tabHistory.last() } ?: Tab.Home; tabHistory = tabHistory.dropLast(1) }
             tab != Tab.Home -> tab = Tab.Home
             else -> state.onExitToBackground()
         }
@@ -162,7 +166,11 @@ fun MobileApp(state: AppState, lib: LibraryState, playback: PlaybackState) {
                     .togetherWith(androidx.compose.animation.ExitTransition.None)
             },
         ) { (o, t) ->
-            val key = if (o is Overlay.OpenPlaylist) "lista:${o.playlist.id}" else "pestaña:${t.name}"
+            val key = when (o) {
+                is Overlay.OpenPlaylist -> "lista:${o.playlist.id}"
+                Overlay.Settings -> "ajustes"
+                Overlay.None -> "pestaña:${t.name}"
+            }
             saved.SaveableStateProvider(key) {
             when {
                 o is Overlay.OpenPlaylist -> {
@@ -184,40 +192,45 @@ fun MobileApp(state: AppState, lib: LibraryState, playback: PlaybackState) {
                         )
                     }
                 }
-                t == Tab.Settings -> Box(Modifier.statusBarsPadding()) {
+                o == Overlay.Settings -> Box(Modifier.statusBarsPadding()) {
                     SettingsScreen(
-                        state, lib, onBack = null, contentPadding = mobilePadding(bottomPadding),
+                        state, lib, onBack = { closePlaylist() }, contentPadding = mobilePadding(bottomPadding),
                         openLibraryRequest = state.settingsLibraryRequests,
                     )
                 }
+                t == Tab.Playlists -> PlaylistsScreen(
+                    tracks, playlists, bottomPadding,
+                    onOpenPlaylist = { openPlaylist(it) },
+                    onCreatePlaylist = { state.dialog = AppDialog.NewPlaylist() },
+                    onPlaylistMenu = { state.dialog = AppDialog.PlaylistMenu(it) },
+                    onOpenSettings = openSettings,
+                )
                 t == Tab.Home -> HomeScreen(
                     lib, playlists, bottomPadding,
                     onPlay = { q, i -> state.play(q, i, "Inicio") },
                     onOpenPlaylist = { openPlaylist(it) },
                     onOpenSettings = openSettings,
                     onCreatePlaylist = { state.dialog = AppDialog.NewPlaylist() },
-                    onShowAllLists = { state.requestLibraryPlaylists(); selectTab(Tab.Library) },
+                    onShowAllLists = { selectTab(Tab.Playlists) },
                     onPlaylistMenu = { state.dialog = AppDialog.PlaylistMenu(it) },
                     lastPlayed = { state.stats.get(it.id).lastMs },
                     userName = userName,
                     onEditName = { state.dialog = AppDialog.EditName },
                     dailyMix = { app.aurora.components.DailyMixCard(state, { openPlaylist(it) }, Modifier.padding(top = 16.dp)) },
                 )
-                t == Tab.Search -> SearchScreen(tracks, bottomPadding, { q, i -> state.play(q, i, "Búsqueda") }, menu)
+                t == Tab.Search -> SearchScreen(tracks, bottomPadding, { q, i -> state.play(q, i, "Búsqueda") }, menu, onOpenSettings = openSettings)
                 t == Tab.Library -> LibraryScreen(
-                    lib, playlists, playback, bottomPadding,
+                    lib, playback, bottomPadding,
                     onPlay = { q, i -> state.play(q, i, "Tu biblioteca") },
-                    onOpenPlaylist = { openPlaylist(it) },
                     onOpenSettings = openSettings,
                     onMore = menu,
-                    onNewPlaylist = { state.dialog = AppDialog.NewPlaylist() },
                     plays = { state.stats.get(it.id).count },
-                    openPlaylistsRequest = state.libraryPlaylistsRequests,
                 )
                 else -> VideosScreen(
                     lib, bottomPadding, { q, i -> state.play(q, i, "Videos") },
-                    onChooseVideoFolder = { state.requestSettingsLibrary(); selectTab(Tab.Settings) },
+                    onChooseVideoFolder = { state.requestSettingsLibrary(); openSettings() },
                     onMore = menu,
+                    onOpenSettings = openSettings,
                 )
             }
             }

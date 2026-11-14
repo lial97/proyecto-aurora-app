@@ -84,13 +84,14 @@ fun SearchField(
 }
 
 @Composable
-fun SearchScreen(tracks: List<Track>, bottomPadding: Dp, onPlay: (List<Track>, Int) -> Unit, onMore: (Track) -> Unit = {}) {
+fun SearchScreen(tracks: List<Track>, bottomPadding: Dp, onPlay: (List<Track>, Int) -> Unit, onMore: (Track) -> Unit = {}, onOpenSettings: (() -> Unit)? = null) {
     var query by rememberSaveable { mutableStateOf("") }
     var scope by rememberSaveable { mutableStateOf(SearchScope.ALL) }
     val results = remember(tracks, query, scope) { searchTracks(tracks, query, scope) }
     LazyColumn(Modifier.statusBarsPadding(), contentPadding = mobilePadding(bottomPadding)) {
         item {
-            ScreenTitle("Buscar")
+            // En el móvil, con el engranaje de Ajustes; en escritorio (sin `onOpenSettings`), solo el título.
+            if (onOpenSettings != null) app.aurora.components.TabHeader("Buscar", onOpenSettings) else ScreenTitle("Buscar")
             SearchField(query, { query = it }, Modifier.padding(vertical = 14.dp).fillMaxWidth())
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Chip("Todo", scope == SearchScope.ALL, { scope = SearchScope.ALL })

@@ -50,6 +50,21 @@ fun ScreenTitle(text: String, modifier: Modifier = Modifier, style: TextStyle = 
     BasicText(Ui.theme.title(text), style = style, modifier = modifier)
 }
 
+/** Engranaje de Ajustes, arriba a la derecha de cada pestaña del móvil. */
+@Composable
+fun SettingsButton(onClick: () -> Unit, modifier: Modifier = Modifier) =
+    IconButton(AuroraIcon.Settings, "Ajustes", onClick, modifier)
+
+/** Título de una pestaña con el engranaje de Ajustes a la derecha (y otros botones antes, si hace falta). */
+@Composable
+fun TabHeader(title: String, onOpenSettings: () -> Unit, modifier: Modifier = Modifier, actions: @Composable () -> Unit = {}) {
+    androidx.compose.foundation.layout.Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        FitText(Ui.theme.title(title), Ui.type.h1, Modifier.weight(1f), minScale = .6f, alignment = Alignment.CenterStart)
+        actions()
+        SettingsButton(onOpenSettings)
+    }
+}
+
 /** Abre el selector de carpetas de música (lo da App.kt; en pruebas no hace nada). */
 val LocalPickFolders = androidx.compose.runtime.staticCompositionLocalOf<() -> Unit> { {} }
 
@@ -270,9 +285,9 @@ fun GreetingTitle(text: String, onClick: () -> Unit, modifier: Modifier = Modifi
  * no cabe, termina en "…". Para etiquetas cortas como las de las pestañas.
  */
 @Composable
-fun FitText(text: String, style: TextStyle, modifier: Modifier = Modifier, minScale: Float = .7f) {
+fun FitText(text: String, style: TextStyle, modifier: Modifier = Modifier, minScale: Float = .7f, alignment: Alignment = Alignment.Center) {
     val measurer = androidx.compose.ui.text.rememberTextMeasurer()
-    androidx.compose.foundation.layout.BoxWithConstraints(modifier, contentAlignment = androidx.compose.ui.Alignment.Center) {
+    androidx.compose.foundation.layout.BoxWithConstraints(modifier, contentAlignment = alignment) {
         val width = constraints.maxWidth
         val fitted = remember(text, style, width) {
             generateSequence(1f) { it - .05f }.takeWhile { it >= minScale }.map { k -> style.copy(fontSize = style.fontSize * k) }

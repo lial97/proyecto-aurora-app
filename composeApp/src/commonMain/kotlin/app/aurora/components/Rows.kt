@@ -167,13 +167,13 @@ fun MiniPlayer(
     }
 }
 
-/** Pestañas del móvil: Inicio, Biblioteca, Videos, Buscar y Ajustes. */
+/** Pestañas del móvil: Inicio, Biblioteca, Videos, Buscar y Listas. Ajustes está en el engranaje de arriba. */
 enum class Tab(val label: String, val icon: AuroraIcon) {
     Home("Inicio", AuroraIcon.Home),
     Library("Biblioteca", AuroraIcon.Library),
     Videos("Videos", AuroraIcon.Video),
     Search("Buscar", AuroraIcon.Search),
-    Settings("Ajustes", AuroraIcon.Settings),
+    Playlists("Listas", AuroraIcon.Playlist),
 }
 
 @Composable

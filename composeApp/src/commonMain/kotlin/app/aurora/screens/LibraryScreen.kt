@@ -92,7 +92,8 @@ fun groupDetail(g: TrackGroup, section: LibrarySection) = buildString {
 }
 
 /** Categorías de la biblioteca móvil. */
-enum class MobileCategory(val label: String) { SONGS("Canciones"), ALBUMS("Álbumes"), ARTISTS("Artistas"), PLAYLISTS("Listas"), VIDEOS("Videos") }
+/** Categorías de la Biblioteca móvil. Las listas tienen su propia pestaña ("Listas"). */
+enum class MobileCategory(val label: String) { SONGS("Canciones"), ALBUMS("Álbumes"), ARTISTS("Artistas"), VIDEOS("Videos") }
 
 /**
  * Biblioteca móvil, ordenada para una mano: chips de categoría, menú "Ordenar" (7 criterios y dirección),
@@ -101,16 +102,12 @@ enum class MobileCategory(val label: String) { SONGS("Canciones"), ALBUMS("Álbu
 @Composable
 fun LibraryScreen(
     lib: LibraryState,
-    playlists: List<Playlist>,
     playback: PlaybackState,
     bottomPadding: Dp,
     onPlay: (List<Track>, Int) -> Unit,
-    onOpenPlaylist: (Playlist) -> Unit,
     onOpenSettings: () -> Unit,
     onMore: (Track) -> Unit = {},
-    onNewPlaylist: () -> Unit = {},
     plays: (Track) -> Int = { 0 },
-    openPlaylistsRequest: Int = 0,
 ) {
     val c = Ui.colors
     var category by rememberSaveable { mutableStateOf(MobileCategory.SONGS) }
@@ -123,17 +120,6 @@ fun LibraryScreen(
     // Buscador inline de música: la lupa ya no cambia a la pestaña Buscar (que es mixta).
     var searchOpen by rememberSaveable { mutableStateOf(false) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
-    var handledPlaylistsRequest by rememberSaveable { mutableStateOf(0) }
-    // "Ver todas" de Inicio abre directamente la categoría Listas (una vez por petición).
-    LaunchedEffect(openPlaylistsRequest) {
-        if (openPlaylistsRequest > handledPlaylistsRequest) {
-            handledPlaylistsRequest = openPlaylistsRequest
-            category = MobileCategory.PLAYLISTS
-            openName = null
-            searchOpen = false
-            searchQuery = ""
-        }
-    }
     val searching = searchOpen && searchQuery.isNotBlank()
     val now = remember { kotlin.time.Clock.System.now().toEpochMilliseconds() }
 
@@ -160,7 +146,6 @@ fun LibraryScreen(
     val songsState = rememberLazyListState()
     val albumsState = rememberLazyListState()
     val artistsState = rememberLazyListState()
-    val playlistsState = rememberLazyListState()
     val videosState = rememberLazyListState()
     // Posiciones propias de los resultados de búsqueda: limpiar el campo devuelve la lista donde estaba.
     val searchSongsState = rememberLazyListState()
@@ -175,7 +160,6 @@ fun LibraryScreen(
         category == MobileCategory.SONGS -> songsState
         category == MobileCategory.ALBUMS -> albumsState
         category == MobileCategory.ARTISTS -> artistsState
-        category == MobileCategory.PLAYLISTS -> playlistsState
         else -> videosState
     }
     val scope = rememberCoroutineScope()
@@ -195,15 +179,15 @@ fun LibraryScreen(
 
     val counts = mapOf(
         MobileCategory.SONGS to allSongs.size, MobileCategory.ALBUMS to allAlbums.size, MobileCategory.ARTISTS to allArtists.size,
-        MobileCategory.PLAYLISTS to playlists.size, MobileCategory.VIDEOS to videos.size,
+        MobileCategory.VIDEOS to videos.size,
     )
     val chips: @Composable (Modifier) -> Unit = { m ->
         Row(m.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(top = 12.dp, bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             MobileCategory.entries.forEach { cat ->
                 Chip("${cat.label}  ${counts[cat]}", category == cat, {
                     category = cat; openName = null
-                    // Las listas y los videos no se buscan con la lupa de música.
-                    if (cat == MobileCategory.PLAYLISTS || cat == MobileCategory.VIDEOS) { searchOpen = false; searchQuery = "" }
+                    // Los videos no se buscan con la lupa de música.
+                    if (cat == MobileCategory.VIDEOS) { searchOpen = false; searchQuery = "" }
                 })
             }
         }
@@ -230,22 +214,20 @@ fun LibraryScreen(
                     PlayAllRow({ onPlay(g.tracks, 0) }, { onPlay(g.tracks.shuffled(), 0) })
                     return@item
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    FitText(Ui.theme.title("Biblioteca"), Ui.type.h1, Modifier.weight(1f), minScale = .6f)
+                app.aurora.components.TabHeader("Biblioteca", onOpenSettings) {
                     IconButton(
                         AuroraIcon.Search,
                         if (searchOpen) "Cerrar búsqueda" else "Buscar en tu música",
                         {
                             if (searchOpen) { searchOpen = false; searchQuery = "" }
                             else {
-                                // La lupa busca solo música: si estamos en Listas o Videos, pasa a Canciones.
-                                if (category == MobileCategory.PLAYLISTS || category == MobileCategory.VIDEOS) category = MobileCategory.SONGS
+                                // La lupa busca solo música: si estamos en Videos, pasa a Canciones.
+                                if (category == MobileCategory.VIDEOS) category = MobileCategory.SONGS
                                 openName = null
                                 searchOpen = true
                             }
                         },
                     )
-                    IconButton(AuroraIcon.Plus, "Nueva lista", onNewPlaylist)
                 }
                 if (searchOpen) {
                     SearchField(
@@ -333,9 +315,6 @@ fun LibraryScreen(
                 }
                 shown == MobileCategory.ARTISTS -> items(artists, key = { it.name }) { a ->
                     GroupRow(a.name, "${a.tracks.size} ${if (a.tracks.size == 1) "canción" else "canciones"}", a.tracks.first(), round = true) { openName = a.name }
-                }
-                shown == MobileCategory.PLAYLISTS -> items(playlists, key = { it.id }) { p ->
-                    GroupRow(p.name, "${if (p.isUser) "Tu lista · " else ""}${p.trackIds.size} canciones", null, p.colors) { onOpenPlaylist(p) }
                 }
                 else -> items(videos, key = { it.id }) { v ->
                     Row(

@@ -140,11 +140,6 @@ class AppState(private val scope: CoroutineScope, val platform: PlatformServices
 
     fun requestSettingsLibrary() { settingsLibraryRequests++ }
 
-    /** Aumenta cuando Inicio › Tus listas › Ver todas pide abrir Biblioteca › Listas. */
-    var libraryPlaylistsRequests by mutableIntStateOf(0)
-        private set
-
-    fun requestLibraryPlaylists() { libraryPlaylistsRequests++ }
 
     /** Con la app recién abierta la cola tarda un momento en volver: se espera hasta 10 s. */
     fun requestPlayer() {

@@ -21,7 +21,7 @@ import app.aurora.theme.AuroraDimens
 enum class AuroraIcon {
     Play, Pause, Next, Previous, Shuffle, Repeat, Heart, HeartFilled, Back, Down, More,
     Home, Search, Library, Video, Plus, Download, Lyrics, Info, Queue, Share, Edit, Sort,
-    Settings, Folder, Refresh, Trash, Panel, Volume, Forward, Music, Palette, Check, Close, Expand, Shrink, ListAdd, ArrowUp, ArrowDown, Equalizer, Accessibility, Sparkle, Grip, Timer, Lock, Shield,
+    Settings, Folder, Refresh, Trash, Panel, Volume, Forward, Music, Palette, Check, Close, Expand, Shrink, ListAdd, ArrowUp, ArrowDown, Equalizer, Accessibility, Sparkle, Grip, Timer, Lock, Shield, Playlist,
 }
 
 @Composable
@@ -121,6 +121,8 @@ private fun DrawScope.drawIcon(icon: AuroraIcon, c: Color) {
         AuroraIcon.Close -> { line(6f, 6f, 18f, 18f); line(18f, 6f, 6f, 18f) }
         AuroraIcon.Expand -> { line(4f, 9f, 4f, 4f, 9f, 4f); line(20f, 9f, 20f, 4f, 15f, 4f); line(4f, 15f, 4f, 20f, 9f, 20f); line(20f, 15f, 20f, 20f, 15f, 20f) }
         AuroraIcon.Shrink -> { line(9f, 4f, 9f, 9f, 4f, 9f); line(15f, 4f, 15f, 9f, 20f, 9f); line(9f, 20f, 9f, 15f, 4f, 15f); line(15f, 20f, 15f, 15f, 20f, 15f) }
+        // Lista con una nota: tres renglones y una corchea.
+        AuroraIcon.Playlist -> { line(4f, 6f, 15f, 6f); line(4f, 11f, 15f, 11f); line(4f, 16f, 10f, 16f); line(19f, 17f, 19f, 6f, 22f, 7.5f); drawCircle(c, 2.6f, Offset(16.4f, 17f), style = st) }
         AuroraIcon.ListAdd -> { line(4f, 6f, 15f, 6f); line(4f, 11f, 15f, 11f); line(4f, 16f, 10f, 16f); line(17.5f, 13f, 17.5f, 20f); line(14f, 16.5f, 21f, 16.5f) }
         AuroraIcon.ArrowUp -> { line(12f, 19f, 12f, 5f); line(6f, 11f, 12f, 5f, 18f, 11f) }
         AuroraIcon.ArrowDown -> { line(12f, 5f, 12f, 19f); line(6f, 13f, 12f, 19f, 18f, 13f) }

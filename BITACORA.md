@@ -11,6 +11,37 @@ Formato de cada entrada:
 **Pendiente:** lo que queda abierto (opcional).
 ```
 
+## 2026-11-14 — Versión 0.4, fase 3: Ajustes arriba y pestaña "Listas"
+**Qué:**
+- **Pestañas del móvil:** Inicio, Biblioteca, Videos, Buscar y **Listas** (`Tab.Playlists`, ícono nuevo `AuroraIcon.Playlist`). Ajustes ya no está abajo.
+- **Ajustes:**
+  - engranaje arriba a la derecha en las cinco pestañas (`SettingsButton` y `TabHeader` en `components/Common.kt`);
+  - se abre como pantalla encima (`Overlay.Settings` en `MobileApp.kt`), con flecha y Atrás que vuelven a la pestaña donde estabas;
+  - "Elegir carpeta de videos" abre Ajustes › Biblioteca igual que antes.
+- **Pestaña Listas** (`screens/PlaylistsScreen.kt`, nueva):
+  - cuadrícula de 2 columnas con "+ Crear lista", tus listas, la mezcla del día y las mezclas automáticas;
+  - resumen "N listas tuyas y M automáticas";
+  - pulsación larga en una lista propia → Renombrar / Eliminar;
+  - reutiliza `CreatePlaylistCard` y `PlaylistCard` de Inicio, ahora con tamaño configurable.
+- **Navegación entre Inicio y Biblioteca:**
+  - "Ver todas" de Inicio abre la pestaña Listas;
+  - la categoría Listas de Biblioteca se quitó (estaba repetida), igual que su petición de una sola vez (`requestLibraryPlaylists`);
+  - el botón "+" de Biblioteca deja su lugar al engranaje (crear listas está en la pestaña Listas).
+- **Cabeceras:** los títulos de pestaña van alineados a la izquierda (`FitText(alignment = …)`).
+- **Atrás con una pestaña guardada que ya no existe** ("Settings" de la 0.3): vuelve a Inicio en lugar de fallar.
+- El escritorio no cambia (Ajustes sigue en su lateral; Buscar sin engranaje).
+
+**Por qué:** pedido del usuario. Ajustes se usa poco y ocupaba un lugar en la barra; las listas se usan a diario.
+
+**Archivos:** `MobileApp.kt`, `AppState.kt`, `components/{Rows,Common,Icons}.kt`, `screens/{Home,Library,Videos,Search,Playlists}Screen.kt`.
+
+**Pruebas:**
+- 122 pruebas pasan.
+- Capturas temporales a 400 dp en el tema Aurora: Inicio con el engranaje, Listas, Ajustes desde Listas y Atrás, Biblioteca, Videos y Buscar. La prueba temporal se retiró.
+- APK de release instalado en el A35. El teléfono estaba bloqueado, así que falta mirarlo en él.
+
+**Nota:** `OnboardingFlowTest.keyboardWalksTheStepsAndFinishes` falló una vez con un error interno de Compose ("LayoutNode not found in RectList"). Pasó 3 veces sola y en la corrida completa siguiente: es intermitente.
+
 ## 2026-11-14 — Versión 0.4, fase 2: menos redibujo (batería)
 **Qué:**
 - **`Backdrop.kt`:**

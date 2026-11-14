@@ -76,7 +76,11 @@ fun HomeScreen(
 
     LazyColumn(Modifier.statusBarsPadding(), contentPadding = mobilePadding(bottomPadding)) {
         item {
-            BasicText(todayLabel(), style = type.caption)
+            // Fecha y engranaje de Ajustes arriba (Ajustes ya no está en la barra de pestañas).
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                BasicText(todayLabel(), style = type.caption, modifier = Modifier.weight(1f))
+                app.aurora.components.SettingsButton(onOpenSettings)
+            }
             app.aurora.components.GreetingTitle(greeting(userName), onEditName, Modifier.fillMaxWidth())
             LibraryBanner(lib, onOpenSettings)
             dailyMix()
@@ -111,10 +115,10 @@ fun HomeScreen(
 
 /** Tarjeta fija "+ Crear lista": borde punteado del tema y altura idéntica al resto. */
 @Composable
-private fun CreatePlaylistCard(hasLists: Boolean, onClick: () -> Unit) {
-    Column(Modifier.width(AuroraDimens.CoverCard).pressableLong("Crear lista", onClick)) {
+internal fun CreatePlaylistCard(hasLists: Boolean, onClick: () -> Unit, size: Dp = AuroraDimens.CoverCard) {
+    Column(Modifier.width(size).pressableLong("Crear lista", onClick)) {
         Box(
-            Modifier.size(AuroraDimens.CoverCard)
+            Modifier.size(size)
                 .clip(Ui.shapes.artSmall)
                 .background(Ui.colors.surface)
                 .dashedBorder(),
@@ -135,14 +139,15 @@ private fun CreatePlaylistCard(hasLists: Boolean, onClick: () -> Unit) {
 
 /** Tarjeta de una lista: carátula (collage), nombre en una línea y cuántas canciones o elementos tiene. */
 @Composable
-private fun PlaylistCard(
+internal fun PlaylistCard(
     playlist: Playlist,
     tracks: List<Track>,
     onClick: () -> Unit,
     onLongClick: (() -> Unit)?,
+    size: Dp = AuroraDimens.CoverCard,
 ) {
-    Column(Modifier.width(AuroraDimens.CoverCard).pressableLong(playlist.name, onClick, onLongClick)) {
-        PlaylistCover(tracks, playlist.colors, AuroraDimens.CoverCard)
+    Column(Modifier.width(size).pressableLong(playlist.name, onClick, onLongClick)) {
+        PlaylistCover(tracks, playlist.colors, size)
         BasicText(
             playlist.name, style = Ui.type.rowTitle, maxLines = 1, overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(top = 8.dp),
