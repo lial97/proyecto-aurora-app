@@ -40,6 +40,8 @@ import app.aurora.components.VideoSurface
 import app.aurora.screens.VideoScreen
 import app.aurora.screens.menuFor
 import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.drop
 import app.aurora.data.LibraryState
 import app.aurora.domain.Playlist
 import app.aurora.player.PlaybackState
@@ -114,15 +116,28 @@ fun MobileApp(state: AppState, lib: LibraryState, playback: PlaybackState) {
     LaunchedEffect(state.playerRequests) {
         if (state.playerRequests > 0) layer = if (current?.mediaType == app.aurora.domain.MediaType.VIDEO && !state.videoInBackground) Layer.Video else Layer.Player
     }
+    // Video de una lista: se abre su vista y, encima, la pantalla completa (horizontal si el video lo es).
+    // Se espera a conocer el tamaño del video (hasta 2,5 s) para que el giro sea el correcto.
+    var fullscreenAsks by remember { mutableStateOf(0) }
+    fun openVideoFullscreen() { state.videoInBackground = false; layer = Layer.Video; fullscreenAsks++ }
+    LaunchedEffect(state.fullscreenRequests) { if (state.fullscreenRequests > 0) openVideoFullscreen() }
+    LaunchedEffect(fullscreenAsks) {
+        if (fullscreenAsks == 0) return@LaunchedEffect
+        kotlinx.coroutines.withTimeoutOrNull(2500) { player.video?.videoSize?.first { it != null } }
+        val now = player.state.value
+        if (now.hasVideo && now.videoEnabled && layer == Layer.Video) state.setFullscreen(true)
+    }
+    // Ya en pantalla completa, si el tamaño del video cambia (el siguiente video de la lista) se vuelve a decidir el giro.
+    LaunchedEffect(state.videoFullscreen) {
+        if (!state.videoFullscreen) return@LaunchedEffect
+        player.video?.videoSize?.drop(1)?.collect { if (it != null && state.videoFullscreen) state.setFullscreen(true) }
+    }
     // Cambio automático entre canción y video cuando el reproductor está abierto.
-    // En una lista, un video que empieza tras una canción se abre maximizado por defecto.
-    var lastWasVideo by remember { mutableStateOf(currentIsVideo) }
+    // En una lista, cada video que le toca se abre a pantalla completa (salvo que se eligiera "Canción").
     LaunchedEffect(currentId) {
-        val wasVideo = lastWasVideo
-        lastWasVideo = currentIsVideo
         if (currentIsVideo) {
-            if (layer == Layer.Player && !state.videoInBackground) layer = Layer.Video
-            else if (!wasVideo && layer == null && playlistContext != null && !state.videoInBackground) layer = Layer.Video
+            if (playlistContext != null && !state.videoInBackground && playback.videoEnabled) openVideoFullscreen()
+            else if (layer == Layer.Player && !state.videoInBackground) layer = Layer.Video
         } else if (layer == Layer.Video) {
             layer = Layer.Player
         }
@@ -132,6 +147,8 @@ fun MobileApp(state: AppState, lib: LibraryState, playback: PlaybackState) {
     LaunchedEffect(playback.isPlaying) { if (playback.isPlaying) state.revealMiniPlayers() }
     // Si deja de sonar un video (pasa a una canción), se sale de pantalla completa y vuelven las barras.
     LaunchedEffect(playback.hasVideo) { if (!playback.hasVideo && state.videoFullscreen) state.setFullscreen(false) }
+    // Un solo mini reproductor: con un video, el mini video flotante; si no, el de audio (ver MiniPlayers.kt).
+    val minis = miniPlayers(currentId, playback.hasVideo, playback.videoEnabled, state.miniPlayerHiddenFor, state.pipClosedFor, state.pipHiddenFor)
     val userName by state.settings.userName.collectAsState()
     // Relleno inferior de todas las listas: lo que mide de verdad el bloque de abajo (mini reproductor,
     // pestañas y la barra de navegación del sistema, sea de gestos o de 3 botones) + 16 dp.
@@ -248,7 +265,7 @@ fun MobileApp(state: AppState, lib: LibraryState, playback: PlaybackState) {
                 Modifier.fillMaxWidth().background(app.aurora.theme.Ui.colors.background)
                     .onSizeChanged { barsHeight = with(density) { it.height.toDp() } },
             ) {
-                if (current != null && state.miniPlayerHiddenFor != current.id) {
+                if (minis.audio && current != null) {
                     MiniPlayer(
                         current, playback.isPlaying,
                         progress = app.aurora.components.rememberProgress(playback.totalSec),
@@ -299,7 +316,7 @@ fun MobileApp(state: AppState, lib: LibraryState, playback: PlaybackState) {
 
         // Mini video flotante: el video sigue en segundo plano mientras navegas.
         androidx.compose.animation.AnimatedVisibility(
-            visible = playback.hasVideo && playback.videoEnabled && !immersive && !state.videoFullscreen && state.pipClosedFor != currentId && state.pipHiddenFor != currentId,
+            visible = minis.video && !immersive && !state.videoFullscreen,
             modifier = Modifier.align(Alignment.BottomEnd).padding(end = 12.dp, bottom = bottomPadding),
             enter = fadeIn() + slideInVertically { it / 3 }, exit = fadeOut(),
         ) {

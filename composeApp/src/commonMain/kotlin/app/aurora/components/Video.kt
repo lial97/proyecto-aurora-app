@@ -205,7 +205,7 @@ fun VideoTime(durationSec: Int, color: Color = Color.White) {
  * Se puede deslizar a la derecha para quitarlo, pero solo en pausa (igual que el mini reproductor).
  */
 @Composable
-fun PipVideo(playback: PlaybackState, player: PlayerController, onExpand: () -> Unit, onClose: () -> Unit, modifier: Modifier = Modifier, width: androidx.compose.ui.unit.Dp = 300.dp, onSwipeDismiss: (() -> Unit)? = null) {
+fun PipVideo(playback: PlaybackState, player: PlayerController, onExpand: () -> Unit, onClose: () -> Unit, modifier: Modifier = Modifier, width: androidx.compose.ui.unit.Dp = 300.dp, onSwipeDismiss: (() -> Boolean)? = null) {
     val shape = Ui.shapes.card
     val playing = playback.isPlaying
     // Deslizar a la derecha lo cierra, pero solo en pausa: con el video sonando el gesto está bloqueado.
@@ -234,7 +234,7 @@ fun PipVideo(playback: PlaybackState, player: PlayerController, onExpand: () -> 
                             if (!playing) launch {
                                 if (widthPx > 0f && offsetX.value > widthPx * .35f) {
                                     offsetX.animateTo(widthPx + extraPx, tween(220))
-                                    onSwipeDismiss()
+                                    if (!onSwipeDismiss()) offsetX.animateTo(0f, tween(220))
                                 } else {
                                     offsetX.animateTo(0f, tween(220))
                                 }

@@ -28,6 +28,12 @@ class DefaultPlayerController(
     private var gapless = true
     private var repeatQueue = false
     @kotlin.concurrent.Volatile private var advancedEarly = false
+    /**
+     * Sube con cada pista que empieza. Los avisos de "terminó" llegan en otro hilo y se procesan después: si para
+     * entonces ya empezó otra pista, son de la anterior y se ignoran. Antes, el adelanto de ~0,3 s y el aviso
+     * normal de fin podían pasar los dos: el segundo saltaba otra vez (o detenía la cola si era la última).
+     */
+    @kotlin.concurrent.Volatile private var generation = 0
     private var fadeFactor = 1f
     /** Tras un salto, el motor puede avisar todavía la posición vieja: se ignora hasta llegar cerca del destino. */
     @kotlin.concurrent.Volatile private var seekTargetMs = -1L
@@ -48,12 +54,16 @@ class DefaultPlayerController(
             val durMs = _state.value.durationSec * 1000L
             if (gapless && fadeSec == 0 && durMs > 5000 && ms >= durMs - 300 && !advancedEarly) {
                 advancedEarly = true
-                scope.launch { onTrackEnded() }
+                val g = generation
+                scope.launch { if (g == generation) onTrackEnded() }
             }
         }
         engine?.onDuration = { ms -> _state.update { it.copy(durationSec = (ms / 1000).toInt()) } }
         // Los avisos del motor llegan desde otro hilo: se procesan en el scope de la app.
-        engine?.onEnded = { scope.launch { if (!advancedEarly) onTrackEnded() } }
+        engine?.onEnded = {
+            val g = generation
+            scope.launch { if (!advancedEarly && g == generation) onTrackEnded() }
+        }
         engine?.onError = { msg -> _state.update { it.copy(error = msg, isPlaying = false) } }
         engine?.onNotice = { msg -> _state.update { it.copy(videoProblem = msg) } }
         engine?.setOnPlayingChanged { playing ->
@@ -70,6 +80,7 @@ class DefaultPlayerController(
 
     private fun startCurrent(play: Boolean, startSec: Int = 0) {
         val t = _state.value.current ?: return
+        generation++
         advancedEarly = false
         fadeFactor = if (fadeSec > 0) 0f else 1f
         if (fadeSec > 0) engine?.setVolume(0f) else engine?.setVolume(_state.value.volume)
@@ -79,6 +90,11 @@ class DefaultPlayerController(
         }
         ticker?.cancel()
         if (real) {
+            // Hasta que el motor llegue a la pista nueva puede avisar todavía la posición de la anterior: se ignora
+            // igual que tras un salto (con una canción larga antes de un video corto, parecía que el video ya había
+            // terminado y la cola se detenía).
+            seekTargetMs = startSec * 1000L
+            seekMark = kotlin.time.TimeSource.Monotonic.markNow()
             engine!!.load(t.filePath!!, play, startSec * 1000L, metaOf(t))
         } else {
             engine?.stop()

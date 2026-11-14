@@ -46,6 +46,7 @@ class DefaultPlayerControllerTest {
         val e = FakeEngine()
         val p = DefaultPlayerController(CoroutineScope(Dispatchers.Unconfined), e)
         p.play(listOf(video), 0)
+        e.onPosition(300)       // el motor ya llegó a la pista (antes se ignoran posiciones ajenas)
         e.onPosition(42_500)
         assertTrue(p.state.value.hasVideo)
         p.setVideoEnabled(false)
@@ -73,6 +74,50 @@ class DefaultPlayerControllerTest {
         assertEquals(1, p.state.value.index)
         assertEquals("/v/clip.mp4", e.loaded)
         assertTrue(p.state.value.videoEnabled, "cada video nuevo empieza con imagen")
+    }
+
+    /**
+     * Al terminar la canción llegan dos avisos casi a la vez (el adelanto "sin pausas" por la posición final y el
+     * fin normal) antes de que se procese ninguno. Solo debe contar uno: antes el segundo, ya con el video sonando
+     * (el último de la lista), detenía la cola y el video quedaba en negro en 0:00.
+     */
+    @Test
+    fun twoEndNoticesAdvanceOnlyOnce() {
+        val pending = ArrayDeque<Runnable>()
+        val later = object : kotlinx.coroutines.CoroutineDispatcher() {
+            override fun dispatch(context: kotlin.coroutines.CoroutineContext, block: Runnable) { pending.addLast(block) }
+        }
+        val e = FakeEngine()
+        val p = DefaultPlayerController(CoroutineScope(later), e)
+        p.play(listOf(song, video), 0)
+        e.onDuration(200_000)
+        e.onPosition(500)       // la canción ya está sonando (el motor llegó a la pista nueva)
+        while (pending.isNotEmpty()) pending.removeFirst().run()
+        e.onPosition(199_900)   // adelanto "sin pausas"
+        e.onEnded()             // fin normal de la misma canción
+        while (pending.isNotEmpty()) pending.removeFirst().run()
+        assertEquals(1, p.state.value.index, "pasa al video una sola vez")
+        assertTrue(p.state.value.isPlaying, "el video sigue sonando (no se detuvo la cola)")
+        assertEquals("/v/clip.mp4", e.loaded)
+    }
+
+    /** Al empezar el video, el motor aún avisa la posición de la canción anterior (3:54): no debe contar como su final. */
+    @Test
+    fun stalePositionOfThePreviousTrackIsIgnored() {
+        val e = FakeEngine()
+        val p = DefaultPlayerController(CoroutineScope(Dispatchers.Unconfined), e)
+        val longSong = song.copy(durationSec = 237)
+        val shortVideo = video.copy(durationSec = 106)
+        p.play(listOf(longSong, shortVideo), 0)
+        e.onDuration(237_000)
+        e.onPosition(500)              // la canción ya está sonando
+        e.onPosition(236_820)          // adelanto "sin pausas": pasa al video
+        assertEquals(1, p.state.value.index)
+        e.onDuration(106_000)
+        e.onPosition(234_032)          // posición vieja de la canción
+        assertEquals(1, p.state.value.index, "sigue en el video")
+        assertTrue(p.state.value.isPlaying, "la cola no se detuvo")
+        assertEquals(0, p.state.value.positionSec)
     }
 }
 

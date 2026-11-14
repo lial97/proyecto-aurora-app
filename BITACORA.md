@@ -11,6 +11,33 @@ Formato de cada entrada:
 **Pendiente:** lo que queda abierto (opcional).
 ```
 
+## 2026-11-14 — Versión 0.4, fase 4: videos de una lista a pantalla completa y un solo mini reproductor
+**Qué:**
+- **Video de una lista → pantalla completa real** (barras ocultas y horizontal si el video lo es):
+  - al tocarlo en una lista (`AppState.fullscreenRequests`);
+  - cuando le toca dentro de la lista (canción → video y video → video), salvo que se haya elegido "Canción" o "Solo audio".
+  - `MobileApp` abre la vista de video y luego la pantalla completa en cuanto conoce el tamaño del video (hasta 2,5 s). Si el tamaño cambia estando en pantalla completa, vuelve a decidir el giro.
+  - Atrás sale a la vista de video con "A continuación en «lista»".
+- **Un solo mini reproductor** (`MiniPlayers.kt`, función pura `miniPlayers` y `MiniPlayersTest`):
+  - con un video que se ve, solo el mini video flotante;
+  - con una canción, solo el mini reproductor de audio;
+  - si el mini video se cierra con × o el video está en "Solo audio", vuelve el de audio.
+- **Deslizar:** `dismissMiniPlayers()` devuelve si se pudo. Si empezó a sonar a mitad del gesto, la tarjeta vuelve a su sitio en lugar de quedar fuera de la pantalla.
+- **Bug corregido (introducido en la fase 1):** al terminar una canción y empezar un video más corto, la cola se detenía y el video quedaba en negro en 0:00. Había dos causas:
+  - `Media3Engine` avisaba la posición también al cargar la pista siguiente. `currentPosition` aún era la de la canción (3:54) y, con la duración del video (1:46), parecía su final. Ahora solo la avisa en una pausa real (`!playWhenReady && STATE_READY`).
+  - `DefaultPlayerController` ignora, durante 2 s al empezar cada pista, las posiciones lejos del inicio (igual que tras un salto). Además, cada pista tiene un número (`generation`) y los avisos de fin de una pista anterior ya no cuentan.
+  - Pruebas `twoEndNoticesAdvanceOnlyOnce` y `stalePositionOfThePreviousTrackIsIgnored` (la primera falla sin el arreglo).
+
+**Por qué:** pedido del usuario. Los videos de una lista deben verse a pantalla completa, y no debe haber dos mini reproductores a la vez.
+
+**Archivos:** `MobileApp.kt`, `AppState.kt`, `MiniPlayers.kt` (nuevo), `components/{Rows,Video}.kt`, `player/DefaultPlayerController.kt`, `androidMain/player/Media3Engine.kt`, `commonTest/MiniPlayersTest.kt` (nuevo), `commonTest/player/DefaultPlayerControllerTest.kt`.
+
+**Pruebas:** 131 pruebas pasan. En el A35, con el APK de release y "Lista test" (una canción y un video):
+- tocar el video → pantalla completa en horizontal, y Atrás → vista de video con «A continuación en «Lista test»»;
+- canción adelantada al final → empieza el video a pantalla completa en horizontal, sonando;
+- con la canción, solo el mini de audio; con el video, solo el mini video;
+- deslizar con el video sonando no lo mueve, y en pausa se quitan los dos.
+
 ## 2026-11-14 — Versión 0.4, fase 3: Ajustes arriba y pestaña "Listas"
 **Qué:**
 - **Pestañas del móvil:** Inicio, Biblioteca, Videos, Buscar y **Listas** (`Tab.Playlists`, ícono nuevo `AuroraIcon.Playlist`). Ajustes ya no está abajo.

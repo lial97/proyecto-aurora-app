@@ -102,7 +102,8 @@ fun SongRow(
 fun MiniPlayer(
     track: Track, playing: Boolean, progress: () -> Float, onOpen: () -> Unit, onToggle: () -> Unit,
     modifier: Modifier = Modifier, onOpenVideo: (() -> Unit)? = null,
-    onDismiss: (() -> Unit)? = null,
+    /** Devuelve `false` si no se pudo quitar (la tarjeta vuelve a su sitio). */
+    onDismiss: (() -> Boolean)? = null,
 ) {
     val c = Ui.colors
     val type = Ui.type
@@ -134,7 +135,7 @@ fun MiniPlayer(
                                 if (!playing) launch {
                                     if (widthPx > 0f && offsetX.value > widthPx * .35f) {
                                         offsetX.animateTo(widthPx + extraPx, tween(220))
-                                        onDismiss()
+                                        if (!onDismiss()) offsetX.animateTo(0f, tween(220))
                                     } else {
                                         offsetX.animateTo(0f, tween(220))
                                     }

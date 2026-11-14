@@ -63,7 +63,14 @@ class Media3Engine(private val context: Context) : MediaEngine {
                 override fun onPlayerError(error: PlaybackException) = onError("No se pudo reproducir este archivo")
                 override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) = playingListener(playWhenReady)
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
-                    if (isPlaying) startPolling() else { main.removeCallbacks(poll); onPosition(c.currentPosition) }
+                    if (isPlaying) startPolling()
+                    else {
+                        main.removeCallbacks(poll)
+                        // Solo en una pausa de verdad (lista y sin intención de sonar) se avisa la posición exacta.
+                        // Al terminar o al cargar la pista siguiente no: ahí `currentPosition` aún es la de la pista
+                        // anterior y el controlador la tomaba como "el video nuevo ya llegó al final".
+                        if (!c.playWhenReady && c.playbackState == Player.STATE_READY) onPosition(c.currentPosition)
+                    }
                 }
                 override fun onVideoSizeChanged(size: androidx.media3.common.VideoSize) {
                     // El ancho visible tiene en cuenta los píxeles no cuadrados.

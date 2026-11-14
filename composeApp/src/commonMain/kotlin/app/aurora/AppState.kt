@@ -130,6 +130,13 @@ class AppState(private val scope: CoroutineScope, val platform: PlatformServices
     var videoRequests by mutableIntStateOf(0)
         private set
 
+    /**
+     * Aumenta cuando empieza un video desde una lista: el móvil lo abre a pantalla completa (horizontal si el video
+     * lo es). Los cambios automáticos a un video dentro de la lista los detecta la propia interfaz.
+     */
+    var fullscreenRequests by mutableIntStateOf(0)
+        private set
+
     /** Aumenta cuando algo de fuera de la app (un widget) pide abrir el reproductor. */
     var playerRequests by mutableIntStateOf(0)
         private set
@@ -461,16 +468,23 @@ class AppState(private val scope: CoroutineScope, val platform: PlatformServices
         source = from
         playingPlaylistId = playlist?.id
         player.play(queue, index)
-        if (track.mediaType == MediaType.VIDEO) videoRequests++
+        if (track.mediaType == MediaType.VIDEO) {
+            videoRequests++
+            if (playlist != null) fullscreenRequests++
+        }
     }
 
-    /** Cierra los dos mini reproductores (audio y video) al deslizar uno: solo si está en pausa. */
-    fun dismissMiniPlayers() {
+    /**
+     * Cierra los dos mini reproductores (audio y video) al deslizar uno: solo si está en pausa.
+     * Devuelve `false` si no se pudo (empezó a sonar mientras se deslizaba): la tarjeta vuelve a su sitio.
+     */
+    fun dismissMiniPlayers(): Boolean {
         val s = player.state.value
-        if (s.isPlaying) return
-        val id = s.current?.id ?: return
+        if (s.isPlaying) return false
+        val id = s.current?.id ?: return false
         miniPlayerHiddenFor = id
         pipHiddenFor = id
+        return true
     }
 
     /** Vuelve a mostrar los dos mini reproductores (al cambiar de pista o al reanudar). */
