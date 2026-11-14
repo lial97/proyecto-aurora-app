@@ -58,7 +58,7 @@ Formato de cada entrada:
 - **APK:** `AURORA-APP/Aurora-0.4.0-android.apk` reemplaza al de la 0.3.1.
 
 **Pendiente:**
-- El .deb y el AppImage 0.4.0: Docker está apagado y el usuario no está en el grupo `docker` (hace falta `sudo`).
+- ~~El .deb y el AppImage 0.4.0~~: hechos más tarde ese día, con el arranque rápido incluido (`AURORA-APP/aurora_0.4.0_amd64.deb`, `Aurora-0.4.0-x86_64.AppImage`).
 - El .exe se arma en Windows (`build-windows.bat`).
 - Fusionar `v0.4` en `main` y publicar la Release v0.4.0.
 
