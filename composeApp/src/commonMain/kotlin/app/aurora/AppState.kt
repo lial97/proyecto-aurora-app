@@ -45,6 +45,8 @@ sealed interface AppDialog {
     data class NewPlaylist(val tracks: List<Track> = emptyList()) : AppDialog
     data class RenamePlaylist(val playlist: Playlist) : AppDialog
     data class DeletePlaylist(val playlist: Playlist) : AppDialog
+    /** Opciones al mantener pulsada una lista en Inicio. */
+    data class PlaylistMenu(val playlist: Playlist) : AppDialog
     /** Cambiar el nombre del saludo. */
     data object EditName : AppDialog
     /** "¿Te gustó la mezcla de hoy?" (tras escuchar 3 canciones de ella). */
@@ -57,6 +59,13 @@ sealed interface AppDialog {
 data class DailyMixView(val playlist: Playlist, val answer: app.aurora.data.MixAnswer)
 
 data class SleepTimer(val atMs: Long?, val endOfTrack: Boolean, val label: String)
+
+/** Selector a pantalla completa: crear una lista nueva o añadir canciones a [target]. */
+data class PlaylistSelectorState(
+    val name: String,
+    val target: Playlist? = null,
+    val initialIds: Set<String> = emptySet(),
+)
 
 class AppState(private val scope: CoroutineScope, val platform: PlatformServices) {
     // Sin carpetas por defecto: el usuario elige (las habituales aparecen como sugerencias en la configuración inicial).
@@ -88,8 +97,23 @@ class AppState(private val scope: CoroutineScope, val platform: PlatformServices
     private var lyricsFor: String? = null
 
     var toast by mutableStateOf<String?>(null)
+    /** Acción opcional del aviso (por ejemplo, "Abrir" la lista recién creada). */
+    var toastActionLabel by mutableStateOf<String?>(null)
+    var toastAction by mutableStateOf<(() -> Unit)?>(null)
     var source by mutableStateOf("Tu biblioteca")
+
+    /** Lista desde la que empezó la cola actual (`null` = otra procedencia). */
+    var playingPlaylistId by mutableStateOf<String?>(null)
+        private set
+
+    /** Pista para la que se cerró el mini reproductor deslizándolo (solo en pausa). */
+    var miniPlayerHiddenFor by mutableStateOf<String?>(null)
+        private set
+
     var dialog by mutableStateOf<AppDialog?>(null)
+
+    /** Selector de canciones y videos para crear una lista o añadir a una existente. */
+    var playlistSelector by mutableStateOf<PlaylistSelectorState?>(null)
 
     /** Rectángulo del menú contextual abierto (en coordenadas de la ventana), para cerrar al hacer clic fuera. */
     var contextMenuBounds: androidx.compose.ui.geometry.Rect? = null
@@ -109,6 +133,18 @@ class AppState(private val scope: CoroutineScope, val platform: PlatformServices
     /** Aumenta cuando algo de fuera de la app (un widget) pide abrir el reproductor. */
     var playerRequests by mutableIntStateOf(0)
         private set
+
+    /** Aumenta cuando el estado vacío de Videos pide abrir Ajustes › Biblioteca. */
+    var settingsLibraryRequests by mutableIntStateOf(0)
+        private set
+
+    fun requestSettingsLibrary() { settingsLibraryRequests++ }
+
+    /** Aumenta cuando Inicio › Tus listas › Ver todas pide abrir Biblioteca › Listas. */
+    var libraryPlaylistsRequests by mutableIntStateOf(0)
+        private set
+
+    fun requestLibraryPlaylists() { libraryPlaylistsRequests++ }
 
     /** Con la app recién abierta la cola tarda un momento en volver: se espera hasta 10 s. */
     fun requestPlayer() {
@@ -321,6 +357,7 @@ class AppState(private val scope: CoroutineScope, val platform: PlatformServices
         val cur = ids.getOrNull(index)?.let { byId[it] } ?: return
         player.restore(queue, queue.indexOf(cur), pos)
         source = "Donde lo dejaste"
+        playingPlaylistId = null
     }
 
     // --- Temporizador de apagado ---
@@ -407,17 +444,37 @@ class AppState(private val scope: CoroutineScope, val platform: PlatformServices
         it.mediaType == MediaType.AUDIO && it.filePath != null && it.needsCorrection()
     }
 
-    fun show(message: String) { toast = message }
+    fun show(message: String, actionLabel: String? = null, action: (() -> Unit)? = null) {
+        toast = message
+        toastActionLabel = actionLabel
+        toastAction = action
+    }
 
-    fun play(queue: List<Track>, index: Int, from: String = source) {
+    fun play(queue: List<Track>, index: Int, from: String = source, playlist: Playlist? = null) {
         val track = queue.getOrNull(index) ?: return
         if (track.mediaType == MediaType.VIDEO && !canPlayVideo) {
             show(if (platform.isDesktop) "Para ver videos instala VLC" else "El video en ${platform.name} llega en la próxima fase")
             return
         }
         source = from
+        playingPlaylistId = playlist?.id
         player.play(queue, index)
         if (track.mediaType == MediaType.VIDEO) videoRequests++
+    }
+
+    /** Cierra los dos mini reproductores (audio y video) al deslizar uno: solo si está en pausa. */
+    fun dismissMiniPlayers() {
+        val s = player.state.value
+        if (s.isPlaying) return
+        val id = s.current?.id ?: return
+        miniPlayerHiddenFor = id
+        pipClosedFor = id
+    }
+
+    /** Vuelve a mostrar los dos mini reproductores (al cambiar de pista o al reanudar). */
+    fun revealMiniPlayers() {
+        if (miniPlayerHiddenFor != null) miniPlayerHiddenFor = null
+        if (pipClosedFor != null) pipClosedFor = null
     }
 
     /** Busca la letra de la pista actual. [force] vuelve a preguntar a LRCLIB aunque antes no estuviera. */

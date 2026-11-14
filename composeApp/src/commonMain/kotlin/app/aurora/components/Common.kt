@@ -207,11 +207,20 @@ fun MixSwatch(colors: List<Long>, size: androidx.compose.ui.unit.Dp, modifier: M
 fun Dot(color: Color, modifier: Modifier = Modifier) = Box(modifier.size(7.dp).background(color, CircleShape))
 
 @Composable
-fun EmptyState(title: String, detail: String, modifier: Modifier = Modifier) {
+fun EmptyState(
+    title: String,
+    detail: String,
+    modifier: Modifier = Modifier,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null,
+) {
     Column(modifier.fillMaxSize().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Icon(AuroraIcon.Music, Ui.colors.mute, size = 36.dp)
         BasicText(title, style = Ui.type.rowTitle, modifier = Modifier.padding(top = 12.dp))
         BasicText(detail, style = Ui.type.rowSubtitle.copy(textAlign = androidx.compose.ui.text.style.TextAlign.Center), modifier = Modifier.padding(top = 4.dp))
+        if (actionLabel != null && onAction != null) {
+            Chip(actionLabel, selected = true, onClick = onAction, modifier = Modifier.padding(top = 14.dp), icon = AuroraIcon.Folder)
+        }
     }
 }
 

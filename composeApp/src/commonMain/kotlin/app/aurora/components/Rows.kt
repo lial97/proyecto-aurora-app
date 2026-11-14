@@ -1,12 +1,15 @@
 package app.aurora.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,6 +23,11 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -27,8 +35,13 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.aurora.domain.Track
@@ -36,6 +49,8 @@ import app.aurora.theme.AuroraDimens
 import app.aurora.theme.ThemeId
 import app.aurora.theme.Ui
 import app.aurora.theme.label
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 
 /** Fila de canción. La actual muestra el ecualizador y el título en color de énfasis. */
 @Composable
@@ -86,16 +101,49 @@ fun SongRow(
 fun MiniPlayer(
     track: Track, playing: Boolean, progress: Float, onOpen: () -> Unit, onToggle: () -> Unit,
     modifier: Modifier = Modifier, onOpenVideo: (() -> Unit)? = null,
+    onDismiss: (() -> Unit)? = null,
 ) {
     val c = Ui.colors
     val type = Ui.type
     val shape = Ui.shapes.card
     val soft = Ui.theme.id == ThemeId.PETALO || Ui.theme.id == ThemeId.BRUMA
+    // Deslizar a la derecha lo cierra, pero solo en pausa: con audio o video sonando el gesto está bloqueado.
+    val offsetX = remember { Animatable(0f) }
+    var widthPx by remember { mutableStateOf(0f) }
+    val extraPx = with(LocalDensity.current) { 24.dp.toPx() }
+    LaunchedEffect(track.id) { offsetX.snapTo(0f) }
+    LaunchedEffect(playing) { if (playing) offsetX.animateTo(0f, tween(180)) }
     Box(
         modifier
             .padding(horizontal = 10.dp)
             .fillMaxWidth()
             .height(AuroraDimens.MiniPlayerHeight)
+            .onSizeChanged { widthPx = it.width.toFloat() }
+            .graphicsLayer { translationX = offsetX.value }
+            .then(
+                if (onDismiss != null) Modifier.pointerInput(onDismiss, playing) {
+                    coroutineScope {
+                        detectHorizontalDragGestures(
+                            onHorizontalDrag = { change, dragAmount ->
+                                // En reproducción el gesto se consume (no abre el reproductor) pero no mueve la tarjeta.
+                                change.consume()
+                                if (!playing) launch { offsetX.snapTo((offsetX.value + dragAmount).coerceIn(0f, widthPx + extraPx)) }
+                            },
+                            onDragEnd = {
+                                if (!playing) launch {
+                                    if (widthPx > 0f && offsetX.value > widthPx * .35f) {
+                                        offsetX.animateTo(widthPx + extraPx, tween(220))
+                                        onDismiss()
+                                    } else {
+                                        offsetX.animateTo(0f, tween(220))
+                                    }
+                                }
+                            },
+                            onDragCancel = { if (!playing) launch { offsetX.animateTo(0f, tween(220)) } },
+                        )
+                    }
+                } else Modifier
+            )
             .pressable("Abrir reproductor", .98f, onClick = onOpen)
             .then(if (soft) Modifier.shadow(14.dp, shape, ambientColor = Color(0x22000000), spotColor = Color(0x22000000)) else Modifier)
             .clip(shape)
@@ -158,9 +206,14 @@ fun TabBar(selected: Tab?, onSelect: (Tab) -> Unit, modifier: Modifier = Modifie
     }
 }
 
-/** Aviso: píldora arriba (móvil) o abajo (escritorio), visible 2 s. */
+/** Aviso: píldora arriba (móvil) o abajo (escritorio). Con [actionLabel] y [onAction], incluye un botón. */
 @Composable
-fun Toast(message: String?, modifier: Modifier = Modifier) {
+fun Toast(
+    message: String?,
+    modifier: Modifier = Modifier,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null,
+) {
     val c = Ui.colors
     AnimatedVisibility(
         visible = message != null,
@@ -168,11 +221,23 @@ fun Toast(message: String?, modifier: Modifier = Modifier) {
         enter = fadeIn() + slideInVertically { -it / 2 },
         exit = fadeOut() + slideOutVertically { -it / 2 },
     ) {
-        BasicText(
-            message.orEmpty(),
-            style = Ui.type.body.copy(color = c.background, fontWeight = FontWeight.SemiBold),
-            modifier = Modifier.clip(Ui.shapes.chip).background(c.ink).padding(horizontal = 18.dp, vertical = 10.dp),
-        )
+        Row(
+            Modifier.clip(Ui.shapes.chip).background(c.ink).padding(horizontal = 18.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            BasicText(
+                message.orEmpty(),
+                style = Ui.type.body.copy(color = c.background, fontWeight = FontWeight.SemiBold),
+                modifier = Modifier.weight(1f, fill = false),
+            )
+            if (actionLabel != null && onAction != null) {
+                BasicText(
+                    actionLabel,
+                    style = Ui.type.body.copy(color = c.background, fontWeight = FontWeight.Bold, textDecoration = TextDecoration.Underline),
+                    modifier = Modifier.padding(start = 16.dp).pressable(actionLabel, .95f, onClick = onAction),
+                )
+            }
+        }
     }
 }
 

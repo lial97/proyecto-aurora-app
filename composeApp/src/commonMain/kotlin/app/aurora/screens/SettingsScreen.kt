@@ -31,6 +31,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -124,7 +125,13 @@ private class SettingsCtx(val query: String, val openHelp: String?, val onHelp: 
  * En móvil: chips de sección arriba. @param onBack `null` en escritorio.
  */
 @Composable
-fun SettingsScreen(state: AppState, lib: LibraryState, onBack: (() -> Unit)?, contentPadding: PaddingValues) {
+fun SettingsScreen(
+    state: AppState,
+    lib: LibraryState,
+    onBack: (() -> Unit)?,
+    contentPadding: PaddingValues,
+    openLibraryRequest: Int = 0,
+) {
     var section by rememberSaveable { mutableStateOf(SettingsSection.LIBRARY) }
     var query by rememberSaveable { mutableStateOf("") }
     var help by remember { mutableStateOf<String?>(null) }
@@ -195,6 +202,15 @@ fun SettingsScreen(state: AppState, lib: LibraryState, onBack: (() -> Unit)?, co
     } else {
         // Móvil: lista de secciones con buscador; cada sección abre su subpágina.
         var open by rememberSaveable { mutableStateOf<SettingsSection?>(null) }
+        // "Elegir carpeta de videos" (Videos vacío) abre directamente Biblioteca una sola vez por petición.
+        var handledLibraryRequest by rememberSaveable { mutableStateOf(0) }
+        LaunchedEffect(openLibraryRequest) {
+            if (openLibraryRequest > handledLibraryRequest) {
+                handledLibraryRequest = openLibraryRequest
+                open = SettingsSection.LIBRARY
+                help = null
+            }
+        }
         val o = open
         @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
         androidx.compose.ui.backhandler.BackHandler(enabled = o != null) { open = null; help = null }

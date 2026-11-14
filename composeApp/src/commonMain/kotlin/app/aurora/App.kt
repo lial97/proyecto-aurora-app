@@ -58,7 +58,15 @@ fun App(
     val theme by state.settings.theme.collectAsState()
     val playback by state.player.state.collectAsState()
     val lib by state.library.state.collectAsState()
-    LaunchedEffect(state.toast) { if (state.toast != null) { delay(2200); state.toast = null } }
+    LaunchedEffect(state.toast) {
+        if (state.toast != null) {
+            // El aviso con acción ("Abrir") dura un poco más para que dé tiempo a tocarlo.
+            delay(if (state.toastAction != null) 5200 else 2200)
+            state.toast = null
+            state.toastAction = null
+            state.toastActionLabel = null
+        }
+    }
     LaunchedEffect(playback.error) { playback.error?.let { state.show(it) } }
 
     // Énfasis de la portada actual, calculado una vez por pista fuera del hilo principal.

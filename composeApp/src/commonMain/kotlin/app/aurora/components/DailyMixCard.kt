@@ -53,7 +53,7 @@ fun DailyMixCard(state: AppState, onOpen: (Playlist) -> Unit, modifier: Modifier
                 Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp),
                 itemVerticalAlignment = Alignment.CenterVertically,
             ) {
-                Chip("Reproducir", true, { state.play(tracks, 0, "Tu mezcla de hoy") }, icon = AuroraIcon.Play)
+                Chip("Reproducir", true, { state.play(tracks, 0, "Tu mezcla de hoy", mix.playlist) }, icon = AuroraIcon.Play)
                 when (mix.answer) {
                     MixAnswer.PENDING -> {
                         Spacer(Modifier.width(4.dp))

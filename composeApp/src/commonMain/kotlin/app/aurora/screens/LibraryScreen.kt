@@ -38,6 +38,7 @@ import app.aurora.domain.groupFor
 import app.aurora.domain.sortedFor
 import app.aurora.domain.videos
 import app.aurora.theme.label
+import app.aurora.theme.title
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import app.aurora.components.Artwork
 import app.aurora.components.AuroraIcon
 import app.aurora.components.Chip
+import app.aurora.components.FitText
 import app.aurora.components.Icon
 import app.aurora.components.IconButton
 import app.aurora.components.LibraryBanner
@@ -107,8 +109,8 @@ fun LibraryScreen(
     onOpenSettings: () -> Unit,
     onMore: (Track) -> Unit = {},
     onNewPlaylist: () -> Unit = {},
-    onSearch: () -> Unit = {},
     plays: (Track) -> Int = { 0 },
+    openPlaylistsRequest: Int = 0,
 ) {
     val c = Ui.colors
     var category by rememberSaveable { mutableStateOf(MobileCategory.SONGS) }
@@ -118,12 +120,33 @@ fun LibraryScreen(
     var menuOpen by remember { mutableStateOf(false) }
     // Álbum o artista abierto (por nombre, para sobrevivir a girar o a que Android cierre la app).
     var openName by rememberSaveable { mutableStateOf<String?>(null) }
+    // Buscador inline de música: la lupa ya no cambia a la pestaña Buscar (que es mixta).
+    var searchOpen by rememberSaveable { mutableStateOf(false) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    var handledPlaylistsRequest by rememberSaveable { mutableStateOf(0) }
+    // "Ver todas" de Inicio abre directamente la categoría Listas (una vez por petición).
+    LaunchedEffect(openPlaylistsRequest) {
+        if (openPlaylistsRequest > handledPlaylistsRequest) {
+            handledPlaylistsRequest = openPlaylistsRequest
+            category = MobileCategory.PLAYLISTS
+            openName = null
+            searchOpen = false
+            searchQuery = ""
+        }
+    }
+    val searching = searchOpen && searchQuery.isNotBlank()
     val now = remember { kotlin.time.Clock.System.now().toEpochMilliseconds() }
 
-    val songs = remember(lib.tracks, sort, reversed) { lib.tracks.songs().sortedFor(sort, reversed, plays) }
+    val allSongs = remember(lib.tracks, sort, reversed) { lib.tracks.songs().sortedFor(sort, reversed, plays) }
     val videos = remember(lib.tracks) { lib.tracks.videos() }
-    val albums = remember(lib.tracks) { lib.tracks.albums() }
-    val artists = remember(lib.tracks) { lib.tracks.artists() }
+    val allAlbums = remember(lib.tracks) { lib.tracks.albums() }
+    val allArtists = remember(lib.tracks) { lib.tracks.artists() }
+    // El buscador de Biblioteca filtra solo música, según la categoría activa. Nunca muestra videos.
+    val songs = remember(allSongs, searching, searchQuery) {
+        if (searching) searchTracks(allSongs, searchQuery, SearchScope.MUSIC_ONLY) else allSongs
+    }
+    val albums = remember(allAlbums, songs, searching) { if (searching) songs.albums() else allAlbums }
+    val artists = remember(allArtists, songs, searching) { if (searching) songs.artists() else allArtists }
     // Filas: encabezados de grupo y canciones (para poder saltar al grupo desde el índice).
     val rows = remember(songs, sort) {
         buildList<Any> {
@@ -139,9 +162,16 @@ fun LibraryScreen(
     val artistsState = rememberLazyListState()
     val playlistsState = rememberLazyListState()
     val videosState = rememberLazyListState()
+    // Posiciones propias de los resultados de búsqueda: limpiar el campo devuelve la lista donde estaba.
+    val searchSongsState = rememberLazyListState()
+    val searchAlbumsState = rememberLazyListState()
+    val searchArtistsState = rememberLazyListState()
     val groupState = rememberSaveable(openName, saver = androidx.compose.foundation.lazy.LazyListState.Saver) { androidx.compose.foundation.lazy.LazyListState() }
     val listState = when {
         openGroup != null -> groupState
+        searching && category == MobileCategory.SONGS -> searchSongsState
+        searching && category == MobileCategory.ALBUMS -> searchAlbumsState
+        searching && category == MobileCategory.ARTISTS -> searchArtistsState
         category == MobileCategory.SONGS -> songsState
         category == MobileCategory.ALBUMS -> albumsState
         category == MobileCategory.ARTISTS -> artistsState
@@ -158,15 +188,24 @@ fun LibraryScreen(
         if (now != sortSeen) { sortSeen = now; songsState.scrollToItem(0) }
     }
     @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
-    androidx.compose.ui.backhandler.BackHandler(enabled = openName != null) { openName = null }
+    androidx.compose.ui.backhandler.BackHandler(enabled = searchOpen || openName != null) {
+        // Primero la búsqueda; después, el álbum o artista abierto.
+        if (searchOpen) { searchOpen = false; searchQuery = "" } else openName = null
+    }
 
     val counts = mapOf(
-        MobileCategory.SONGS to songs.size, MobileCategory.ALBUMS to albums.size, MobileCategory.ARTISTS to artists.size,
+        MobileCategory.SONGS to allSongs.size, MobileCategory.ALBUMS to allAlbums.size, MobileCategory.ARTISTS to allArtists.size,
         MobileCategory.PLAYLISTS to playlists.size, MobileCategory.VIDEOS to videos.size,
     )
     val chips: @Composable (Modifier) -> Unit = { m ->
         Row(m.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(top = 12.dp, bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            MobileCategory.entries.forEach { cat -> Chip("${cat.label}  ${counts[cat]}", category == cat, { category = cat; openName = null }) }
+            MobileCategory.entries.forEach { cat ->
+                Chip("${cat.label}  ${counts[cat]}", category == cat, {
+                    category = cat; openName = null
+                    // Las listas y los videos no se buscan con la lupa de música.
+                    if (cat == MobileCategory.PLAYLISTS || cat == MobileCategory.VIDEOS) { searchOpen = false; searchQuery = "" }
+                })
+            }
         }
     }
 
@@ -192,9 +231,27 @@ fun LibraryScreen(
                     return@item
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    ScreenTitle("Biblioteca", Modifier.weight(1f))
-                    IconButton(AuroraIcon.Search, "Buscar en la biblioteca", onSearch)
+                    FitText(Ui.theme.title("Biblioteca"), Ui.type.h1, Modifier.weight(1f), minScale = .6f)
+                    IconButton(
+                        AuroraIcon.Search,
+                        if (searchOpen) "Cerrar búsqueda" else "Buscar en tu música",
+                        {
+                            if (searchOpen) { searchOpen = false; searchQuery = "" }
+                            else {
+                                // La lupa busca solo música: si estamos en Listas o Videos, pasa a Canciones.
+                                if (category == MobileCategory.PLAYLISTS || category == MobileCategory.VIDEOS) category = MobileCategory.SONGS
+                                openName = null
+                                searchOpen = true
+                            }
+                        },
+                    )
                     IconButton(AuroraIcon.Plus, "Nueva lista", onNewPlaylist)
+                }
+                if (searchOpen) {
+                    SearchField(
+                        searchQuery, { searchQuery = it }, Modifier.padding(top = 12.dp).fillMaxWidth(),
+                        placeholder = "Buscar en tu música",
+                    )
                 }
                 LibraryBanner(lib, onOpenSettings)
             }
@@ -220,6 +277,20 @@ fun LibraryScreen(
                         IconButton(if (grid) AuroraIcon.Queue else AuroraIcon.Panel, if (grid) "Ver como lista" else "Ver como cuadrícula", { grid = !grid })
                     }
                     PlayAllRow({ onPlay(songs, 0) }, { onPlay(songs.shuffled(), 0) })
+                }
+            }
+            if (searching && shownGroup == null) {
+                val n = when (shown) {
+                    MobileCategory.SONGS -> songs.size
+                    MobileCategory.ALBUMS -> albums.size
+                    MobileCategory.ARTISTS -> artists.size
+                    else -> 0
+                }
+                if (n == 0) item(key = "sin-resultados") {
+                    BasicText(
+                        "No encontramos música con «$searchQuery»",
+                        style = Ui.type.rowSubtitle, modifier = Modifier.padding(top = 10.dp),
+                    )
                 }
             }
             val g = shownGroup

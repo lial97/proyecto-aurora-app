@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -23,6 +24,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.aurora.components.AuroraIcon
+import app.aurora.components.Chip
 import app.aurora.components.Hero
 import app.aurora.components.IconButton
 import app.aurora.components.PlayButton
@@ -50,13 +52,22 @@ fun PlaylistScreen(
     onRename: (() -> Unit)? = null,
     onDelete: (() -> Unit)? = null,
     onSaveAsList: (() -> Unit)? = null,
+    onAddTracks: (() -> Unit)? = null,
+    /** Si se indica, la lista se desplaza hasta esta pista (al minimizar un video de la lista). */
+    focusTrackId: String? = null,
 ) {
     val type = Ui.type
     val minutes = tracks.sumOf { it.durationSec } / 60
     val playingThis = playback.isPlaying && tracks.any { it.id == playback.current?.id }
+    val listState = rememberLazyListState()
+    LaunchedEffect(focusTrackId) {
+        val index = focusTrackId?.let { id -> tracks.indexOfFirst { it.id == id } } ?: -1
+        if (index >= 0) listState.scrollToItem(index + 1)
+    }
 
     LazyColumn(
         Modifier.statusBarsPadding(),
+        state = listState,
         contentPadding = PaddingValues(start = AuroraDimens.ScreenPadding, end = AuroraDimens.ScreenPadding, top = 8.dp, bottom = bottomPadding),
     ) {
         item {
@@ -72,6 +83,12 @@ fun PlaylistScreen(
             playlist.description?.let { BasicText(it, style = type.rowSubtitle, modifier = Modifier.padding(top = 4.dp)) }
             BasicText("${tracks.size} canciones, $minutes min", style = type.caption, modifier = Modifier.padding(top = 4.dp))
             if (tracks.isEmpty()) BasicText("Lista vacía: usa ⋯ en una canción y elige \"Añadir a una lista\".", style = type.rowSubtitle, modifier = Modifier.padding(top = 10.dp))
+            if (onAddTracks != null) {
+                Chip(
+                    "Añadir canciones", false, { onAddTracks() },
+                    modifier = Modifier.padding(top = 12.dp), icon = AuroraIcon.Plus,
+                )
+            }
             Row(Modifier.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (onRename != null) IconButton(AuroraIcon.Edit, "Renombrar lista", onRename)
                 if (onDelete != null) IconButton(AuroraIcon.Trash, "Borrar lista", onDelete)

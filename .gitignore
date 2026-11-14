@@ -23,3 +23,6 @@ AURORA-APP/*.dmg
 # VLC que se mete en los instaladores (se descarga o se copia al empaquetar)
 composeApp/resources/linux/vlc/
 composeApp/resources/windows/vlc/
+
+# Archivos sueltos que no son del proyecto
+/*.zip

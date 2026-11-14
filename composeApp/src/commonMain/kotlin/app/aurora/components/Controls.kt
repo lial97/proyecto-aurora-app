@@ -8,6 +8,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -105,6 +106,30 @@ fun Modifier.pressable(label: String, pressedScale: Float = .9f, hoverBg: Boolea
         .hoverable(source)
         .clickable(interactionSource = source, indication = null, role = Role.Button, onClick = onClick)
         .background(hover, Ui.shapes.card)
+}
+
+/** Como [pressable], pero también responde a una pulsación larga (menú de una lista, por ejemplo). */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+fun Modifier.pressableLong(
+    label: String,
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
+    pressedScale: Float = .96f,
+): Modifier {
+    val source = remember { MutableInteractionSource() }
+    val pressed by source.collectIsPressedAsState()
+    val s by animateFloatAsState(if (pressed) pressedScale else 1f, tween(120))
+    return scale(s)
+        .semantics { contentDescription = label }
+        .hoverable(source)
+        .combinedClickable(
+            interactionSource = source,
+            indication = null,
+            role = Role.Button,
+            onClick = onClick,
+            onLongClick = onLongClick,
+        )
 }
 
 /**
@@ -384,7 +409,13 @@ fun Chip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifie
 
 /** Subtítulo de sección con las mayúsculas del tema y el cuadrito naranja de Carbono. */
 @Composable
-fun SectionTitle(text: String, modifier: Modifier = Modifier, trailing: String? = null, top: Dp = if (Ui.isDesktop) 26.dp else 22.dp) {
+fun SectionTitle(
+    text: String,
+    modifier: Modifier = Modifier,
+    trailing: String? = null,
+    top: Dp = if (Ui.isDesktop) 26.dp else 22.dp,
+    onTrailingClick: (() -> Unit)? = null,
+) {
     val theme = Ui.theme
     Row(modifier.fillMaxWidth().padding(top = top, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         if (theme.headingDecoration == HeadingDecoration.SQUARE_BEFORE) {
@@ -398,7 +429,14 @@ fun SectionTitle(text: String, modifier: Modifier = Modifier, trailing: String? 
                 Box(Modifier.padding(start = 10.dp).size(28.dp, 2.dp).background(Ui.colors.accent))
             }
         } else BasicText(theme.title(text), style = Ui.type.h2, modifier = Modifier.weight(1f))
-        if (trailing != null) BasicText(trailing, style = Ui.type.caption.copy(fontWeight = FontWeight.SemiBold))
+        if (trailing != null) {
+            val press = if (onTrailingClick != null) Modifier.pressable(trailing, .95f, onClick = onTrailingClick) else Modifier
+            BasicText(
+                trailing,
+                style = Ui.type.caption.copy(fontWeight = FontWeight.SemiBold),
+                modifier = press.padding(start = 8.dp, top = 4.dp, bottom = 4.dp),
+            )
+        }
     }
 }
 

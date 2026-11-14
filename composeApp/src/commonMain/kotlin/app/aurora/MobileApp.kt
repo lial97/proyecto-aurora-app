@@ -47,6 +47,7 @@ import app.aurora.screens.HomeScreen
 import app.aurora.screens.LibraryScreen
 import app.aurora.screens.PlayerScreen
 import app.aurora.screens.PlaylistScreen
+import app.aurora.screens.PlaylistSelector
 import app.aurora.screens.SearchScreen
 import app.aurora.screens.SettingsScreen
 import app.aurora.screens.VideosScreen
@@ -72,15 +73,37 @@ fun MobileApp(state: AppState, lib: LibraryState, playback: PlaybackState) {
     var tabHistory by rememberSaveable { mutableStateOf(listOf<String>()) }
     var overlay by remember { mutableStateOf<Overlay>(Overlay.None) }
     var layer by rememberSaveable { mutableStateOf<Layer?>(null) }
+    // Pista a la que debe desplazarse la lista abierta (al minimizar un video de esa lista).
+    var playlistFocusId by remember { mutableStateOf<String?>(null) }
+    fun openPlaylist(p: Playlist, focusTrackId: String? = null) {
+        playlistFocusId = focusTrackId
+        overlay = Overlay.OpenPlaylist(p)
+    }
+    fun closePlaylist() {
+        overlay = Overlay.None
+        playlistFocusId = null
+    }
     fun selectTab(t: Tab) {
         if (t != tab) tabHistory = (tabHistory - t.name + tab.name).takeLast(10)
-        tab = t; overlay = Overlay.None
+        tab = t; closePlaylist()
     }
     val tracks = lib.tracks
     val playlists = remember(tracks, lib.usingSamples, state.liked, state.userPlaylists) { state.playlists(tracks, lib.usingSamples) }
     val current = playback.current
     val immersive = layer != null
     val videos = remember(tracks) { tracks.filter { it.mediaType == app.aurora.domain.MediaType.VIDEO } }
+    val currentId = current?.id
+    val currentIsVideo = current?.mediaType == app.aurora.domain.MediaType.VIDEO
+    // Lista desde la que suena la cola: solo cuenta si la pista actual sigue en ella.
+    val playingPlaylist = remember(state.playingPlaylistId, playlists) {
+        state.playingPlaylistId?.let { id -> playlists.firstOrNull { it.id == id } }
+    }
+    val playlistTracks = remember(playingPlaylist, tracks) {
+        playingPlaylist?.let { state.tracksOf(it, tracks) }.orEmpty()
+    }
+    val playlistContext = playingPlaylist?.takeIf {
+        currentId != null && playlistTracks.any { t -> t.id == currentId }
+    }
     val menu: (app.aurora.domain.Track) -> Unit = { state.menuFor(it) }
     // Al empezar un video se abre su pantalla.
     LaunchedEffect(state.videoRequests) { if (state.videoRequests > 0) { state.videoInBackground = false; layer = Layer.Video } }
@@ -89,12 +112,21 @@ fun MobileApp(state: AppState, lib: LibraryState, playback: PlaybackState) {
         if (state.playerRequests > 0) layer = if (current?.mediaType == app.aurora.domain.MediaType.VIDEO && !state.videoInBackground) Layer.Video else Layer.Player
     }
     // Cambio automático entre canción y video cuando el reproductor está abierto.
-    val currentId = current?.id
-    val currentIsVideo = current?.mediaType == app.aurora.domain.MediaType.VIDEO
+    // En una lista, un video que empieza tras una canción se abre maximizado por defecto.
+    var lastWasVideo by remember { mutableStateOf(currentIsVideo) }
     LaunchedEffect(currentId) {
-        if (currentIsVideo && layer == Layer.Player && !state.videoInBackground) layer = Layer.Video
-        if (!currentIsVideo && layer == Layer.Video) layer = Layer.Player
+        val wasVideo = lastWasVideo
+        lastWasVideo = currentIsVideo
+        if (currentIsVideo) {
+            if (layer == Layer.Player && !state.videoInBackground) layer = Layer.Video
+            else if (!wasVideo && layer == null && playlistContext != null && !state.videoInBackground) layer = Layer.Video
+        } else if (layer == Layer.Video) {
+            layer = Layer.Player
+        }
     }
+    // Los mini reproductores (audio y video) vuelven al cambiar de pista o al reanudar la reproducción.
+    LaunchedEffect(currentId) { state.revealMiniPlayers() }
+    LaunchedEffect(playback.isPlaying) { if (playback.isPlaying) state.revealMiniPlayers() }
     // Si deja de sonar un video (pasa a una canción), se sale de pantalla completa y vuelven las barras.
     LaunchedEffect(playback.hasVideo) { if (!playback.hasVideo && state.videoFullscreen) state.setFullscreen(false) }
     val userName by state.settings.userName.collectAsState()
@@ -110,7 +142,7 @@ fun MobileApp(state: AppState, lib: LibraryState, playback: PlaybackState) {
     // lista abierta → pestaña anterior → Inicio → la app pasa a segundo plano (la música sigue).
     BackHandler(enabled = !immersive) {
         when {
-            overlay != Overlay.None -> overlay = Overlay.None
+            overlay != Overlay.None -> closePlaylist()
             tabHistory.isNotEmpty() -> { tab = Tab.valueOf(tabHistory.last()); tabHistory = tabHistory.dropLast(1) }
             tab != Tab.Home -> tab = Tab.Home
             else -> state.onExitToBackground()
@@ -135,47 +167,58 @@ fun MobileApp(state: AppState, lib: LibraryState, playback: PlaybackState) {
             when {
                 o is Overlay.OpenPlaylist -> {
                     val p = state.latest(o.playlist)
-                    if (p == null) LaunchedEffect(Unit) { overlay = Overlay.None }
+                    if (p == null) LaunchedEffect(Unit) { closePlaylist() }
                     else {
                         val list = state.tracksOf(p, tracks)
                         PlaylistScreen(
                             p, list, playback, bottomPadding,
-                            onBack = { overlay = Overlay.None },
-                            onPlay = { q, i -> state.play(q, i, p.name) },
+                            onBack = { closePlaylist() },
+                            onPlay = { q, i -> state.play(q, i, p.name, p) },
                             onShuffle = player::toggleShuffle, onToast = state::show,
                             onMore = { state.menuFor(it, p) },
                             onRename = if (p.isUser) ({ state.dialog = AppDialog.RenamePlaylist(p) }) else null,
                             onDelete = if (p.isUser) ({ state.dialog = AppDialog.DeletePlaylist(p) }) else null,
                             onSaveAsList = if (!p.isUser) ({ state.dialog = AppDialog.NewPlaylist(list) }) else null,
+                            onAddTracks = if (p.isUser) ({ state.playlistSelector = PlaylistSelectorState(p.name, target = p) }) else null,
+                            focusTrackId = playlistFocusId,
                         )
                     }
                 }
                 t == Tab.Settings -> Box(Modifier.statusBarsPadding()) {
-                    SettingsScreen(state, lib, onBack = null, contentPadding = mobilePadding(bottomPadding))
+                    SettingsScreen(
+                        state, lib, onBack = null, contentPadding = mobilePadding(bottomPadding),
+                        openLibraryRequest = state.settingsLibraryRequests,
+                    )
                 }
                 t == Tab.Home -> HomeScreen(
-                    lib, playlists, playback, bottomPadding,
+                    lib, playlists, bottomPadding,
                     onPlay = { q, i -> state.play(q, i, "Inicio") },
-                    onOpenPlaylist = { overlay = Overlay.OpenPlaylist(it) },
+                    onOpenPlaylist = { openPlaylist(it) },
                     onOpenSettings = openSettings,
-                    onMore = menu,
+                    onCreatePlaylist = { state.dialog = AppDialog.NewPlaylist() },
+                    onShowAllLists = { state.requestLibraryPlaylists(); selectTab(Tab.Library) },
+                    onPlaylistMenu = { state.dialog = AppDialog.PlaylistMenu(it) },
                     lastPlayed = { state.stats.get(it.id).lastMs },
                     userName = userName,
                     onEditName = { state.dialog = AppDialog.EditName },
-                    dailyMix = { app.aurora.components.DailyMixCard(state, { overlay = Overlay.OpenPlaylist(it) }, Modifier.padding(top = 16.dp)) },
+                    dailyMix = { app.aurora.components.DailyMixCard(state, { openPlaylist(it) }, Modifier.padding(top = 16.dp)) },
                 )
                 t == Tab.Search -> SearchScreen(tracks, bottomPadding, { q, i -> state.play(q, i, "Búsqueda") }, menu)
                 t == Tab.Library -> LibraryScreen(
                     lib, playlists, playback, bottomPadding,
                     onPlay = { q, i -> state.play(q, i, "Tu biblioteca") },
-                    onOpenPlaylist = { overlay = Overlay.OpenPlaylist(it) },
+                    onOpenPlaylist = { openPlaylist(it) },
                     onOpenSettings = openSettings,
                     onMore = menu,
                     onNewPlaylist = { state.dialog = AppDialog.NewPlaylist() },
-                    onSearch = { selectTab(Tab.Search) },
                     plays = { state.stats.get(it.id).count },
+                    openPlaylistsRequest = state.libraryPlaylistsRequests,
                 )
-                else -> VideosScreen(lib, bottomPadding, { q, i -> state.play(q, i, "Videos") }, openSettings, menu)
+                else -> VideosScreen(
+                    lib, bottomPadding, { q, i -> state.play(q, i, "Videos") },
+                    onChooseVideoFolder = { state.requestSettingsLibrary(); selectTab(Tab.Settings) },
+                    onMore = menu,
+                )
             }
             }
         }
@@ -192,7 +235,7 @@ fun MobileApp(state: AppState, lib: LibraryState, playback: PlaybackState) {
                 Modifier.fillMaxWidth().background(app.aurora.theme.Ui.colors.background)
                     .onSizeChanged { barsHeight = with(density) { it.height.toDp() } },
             ) {
-                if (current != null) {
+                if (current != null && state.miniPlayerHiddenFor != current.id) {
                     MiniPlayer(
                         current, playback.isPlaying,
                         progress = playback.progress,
@@ -201,6 +244,7 @@ fun MobileApp(state: AppState, lib: LibraryState, playback: PlaybackState) {
                         onToggle = player::togglePlay,
                         modifier = Modifier.padding(top = 8.dp, bottom = 8.dp),
                         onOpenVideo = if (playback.hasVideo) ({ layer = Layer.Video }) else null,
+                        onDismiss = { state.dismissMiniPlayers() },
                     )
                 }
                 TabBar(tab.takeIf { overlay == Overlay.None }, { selectTab(it) })
@@ -208,7 +252,13 @@ fun MobileApp(state: AppState, lib: LibraryState, playback: PlaybackState) {
         }
 
         // Reproductor y video: capa que entra desde abajo (500 ms) encima de la pantalla actual.
-        BackHandler(enabled = immersive && !state.videoFullscreen) { layer = null }
+        // Minimizar un video de una lista deja a la vista esa lista (con sus siguientes elementos).
+        val closeLayer = {
+            val fromVideo = layer == Layer.Video
+            layer = null
+            if (fromVideo && playlistContext != null) openPlaylist(playlistContext, currentId)
+        }
+        BackHandler(enabled = immersive && !state.videoFullscreen) { closeLayer() }
         // Elegir "Canción" vale mientras se está en el reproductor: al volver a entrar, un video se ve como video.
         LaunchedEffect(layer) { if (layer == null) state.videoInBackground = false }
         AnimatedContent(
@@ -224,8 +274,13 @@ fun MobileApp(state: AppState, lib: LibraryState, playback: PlaybackState) {
                     onClose = { layer = null },
                     onOpenVideo = { state.videoInBackground = false; layer = Layer.Video },
                 )
-                Layer.Video -> VideoScreen(state, playback, videos, onClose = { layer = null },
-                    onShowSong = { state.videoInBackground = true; layer = Layer.Player })
+                Layer.Video -> VideoScreen(
+                    state, playback, videos,
+                    onClose = closeLayer,
+                    onShowSong = { state.videoInBackground = true; layer = Layer.Player },
+                    playlist = playlistContext,
+                    playlistTracks = playlistTracks,
+                )
                 null -> Box(Modifier)
             }
         }
@@ -236,16 +291,63 @@ fun MobileApp(state: AppState, lib: LibraryState, playback: PlaybackState) {
             modifier = Modifier.align(Alignment.BottomEnd).padding(end = 12.dp, bottom = bottomPadding),
             enter = fadeIn() + slideInVertically { it / 3 }, exit = fadeOut(),
         ) {
-            app.aurora.components.PipVideo(playback, player, onExpand = { layer = Layer.Video }, onClose = { state.pipClosedFor = currentId }, width = 200.dp)
+            app.aurora.components.PipVideo(
+                playback, player,
+                onExpand = { layer = Layer.Video },
+                onClose = { state.pipClosedFor = currentId },
+                width = 200.dp,
+                // Deslizarlo quita también el mini reproductor (y al revés): van en conjunto.
+                onSwipeDismiss = { state.dismissMiniPlayers() },
+            )
         }
         if (state.videoFullscreen && playback.hasVideo) {
             // Atrás sale de pantalla completa (no cierra el video).
             BackHandler { state.setFullscreen(false) }
             app.aurora.components.FullscreenVideo(playback, player, onExit = { state.setFullscreen(false) })
         }
+        // Selector de lista: capa a pantalla completa; Atrás lo cierra antes que la pantalla de abajo.
+        val draft = state.playlistSelector
+        if (draft != null) {
+            PlaylistSelector(
+                name = draft.name,
+                tracks = tracks,
+                initialIds = draft.initialIds,
+                plays = { state.stats.get(it.id).count },
+                allowEmpty = draft.target == null,
+                onCancel = { state.playlistSelector = null },
+                onDone = { selected ->
+                    state.playlistSelector = null
+                    val target = draft.target
+                    if (target != null) {
+                        state.addToPlaylist(target, selected)
+                    } else {
+                        val created = state.createPlaylist(draft.name, selected)
+                        state.show(
+                            "Lista «${created.name}» creada con ${selected.size} ${if (selected.size == 1) "elemento" else "elementos"}",
+                            actionLabel = "Abrir",
+                            action = { openPlaylist(created) },
+                        )
+                    }
+                },
+            )
+        }
         // Diálogos y hojas de opciones: Atrás los cierra antes que todo lo demás.
         BackHandler(enabled = state.dialog != null) { state.dialog = null }
-        DialogHost(state, tracks)
-        Toast(state.toast, Modifier.align(Alignment.TopCenter))
+        DialogHost(
+            state, tracks,
+            onNewPlaylist = { name, initial ->
+                state.playlistSelector = PlaylistSelectorState(name, initialIds = initial.map { it.id }.toSet())
+            },
+        )
+        Toast(
+            state.toast, Modifier.align(Alignment.TopCenter),
+            actionLabel = state.toastActionLabel,
+            onAction = {
+                state.toast = null
+                state.toastAction?.invoke()
+                state.toastAction = null
+                state.toastActionLabel = null
+            },
+        )
     }
 }

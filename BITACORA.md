@@ -11,6 +11,49 @@ Formato de cada entrada:
 **Pendiente:** lo que queda abierto (opcional).
 ```
 
+## 2026-11-12 — Móvil: deslizar el mini reproductor y videos con contexto de lista
+**Qué:**
+- **Mini reproductor** (`components/Rows.kt`): se puede deslizar hacia la derecha para cerrarlo, pero solo con la reproducción **en pausa**. Mientras suena audio o video el arrastre horizontal se consume y la tarjeta no se mueve, así que el gesto tampoco abre el reproductor por accidente. Usa `Animatable`.
+- **Mini video flotante (PiP)** (`components/Video.kt`): misma regla. Se desliza a la derecha para quitarlo solo en pausa; con el video sonando el gesto se consume sin mover la tarjeta ni abrir la vista de video.
+- **En conjunto:** deslizar cualquiera de los dos mini reproductores en pausa oculta **ambos** (`AppState.dismissMiniPlayers`); al reanudar o cambiar de pista vuelven los dos (`revealMiniPlayers`).
+- **Videos de una lista:** `AppState.playingPlaylistId` guarda la lista desde la que empezó la cola y `play(...)` acepta una `Playlist?`. La pantalla de video muestra «A continuación en «lista»» con los siguientes elementos de esa lista (canciones y videos), nunca videos sueltos; si el video no viene de una lista sigue mostrando «Más videos».
+- **Transición canción → video:** al pasar automáticamente de una canción a un video dentro de una lista, el video se abre maximizado.
+- **Minimizar:** cerrar la vista de video de una lista vuelve a esa lista, desplazada hasta el elemento actual, para ver los siguientes; el mini video (PiP) se mantiene cuando corresponde.
+- La mezcla del día y las tarjetas de lista pasan su lista al reproducir.
+
+**Por qué:** el mini reproductor no se podía quitar de encima y, al abrir un video de una lista, la pantalla mostraba videos ajenos en lugar de lo que venía en la lista.
+
+**Archivos:** `AppState.kt`, `MobileApp.kt`, `components/{Rows,DailyMixCard,Video}.kt`, `screens/{VideoScreen,PlaylistScreen}.kt`.
+
+**Pruebas:** `./gradlew :composeApp:desktopTest` y `:androidApp:assembleDebug` sin fallos. En el A35 (SM-A356E): deslizar con reproducción activa no cierra ni abre el reproductor, en pausa cierra los dos mini reproductores a la vez (audio y PiP, en ambos sentidos) y al reanudar vuelven ambos; «Lista test» con 4 elementos muestra solo sus siguientes en el video, el cambio canción→video abre el video y Atrás/minimizar vuelve a la lista con el elemento actual a la vista.
+
+## 2026-11-12 — Videos móvil: lista compacta como la referencia
+**Qué:** la pestaña Videos deja las tarjetas 16:9 a todo el ancho y pasa a filas compactas: miniatura 16:9 de 128 × 72 dp con su duración, título en hasta dos líneas, artista debajo y botón ⋮ de 36 dp. Se conservan el buscador, el contador, el × y el Atrás que limpia la consulta. `VideoCard` sigue usándose en "Más videos" del reproductor.
+**Por qué:** con pocos videos solo se veía uno por pantalla; `menu-videos.html` propone una lista más densa y fácil de recorrer.
+**Archivos:** `composeApp/src/commonMain/kotlin/app/aurora/screens/VideosScreen.kt`.
+**Pruebas:** `./gradlew :composeApp:desktopTest` sin fallos; APK debug instalado en el A35 y lista revisada en el teléfono (`/tmp/opencode/videos-nuevo-2.png`).
+**Pendiente:** valorar el selector Lista / Cuadrícula y el menú Ordenar de la referencia, que no forman parte de este ajuste.
+
+## 2026-11-12 — Móvil: búsqueda con alcance, "Tus listas" y selector de canciones
+**Qué:**
+- **Búsqueda con alcance** (`screens/SearchScreen.kt`): `SearchScope { ALL, MUSIC_ONLY, VIDEO_ONLY }` y `searchTracks` con alcance opcional. Busca en título, artista, álbum y género; en los buscadores separados mira también el nombre del archivo. Sin alcance (escritorio) el comportamiento es el de antes.
+- **Biblioteca:** la lupa ya no cambia a la pestaña Buscar. Abre un campo inline que filtra solo música según la categoría (Canciones, Álbumes, Artistas); si la categoría es Listas o Videos, pasa a Canciones. Los resultados tienen su propia posición de desplazamiento y Atrás limpia la búsqueda antes de salir. El título usa `FitText` para no partirse al 130 %.
+- **Videos:** campo "Buscar en tus videos" siempre visible, contador "N resultados" / "N videos" (singular incluido), × para limpiar y Atrás que borra la consulta. Se quitó el engranaje; el estado vacío ofrece "Elegir carpeta de videos", que abre Ajustes › Biblioteca mediante una petición de una sola vez.
+- **Pestaña Buscar:** chips Todo / Canciones / Videos, resultados mixtos con miniatura 16:9 y duración en los videos, y mensaje de vacío según el alcance.
+- **Inicio:** se quitó la sección "Añadidas hace poco" (la lista automática sigue como tarjeta). Nueva sección "Tus listas" con "Ver todas" (abre Biblioteca › Listas): tarjeta fija "+ Crear lista", luego listas propias, mezcla del día y mezclas automáticas. Carátula de collage (o `MixSwatch`), nombre en una línea, "N canciones" / "N elementos" y menú al mantener pulsada solo en listas propias (Renombrar / Eliminar).
+- **Crear o añadir a una lista** (`screens/PlaylistSelector.kt`): el diálogo de nombre pide "Nombre de la lista" con el menor "Lista N" libre y botones Cancelar / Continuar; después se abre un selector a pantalla completa (no es una pestaña). Búsqueda mixta con chips, casillas con rol y descripción "Marcar «título»", selección que se conserva al cambiar de filtro, bloques "Añadidas hace poco" (20) y "Más escuchadas" con la consulta vacía, contador con `liveRegion`, hasta 5 portadas + "+N" (tocar una desmarca), "Seleccionar todo lo visible" (resultados actuales o la unión de los dos bloques), "Limpiar" y "Listo (N)".
+- **Confirmaciones y aviso:** Listo sin nada pregunta "¿Crear la lista vacía?"; cerrar con algo marcado pregunta "¿Descartar la lista?". Nada se guarda hasta Listo. Al crear aparece "Lista «X» creada con N elementos" con acción "Abrir"; `Toast` admite ahora una acción opcional y dura 5,2 s (2,2 s sin acción). El mismo selector se reutiliza en "Añadir canciones" dentro de una lista, sin crear nada nuevo.
+- **Atrás:** primero cierra el selector (o su confirmación), luego limpia el campo de búsqueda y después navega. Las posiciones de desplazamiento de listas y resultados se conservan.
+- **Escritorio intacto:** `DialogHost` sigue creando la lista directamente (sin selector) cuando no recibe el flujo móvil; `SectionTitle` y `Toast` mantienen sus valores por defecto.
+
+**Por qué:** la búsqueda mezclaba música y videos en todos lados, la lupa de Biblioteca cambiaba de pestaña y crear una lista obligaba a añadir canciones de una en una. El flujo nuevo permite elegir todo de una vez y ver el resultado al instante.
+
+**Archivos:** `AppState.kt`, `App.kt`, `MobileApp.kt`, `components/{Common,Controls,Dialogs,Rows}.kt`, `screens/{Home,Library,Playlist,PlaylistSelector,Search,Settings,Videos}Screen.kt` (el selector es nuevo), `commonTest/screens/SearchTracksTest.kt`.
+
+**Pruebas:** `SearchTracksTest` (alcance, archivo y búsqueda vacía), `./gradlew :composeApp:desktopTest` completo y `./gradlew :androidApp:assembleDebug`, sin fallos. Capturas a 130 % de texto en Aurora, Póster, Estadio, Casete y Bruma: chips de Buscar, Inicio con "Tus listas", diálogo de nombre, selector vacío y con selección, aviso con "Abrir" y lista mixta creada. Las pruebas temporales de capturas se retiraron al terminar.
+
+**Pendiente:** probar en un teléfono real con gestos y teclado (ver pasos en la respuesta): foco del campo, Atrás del sistema, pulsación larga en una lista y "Abrir" del aviso.
+
 ## 2026-10-08 — El teclado ya no tapa los diálogos en Android; Linux con el arreglo del panel
 **Qué:** el contenedor de los diálogos (`components/Dialogs.kt`) lleva `imePadding()`: la hoja inferior ("¿Cómo te llamamos?", nueva lista, renombrar…) sube encima del teclado. Se recompilaron el APK, el .deb y el AppImage 0.3.1 con este cambio y con el del panel Cola/Info/Artista (`e0a8061`).
 **Por qué:** con `enableEdgeToEdge()` el `adjustResize` ya no encoge la ventana; la hoja quedaba debajo del teclado y no se veía lo que se escribía.

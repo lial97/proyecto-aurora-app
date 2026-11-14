@@ -1,6 +1,8 @@
 package app.aurora.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
@@ -31,6 +33,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,7 +48,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -53,6 +59,8 @@ import app.aurora.domain.videoCaption
 import app.aurora.player.PlaybackState
 import app.aurora.player.PlayerController
 import app.aurora.theme.Ui
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 
 /**
  * Cuadro de video. Dibuja los fotogramas del motor dentro de Compose (con la forma del tema) y pone
@@ -186,15 +194,48 @@ private fun VideoProgress(positionSec: Int, durationSec: Int, onSeek: (Int) -> U
 /**
  * Mini video flotante: aparece cuando hay un video sonando y no estás en su vista (segundo plano).
  * Tocarlo o "ampliar" abre el video; "cerrar" lo oculta y el sonido sigue.
+ * Se puede deslizar a la derecha para quitarlo, pero solo en pausa (igual que el mini reproductor).
  */
 @Composable
-fun PipVideo(playback: PlaybackState, player: PlayerController, onExpand: () -> Unit, onClose: () -> Unit, modifier: Modifier = Modifier, width: androidx.compose.ui.unit.Dp = 300.dp) {
+fun PipVideo(playback: PlaybackState, player: PlayerController, onExpand: () -> Unit, onClose: () -> Unit, modifier: Modifier = Modifier, width: androidx.compose.ui.unit.Dp = 300.dp, onSwipeDismiss: (() -> Unit)? = null) {
     val shape = Ui.shapes.card
+    val playing = playback.isPlaying
+    val swipeDismiss = onSwipeDismiss ?: onClose
+    // Deslizar a la derecha lo cierra, pero solo en pausa: con el video sonando el gesto está bloqueado.
+    val offsetX = remember { Animatable(0f) }
+    var widthPx by remember { mutableStateOf(0f) }
+    val extraPx = with(LocalDensity.current) { 24.dp.toPx() }
+    LaunchedEffect(playback.current?.id) { offsetX.snapTo(0f) }
+    LaunchedEffect(playing) { if (playing) offsetX.animateTo(0f, tween(180)) }
     Box(
         modifier.size(width = width, height = width * 9f / 16f)
+            .onSizeChanged { widthPx = it.width.toFloat() }
+            .graphicsLayer { translationX = offsetX.value }
             .shadow(22.dp, shape)
             .clip(shape)
-            .background(Color.Black),
+            .background(Color.Black)
+            .pointerInput(swipeDismiss, playing) {
+                coroutineScope {
+                    detectHorizontalDragGestures(
+                        onHorizontalDrag = { change, dragAmount ->
+                            // En reproducción el gesto se consume (no abre el video) pero no mueve la tarjeta.
+                            change.consume()
+                            if (!playing) launch { offsetX.snapTo((offsetX.value + dragAmount).coerceIn(0f, widthPx + extraPx)) }
+                        },
+                        onDragEnd = {
+                            if (!playing) launch {
+                                if (widthPx > 0f && offsetX.value > widthPx * .35f) {
+                                    offsetX.animateTo(widthPx + extraPx, tween(220))
+                                    swipeDismiss()
+                                } else {
+                                    offsetX.animateTo(0f, tween(220))
+                                }
+                            }
+                        },
+                        onDragCancel = { if (!playing) launch { offsetX.animateTo(0f, tween(220)) } },
+                    )
+                }
+            },
     ) {
         VideoSurface(playback, player, Modifier.matchParentSize(), controls = false, shape = shape, onTap = onExpand)
         Row(Modifier.align(Alignment.TopEnd).padding(4.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
