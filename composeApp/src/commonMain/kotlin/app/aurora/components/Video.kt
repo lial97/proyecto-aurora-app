@@ -200,7 +200,6 @@ private fun VideoProgress(positionSec: Int, durationSec: Int, onSeek: (Int) -> U
 fun PipVideo(playback: PlaybackState, player: PlayerController, onExpand: () -> Unit, onClose: () -> Unit, modifier: Modifier = Modifier, width: androidx.compose.ui.unit.Dp = 300.dp, onSwipeDismiss: (() -> Unit)? = null) {
     val shape = Ui.shapes.card
     val playing = playback.isPlaying
-    val swipeDismiss = onSwipeDismiss ?: onClose
     // Deslizar a la derecha lo cierra, pero solo en pausa: con el video sonando el gesto está bloqueado.
     val offsetX = remember { Animatable(0f) }
     var widthPx by remember { mutableStateOf(0f) }
@@ -214,7 +213,8 @@ fun PipVideo(playback: PlaybackState, player: PlayerController, onExpand: () -> 
             .shadow(22.dp, shape)
             .clip(shape)
             .background(Color.Black)
-            .pointerInput(swipeDismiss, playing) {
+            // Solo con [onSwipeDismiss] (móvil): en escritorio el ratón no debe cerrarlo al arrastrar.
+            .then(if (onSwipeDismiss == null) Modifier else Modifier.pointerInput(onSwipeDismiss, playing) {
                 coroutineScope {
                     detectHorizontalDragGestures(
                         onHorizontalDrag = { change, dragAmount ->
@@ -226,7 +226,7 @@ fun PipVideo(playback: PlaybackState, player: PlayerController, onExpand: () -> 
                             if (!playing) launch {
                                 if (widthPx > 0f && offsetX.value > widthPx * .35f) {
                                     offsetX.animateTo(widthPx + extraPx, tween(220))
-                                    swipeDismiss()
+                                    onSwipeDismiss()
                                 } else {
                                     offsetX.animateTo(0f, tween(220))
                                 }
@@ -235,7 +235,7 @@ fun PipVideo(playback: PlaybackState, player: PlayerController, onExpand: () -> 
                         onDragCancel = { if (!playing) launch { offsetX.animateTo(0f, tween(220)) } },
                     )
                 }
-            },
+            }),
     ) {
         VideoSurface(playback, player, Modifier.matchParentSize(), controls = false, shape = shape, onTap = onExpand)
         Row(Modifier.align(Alignment.TopEnd).padding(4.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {

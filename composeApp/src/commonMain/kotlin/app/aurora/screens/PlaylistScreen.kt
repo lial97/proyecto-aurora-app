@@ -81,7 +81,9 @@ fun PlaylistScreen(
             }
             ScreenTitle(playlist.name)
             playlist.description?.let { BasicText(it, style = type.rowSubtitle, modifier = Modifier.padding(top = 4.dp)) }
-            BasicText("${tracks.size} canciones, $minutes min", style = type.caption, modifier = Modifier.padding(top = 4.dp))
+            val hasVideos = tracks.any { it.mediaType == app.aurora.domain.MediaType.VIDEO }
+            val noun = if (hasVideos) (if (tracks.size == 1) "elemento" else "elementos") else (if (tracks.size == 1) "canción" else "canciones")
+            BasicText("${tracks.size} $noun, $minutes min", style = type.caption, modifier = Modifier.padding(top = 4.dp))
             if (tracks.isEmpty()) BasicText("Lista vacía: usa ⋯ en una canción y elige \"Añadir a una lista\".", style = type.rowSubtitle, modifier = Modifier.padding(top = 10.dp))
             if (onAddTracks != null) {
                 Chip(

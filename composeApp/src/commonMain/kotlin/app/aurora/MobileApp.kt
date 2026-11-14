@@ -88,7 +88,7 @@ fun MobileApp(state: AppState, lib: LibraryState, playback: PlaybackState) {
         tab = t; closePlaylist()
     }
     val tracks = lib.tracks
-    val playlists = remember(tracks, lib.usingSamples, state.liked, state.userPlaylists) { state.playlists(tracks, lib.usingSamples) }
+    val playlists = remember(tracks, lib.usingSamples, state.liked, state.userPlaylists, state.dailyMix) { state.playlists(tracks, lib.usingSamples) }
     val current = playback.current
     val immersive = layer != null
     val videos = remember(tracks) { tracks.filter { it.mediaType == app.aurora.domain.MediaType.VIDEO } }
@@ -179,7 +179,7 @@ fun MobileApp(state: AppState, lib: LibraryState, playback: PlaybackState) {
                             onRename = if (p.isUser) ({ state.dialog = AppDialog.RenamePlaylist(p) }) else null,
                             onDelete = if (p.isUser) ({ state.dialog = AppDialog.DeletePlaylist(p) }) else null,
                             onSaveAsList = if (!p.isUser) ({ state.dialog = AppDialog.NewPlaylist(list) }) else null,
-                            onAddTracks = if (p.isUser) ({ state.playlistSelector = PlaylistSelectorState(p.name, target = p) }) else null,
+                            onAddTracks = if (p.isUser) ({ state.playlistSelector = PlaylistSelectorState(p.name, target = p, initialIds = p.trackIds.toSet()) }) else null,
                             focusTrackId = playlistFocusId,
                         )
                     }
@@ -279,7 +279,6 @@ fun MobileApp(state: AppState, lib: LibraryState, playback: PlaybackState) {
                     onClose = closeLayer,
                     onShowSong = { state.videoInBackground = true; layer = Layer.Player },
                     playlist = playlistContext,
-                    playlistTracks = playlistTracks,
                 )
                 null -> Box(Modifier)
             }
@@ -287,7 +286,7 @@ fun MobileApp(state: AppState, lib: LibraryState, playback: PlaybackState) {
 
         // Mini video flotante: el video sigue en segundo plano mientras navegas.
         androidx.compose.animation.AnimatedVisibility(
-            visible = playback.hasVideo && playback.videoEnabled && !immersive && !state.videoFullscreen && state.pipClosedFor != currentId,
+            visible = playback.hasVideo && playback.videoEnabled && !immersive && !state.videoFullscreen && state.pipClosedFor != currentId && state.pipHiddenFor != currentId,
             modifier = Modifier.align(Alignment.BottomEnd).padding(end = 12.dp, bottom = bottomPadding),
             enter = fadeIn() + slideInVertically { it / 3 }, exit = fadeOut(),
         ) {
@@ -319,7 +318,7 @@ fun MobileApp(state: AppState, lib: LibraryState, playback: PlaybackState) {
                     state.playlistSelector = null
                     val target = draft.target
                     if (target != null) {
-                        state.addToPlaylist(target, selected)
+                        state.latest(target)?.let { state.syncPlaylist(it, selected) }
                     } else {
                         val created = state.createPlaylist(draft.name, selected)
                         state.show(

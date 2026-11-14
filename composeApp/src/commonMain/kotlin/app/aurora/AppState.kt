@@ -154,8 +154,15 @@ class AppState(private val scope: CoroutineScope, val platform: PlatformServices
         }
     }
 
-    /** Pista de video para la que el usuario cerró el mini video flotante (el sonido sigue). */
+    /**
+     * Pista de video para la que el usuario cerró el mini video flotante con × (el sonido sigue).
+     * Dura hasta que cambia la pista: pausar y reanudar no lo vuelve a mostrar.
+     */
     var pipClosedFor by mutableStateOf<String?>(null)
+
+    /** Pista para la que se quitó el mini video deslizándolo en pausa: vuelve al reanudar ([revealMiniPlayers]). */
+    var pipHiddenFor by mutableStateOf<String?>(null)
+        private set
 
     /** El usuario eligió "Canción" con un video sonando: los videos siguientes no se abren solos. */
     var videoInBackground by mutableStateOf(false)
@@ -468,13 +475,13 @@ class AppState(private val scope: CoroutineScope, val platform: PlatformServices
         if (s.isPlaying) return
         val id = s.current?.id ?: return
         miniPlayerHiddenFor = id
-        pipClosedFor = id
+        pipHiddenFor = id
     }
 
     /** Vuelve a mostrar los dos mini reproductores (al cambiar de pista o al reanudar). */
     fun revealMiniPlayers() {
         if (miniPlayerHiddenFor != null) miniPlayerHiddenFor = null
-        if (pipClosedFor != null) pipClosedFor = null
+        if (pipHiddenFor != null) pipHiddenFor = null
     }
 
     /** Busca la letra de la pista actual. [force] vuelve a preguntar a LRCLIB aunque antes no estuviera. */
@@ -571,6 +578,29 @@ class AppState(private val scope: CoroutineScope, val platform: PlatformServices
                 n == 0 -> "Ya estaba en ${playlist.name}"
                 n == 1 -> "Guardada en ${playlist.name}"
                 else -> "$n canciones guardadas en ${playlist.name}"
+            },
+        )
+    }
+
+    /**
+     * Deja [playlist] con lo marcado en el selector: añade lo nuevo al final y quita lo que se desmarcó.
+     * El orden de lo que ya estaba no cambia.
+     */
+    fun syncPlaylist(playlist: Playlist, selected: List<Track>) {
+        val keep = selected.map { it.id }.toSet()
+        // Lo que no está en la biblioteca no se ve en el selector: se deja como está (puede volver a aparecer).
+        val known = library.state.value.tracks.mapTo(HashSet()) { it.id }
+        val removed = playlist.trackIds.filter { it !in keep && it in known }
+        removed.forEach { lists.remove(playlist.id, it) }
+        val added = lists.add(playlist.id, selected.filter { it.id !in playlist.trackIds })
+        userPlaylists = lists.playlists.value
+        fun n(k: Int) = if (k == 1) "1 elemento" else "$k elementos"
+        show(
+            when {
+                added == 0 && removed.isEmpty() -> "Sin cambios en ${playlist.name}"
+                removed.isEmpty() -> "${n(added)} ${if (added == 1) "añadido" else "añadidos"} a ${playlist.name}"
+                added == 0 -> "${n(removed.size)} ${if (removed.size == 1) "quitado" else "quitados"} de ${playlist.name}"
+                else -> "${playlist.name}: ${n(added)} más y ${n(removed.size)} menos"
             },
         )
     }

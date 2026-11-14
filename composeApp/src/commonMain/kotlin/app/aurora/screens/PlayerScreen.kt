@@ -169,7 +169,8 @@ fun PlayerScreen(
             // Barra superior: cerrar, Canción | Video y opciones.
             Box(Modifier.fillMaxWidth().padding(top = 8.dp)) {
                 IconButton(AuroraIcon.Down, "Cerrar reproductor", onClose, Modifier.align(Alignment.CenterStart))
-                app.aurora.components.SongVideoSwitch(false, playback.hasVideo, onSong = {}, onVideo = onOpenVideo, modifier = Modifier.align(Alignment.Center))
+                // Solo con un video: en una canción el selector no tenía nada que elegir ("Sin video" apagado).
+                if (playback.hasVideo) app.aurora.components.SongVideoSwitch(false, true, onSong = {}, onVideo = onOpenVideo, modifier = Modifier.align(Alignment.Center))
                 IconButton(AuroraIcon.More, "Más opciones", { state.menuFor(track) }, Modifier.align(Alignment.CenterEnd))
             }
 

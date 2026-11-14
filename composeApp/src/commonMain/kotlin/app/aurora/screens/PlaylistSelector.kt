@@ -1,5 +1,6 @@
 package app.aurora.screens
 
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -77,15 +78,29 @@ fun PlaylistSelector(
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     var scope by rememberSaveable { mutableStateOf(SearchScope.ALL) }
-    var selectedOrder by rememberSaveable { mutableStateOf(initialIds.toList()) }
+    val byId = remember(tracks) { tracks.associateBy { it.id } }
+    // Solo lo que sigue en la biblioteca: una lista puede guardar pistas que ya no están (archivo borrado o
+    // filtrado) y el contador las contaba sin poder mostrarlas.
+    val initial = remember(initialIds, byId) { initialIds.filter { it in byId }.toSet() }
+    var selectedOrder by rememberSaveable { mutableStateOf(initial.toList()) }
     var confirm by remember { mutableStateOf<SelectorConfirm?>(null) }
     val selected = selectedOrder.toSet()
-    val byId = remember(tracks) { tracks.associateBy { it.id } }
     val selectedTracks = selectedOrder.mapNotNull(byId::get)
     val searching = query.isNotBlank()
     val results = remember(tracks, query, scope) { searchTracks(tracks, query, scope) }
-    val recent = remember(tracks) { tracks.sortedByDescending { it.dateAddedMs }.take(20) }
-    val mostPlayed = remember(tracks) { tracks.sortedByDescending { plays(it) }.take(20) }
+    // Sin búsqueda, los chips también filtran los dos bloques (antes "Videos" seguía mostrando canciones).
+    val inScope = remember(tracks, scope) {
+        when (scope) {
+            SearchScope.ALL -> tracks
+            SearchScope.MUSIC_ONLY -> tracks.filter { it.mediaType != MediaType.VIDEO }
+            SearchScope.VIDEO_ONLY -> tracks.filter { it.mediaType == MediaType.VIDEO }
+        }
+    }
+    val recent = remember(inScope) { inScope.sortedByDescending { it.dateAddedMs }.take(20) }
+    // Las reproducciones se leen una vez por pista (no en cada comparación) y solo cuenta lo que sonó alguna vez.
+    val mostPlayed = remember(inScope) {
+        inScope.map { it to plays(it) }.filter { it.second > 0 }.sortedByDescending { it.second }.take(20).map { it.first }
+    }
     val visible = if (searching) results else (recent + mostPlayed).distinctBy { it.id }
 
     fun toggle(t: Track) {
@@ -94,13 +109,15 @@ fun PlaylistSelector(
 
     fun finish() {
         if (selectedOrder.isEmpty()) {
-            // Crear una lista vacía se confirma; en "añadir" no hay nada que guardar.
+            // Crear una lista vacía se confirma; en "añadir" solo se guarda si se desmarcó lo que ya estaba.
             if (allowEmpty) confirm = SelectorConfirm.EMPTY
+            else if (initial.isNotEmpty()) onDone(emptyList())
         } else onDone(selectedTracks)
     }
 
     fun requestClose() {
-        if (selectedOrder.isEmpty()) onCancel() else confirm = SelectorConfirm.DISCARD
+        // Solo pregunta si hay cambios sin guardar respecto a lo que ya estaba marcado.
+        if (selected == initial) onCancel() else confirm = SelectorConfirm.DISCARD
     }
 
     @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
@@ -109,8 +126,13 @@ fun PlaylistSelector(
         if (confirm != null) confirm = null else requestClose()
     }
 
-    Box(Modifier.fillMaxSize().background(Ui.colors.background)) {
-        Column(Modifier.fillMaxSize()) {
+    // El fondo recibe los toques: si no, los que caen fuera de un botón llegaban a la pantalla de abajo
+    // (mini reproductor, pestañas) con el selector abierto.
+    Box(
+        Modifier.fillMaxSize().background(Ui.colors.background)
+            .clickable(remember { MutableInteractionSource() }, null) {},
+    ) {
+        Column(Modifier.fillMaxSize().imePadding()) {
             Row(
                 Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = AuroraDimens.ScreenPadding, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,

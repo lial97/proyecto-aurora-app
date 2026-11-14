@@ -11,6 +11,45 @@ Formato de cada entrada:
 **Pendiente:** lo que queda abierto (opcional).
 ```
 
+## 2026-11-14 — Versión 0.4, fase 1: arreglos de la revisión
+**Qué:**
+- **Videos:** el buscador cerraba el teclado con la primera letra (estaba dentro de `key(searching)` y se recreaba). Ahora la cabecera (título, buscador y contador) queda fija fuera de la lista, con `imePadding`. El estado vacío usa el ícono de video (`EmptyState(icon = …)`).
+- **Selector de listas (`PlaylistSelector.kt`):**
+  - el fondo recibe los toques (antes llegaban al mini reproductor y a las pestañas de debajo);
+  - los chips Todo, Canciones y Videos también filtran "Añadidas hace poco" y "Más escuchadas";
+  - "Más escuchadas" lee las reproducciones una vez por pista y deja fuera lo que nunca sonó;
+  - `imePadding` en el contenido.
+- **"Añadir canciones" a una lista:** abre con lo que ya está marcado y guarda los cambios con `AppState.syncPlaylist`: añade lo nuevo y quita lo desmarcado (aviso "N añadidos / N quitados / Sin cambios"). Lo que la lista guarda pero ya no está en la biblioteca no se cuenta ni se toca.
+- **Mini video:**
+  - cerrarlo con × ya no se deshace al pausar y reanudar: "cerrado con ×" (`pipClosedFor`) y "quitado al deslizar" (`pipHiddenFor`) van por separado;
+  - en escritorio el ratón ya no lo cierra al arrastrar.
+- **"A continuación" en el video de una lista** sigue la cola real; con aleatorio, el título lo indica.
+- **Mezcla del día:** `MobileApp` recalcula las listas cuando cambia (antes se perdía el contexto de lista con una mezcla nueva).
+- **Reproductor:** el selector Canción | Video solo aparece con un video (en una canción mostraba "Sin video" apagado).
+- **Listas con videos:**
+  - dicen "N elementos" también en su pantalla;
+  - el conteo de Inicio usa lo que se puede mostrar;
+  - con menos de 4 portadas se usa la primera entera, en lugar de un collage con huecos.
+- **Android:**
+  - el sondeo de posición de `Media3Engine` (cada 250 ms) solo corre mientras suena;
+  - `configChanges` con `smallestScreenSize|uiMode|density` (cambiar a modo oscuro ya no recrea la actividad).
+
+**Por qué:** bugs encontrados en la revisión de la 0.4.
+
+**Descartado:**
+- El video en negro al salir de pantalla completa no pasa: comprobado en el A35, gira a horizontal y al salir el video se ve.
+- No se cambió la lectura inicial de DataStore (`runBlocking`): la app la necesita antes de dibujar y el archivo es pequeño (arranque en frío de 448 ms).
+
+**Archivos:** `screens/{Videos,PlaylistSelector,Video,Player,Playlist,Home}Screen.kt`, `components/{Common,Video}.kt`, `AppState.kt`, `MobileApp.kt`, `androidMain/player/Media3Engine.kt`, `AndroidManifest.xml`.
+
+**Pruebas:** 122 pruebas pasan. En el A35, con el APK de release:
+- escribir "max" en Videos sin que se cierre el teclado;
+- × del mini video, pausar y reanudar → sigue cerrado;
+- pantalla completa y salir;
+- el selector con "2 seleccionadas" correctas;
+- un toque en su barra inferior no cambia de pestaña;
+- el chip Videos sin búsqueda muestra solo videos.
+
 ## 2026-11-14 — Android: los videos de chats ya no entran en la biblioteca
 **Qué:** nueva función `isChatVideo` (`domain/FileNames.kt`), con el mismo criterio que `isChatOrVoiceAudio`. Deja fuera los videos con nombre `VID-AAAAMMDD-WA…` y los de carpetas de WhatsApp o Telegram, también cuando están copiados en otra carpeta. `AndroidPlatform.listTree` la aplica a los videos. Prueba `ChatVideoTest`.
 **Por qué:** el usuario agregó `Movies`, que tenía 1 video, pero la app mostraba 5. Los otros 4 estaban en la subcarpeta `Movies/WhatsApp` (uno repetido como `(1)`): el escaneo entra en las subcarpetas.

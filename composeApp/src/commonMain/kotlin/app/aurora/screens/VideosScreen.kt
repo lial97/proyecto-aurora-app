@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
@@ -33,6 +34,7 @@ import app.aurora.components.trackContextMenu
 import app.aurora.data.LibraryState
 import app.aurora.domain.Track
 import app.aurora.domain.videos
+import app.aurora.theme.AuroraDimens
 import app.aurora.theme.Ui
 
 /** Sección de videos: separada de la música para no mezclar mp3 con mp4. */
@@ -57,32 +59,44 @@ fun VideosScreen(
     @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
     androidx.compose.ui.backhandler.BackHandler(enabled = searching) { query = "" }
 
-    androidx.compose.runtime.key(searching) {
-        LazyColumn(Modifier.statusBarsPadding(), state = listState, contentPadding = mobilePadding(bottomPadding)) {
-            item {
-                ScreenTitle("Videos")
-                SearchField(
-                    query, { query = it }, Modifier.padding(top = 10.dp, bottom = 12.dp).fillMaxWidth(),
-                    placeholder = "Buscar en tus videos",
-                )
-                BasicText(
-                    if (searching) "${results.size} ${if (results.size == 1) "resultado" else "resultados"}"
-                    else "${videos.size} ${if (videos.size == 1) "video" else "videos"}",
-                    style = Ui.type.rowSubtitle, modifier = Modifier.padding(top = 2.dp, bottom = 14.dp),
-                )
-                if (videos.isEmpty()) {
+    // La cabecera (título, buscador y contador) queda fija fuera de la lista: así el campo no se recrea al
+    // empezar o terminar una búsqueda (antes se cerraba el teclado con la primera letra) ni sale de la
+    // pantalla al bajar por los resultados.
+    Column(Modifier.statusBarsPadding()) {
+        Column(Modifier.padding(start = AuroraDimens.ScreenPadding, end = AuroraDimens.ScreenPadding, top = 20.dp)) {
+            ScreenTitle("Videos")
+            SearchField(
+                query, { query = it }, Modifier.padding(top = 10.dp, bottom = 12.dp).fillMaxWidth(),
+                placeholder = "Buscar en tus videos",
+            )
+            BasicText(
+                if (searching) "${results.size} ${if (results.size == 1) "resultado" else "resultados"}"
+                else "${videos.size} ${if (videos.size == 1) "video" else "videos"}",
+                style = Ui.type.rowSubtitle, modifier = Modifier.padding(top = 2.dp, bottom = 14.dp),
+            )
+        }
+        // Una lista por estado de desplazamiento (todos / resultados): limpiar la búsqueda no mueve la lista.
+        androidx.compose.runtime.key(searching) {
+            LazyColumn(
+                Modifier.weight(1f).imePadding(), state = listState,
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                    start = AuroraDimens.ScreenPadding, end = AuroraDimens.ScreenPadding, bottom = bottomPadding,
+                ),
+            ) {
+                if (videos.isEmpty()) item {
                     EmptyState(
                         "No hay videos",
                         "Añade en Ajustes la carpeta donde guardas tus videos.",
                         actionLabel = "Elegir carpeta de videos",
                         onAction = onChooseVideoFolder,
+                        icon = AuroraIcon.Video,
                     )
-                } else if (searching && results.isEmpty()) {
+                } else if (searching && results.isEmpty()) item {
                     BasicText("No encontramos videos con «$query»", style = Ui.type.rowSubtitle)
                 }
-            }
-            items(shown, key = { it.id }) { v ->
-                VideoRow(v, { onPlay(shown, shown.indexOf(v)) }, onMore = { onMore(v) })
+                items(shown, key = { it.id }) { v ->
+                    VideoRow(v, { onPlay(shown, shown.indexOf(v)) }, onMore = { onMore(v) })
+                }
             }
         }
     }

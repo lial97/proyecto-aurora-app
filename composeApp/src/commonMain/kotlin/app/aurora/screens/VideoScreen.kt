@@ -51,15 +51,15 @@ fun VideoScreen(
     onClose: () -> Unit,
     onShowSong: () -> Unit = {},
     playlist: Playlist? = null,
-    playlistTracks: List<Track> = emptyList(),
 ) {
     val t = playback.current ?: return
     val liked = t.id in state.liked
-    val currentIndex = if (playlist != null) playlistTracks.indexOfFirst { it.id == t.id } else -1
-    // "A continuación": los elementos de la lista que vienen después del video actual.
+    // "A continuación": lo que viene después en la cola real (respeta "Reproducir a continuación", lo movido y lo
+    // quitado). Con aleatorio no se sabe qué sonará: se muestra el resto de la cola y el título lo dice.
+    val queue = playback.queue
     val rows: List<Pair<Track, Int>> = if (playlist != null) {
-        val start = if (currentIndex >= 0) currentIndex + 1 else 0
-        playlistTracks.drop(start).mapIndexed { offset, track -> track to start + offset }
+        val start = playback.index + 1
+        queue.drop(start).mapIndexed { offset, track -> track to start + offset }
     } else {
         videos.mapIndexed { i, v -> v to i }.filter { it.first.id != t.id }
     }
@@ -92,13 +92,16 @@ fun VideoScreen(
                 Chip("Compartir", false, { state.show("Enlace copiado") }, icon = AuroraIcon.Share)
             }
             Box(Modifier.padding(horizontal = AuroraDimens.ScreenPadding)) {
-                SectionTitle(playlist?.let { "A continuación en «${it.name}»" } ?: "Más videos")
+                SectionTitle(
+                    playlist?.let { if (playback.shuffle) "En «${it.name}» (aleatorio)" else "A continuación en «${it.name}»" }
+                        ?: "Más videos",
+                )
             }
         }
         itemsIndexed(rows, key = { _, row -> row.first.id }) { _, (v, i) ->
             Row(
                 Modifier.fillMaxWidth().pressable(v.title, .98f, hoverBg = true) {
-                    if (playlist != null) state.play(playlistTracks, i, playlist.name, playlist)
+                    if (playlist != null) state.play(queue, i, playlist.name, playlist)
                     else state.play(videos, i, "Videos")
                 }.padding(horizontal = AuroraDimens.ScreenPadding, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,

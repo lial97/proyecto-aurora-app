@@ -213,9 +213,10 @@ fun EmptyState(
     modifier: Modifier = Modifier,
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
+    icon: AuroraIcon = AuroraIcon.Music,
 ) {
     Column(modifier.fillMaxSize().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(AuroraIcon.Music, Ui.colors.mute, size = 36.dp)
+        Icon(icon, Ui.colors.mute, size = 36.dp)
         BasicText(title, style = Ui.type.rowTitle, modifier = Modifier.padding(top = 12.dp))
         BasicText(detail, style = Ui.type.rowSubtitle.copy(textAlign = androidx.compose.ui.text.style.TextAlign.Center), modifier = Modifier.padding(top = 4.dp))
         if (actionLabel != null && onAction != null) {

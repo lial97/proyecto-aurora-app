@@ -157,7 +157,8 @@ private fun PlaylistCover(tracks: List<Track>, colors: List<Long>, size: Dp) {
     Box(Modifier.size(size).clip(Ui.shapes.artSmall).background(c.surface).clearAndSetSemantics {}) {
         when {
             tracks.isEmpty() -> MixSwatch(colors, size)
-            tracks.size == 1 -> Artwork(tracks.first(), size, shape = RectangleShape, border = false)
+            // Con menos de 4 portadas el collage quedaba con huecos: se usa la primera entera.
+            tracks.size < 4 -> Artwork(tracks.first(), size, shape = RectangleShape, border = false)
             else -> {
                 val cell = size / 2
                 Column(Modifier.size(size)) {
@@ -177,7 +178,8 @@ private fun PlaylistCover(tracks: List<Track>, colors: List<Long>, size: Dp) {
 }
 
 private fun countLabel(p: Playlist, tracks: List<Track>): String {
-    val n = p.trackIds.size
+    // Lo que se puede mostrar (una lista puede guardar pistas que ya no están en la biblioteca).
+    val n = tracks.size
     return if (tracks.any { it.mediaType == MediaType.VIDEO }) {
         "$n ${if (n == 1) "elemento" else "elementos"}"
     } else {
