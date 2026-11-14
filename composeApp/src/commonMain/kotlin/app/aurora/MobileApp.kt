@@ -276,6 +276,8 @@ fun MobileApp(state: AppState, lib: LibraryState, playback: PlaybackState) {
                         modifier = Modifier.padding(top = 8.dp, bottom = 8.dp),
                         onOpenVideo = if (playback.hasVideo) ({ layer = Layer.Video }) else null,
                         onDismiss = { state.dismissMiniPlayers() },
+                        onPrevious = player::previous,
+                        onNext = player::next,
                     )
                 }
                 TabBar(tab.takeIf { overlay == Overlay.None }, { selectTab(it) })

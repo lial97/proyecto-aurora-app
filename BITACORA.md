@@ -11,6 +11,12 @@ Formato de cada entrada:
 **Pendiente:** lo que queda abierto (opcional).
 ```
 
+## 2026-11-14 — Mini reproductor con canción anterior y siguiente
+**Qué:** el mini reproductor del móvil tiene botones ⏮ y ⏭ (40 dp) a los lados de reproducir/pausa (`MiniPlayer(onPrevious, onNext)`, conectados a `player.previous`/`player.next`). Deslizar sigue siendo para quitarlo en pausa.
+**Por qué:** pedido del usuario: cambiar de canción sin abrir el reproductor.
+**Archivos:** `components/Rows.kt`, `MobileApp.kt`.
+**Pruebas:** 135 pruebas pasan. En el A35: ⏭ pasa de "Bones" a "En cambio no" y ⏮ vuelve a "Bones".
+
 ## 2026-11-14 — La música aparece al instante al abrir la app
 **Qué:**
 - **Biblioteca guardada** (`data/LibraryCache.kt`, nuevo):

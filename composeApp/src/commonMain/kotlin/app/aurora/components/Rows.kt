@@ -104,6 +104,9 @@ fun MiniPlayer(
     modifier: Modifier = Modifier, onOpenVideo: (() -> Unit)? = null,
     /** Devuelve `false` si no se pudo quitar (la tarjeta vuelve a su sitio). */
     onDismiss: (() -> Boolean)? = null,
+    /** Canción anterior y siguiente: botones a los lados de reproducir/pausa. */
+    onPrevious: (() -> Unit)? = null,
+    onNext: (() -> Unit)? = null,
 ) {
     val c = Ui.colors
     val type = Ui.type
@@ -160,8 +163,10 @@ fun MiniPlayer(
                 BasicText(track.artist, style = type.rowSubtitle, maxLines = 1)
             }
             if (onOpenVideo != null) IconButton(AuroraIcon.Video, "Ver video", onOpenVideo)
+            if (onPrevious != null) IconButton(AuroraIcon.Previous, "Canción anterior", onPrevious, size = 40.dp, iconSize = 20.dp)
             if (Ui.theme.controlStyle == app.aurora.theme.ControlStyle.KEYS) PlayButton(playing, 36.dp, onToggle, width = 40.dp)
             else IconButton(if (playing) AuroraIcon.Pause else AuroraIcon.Play, if (playing) "Pausar" else "Reproducir", onToggle)
+            if (onNext != null) IconButton(AuroraIcon.Next, "Siguiente canción", onNext, size = 40.dp, iconSize = 20.dp)
         }
         // Se lee al dibujar: la línea avanza sin recomponer el mini reproductor.
         Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(2.dp).graphicsLayer().drawBehind { drawRect(c.accent, size = size.copy(width = size.width * progress())) })
