@@ -11,6 +11,12 @@ Formato de cada entrada:
 **Pendiente:** lo que queda abierto (opcional).
 ```
 
+## 2026-11-14 — Versión 0.4, fase 0: línea base de rendimiento
+**Qué:** rama `v0.4` con el trabajo del 2026-11-12 en un commit. La maqueta `menu-videos.html` pasa a `files/` y los `.zip` sueltos de la raíz quedan fuera de git. Script nuevo `scripts/medir-android.sh` (arranque, memoria, CPU y cuadros por adb) y `docs/RENDIMIENTO.md` con la línea base.
+**Por qué:** la 0.4 debe medir el rendimiento antes y después de cada cambio.
+**Resultado:** en el A35 la app gasta 77–93 % de un núcleo mientras suena (Inicio y reproductor), porque redibuja a 60–120 fps aunque no cambie nada. En pausa, 0 %. En escritorio, 18–24 %. Detalle en `docs/RENDIMIENTO.md`.
+**Pendiente:** fases 1 a 6 del plan de la 0.4 (bugs, menos redibujo, pestaña Listas y Ajustes arriba, videos de listas a pantalla completa con un solo mini reproductor, PiP del sistema y versión 0.4.0).
+
 ## 2026-11-12 — Móvil: deslizar el mini reproductor y videos con contexto de lista
 **Qué:**
 - **Mini reproductor** (`components/Rows.kt`): se puede deslizar hacia la derecha para cerrarlo, pero solo con la reproducción **en pausa**. Mientras suena audio o video el arrastre horizontal se consume y la tarjeta no se mueve, así que el gesto tampoco abre el reproductor por accidente. Usa `Animatable`.
