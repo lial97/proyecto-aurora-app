@@ -1,5 +1,6 @@
 package app.aurora.screens
 
+import app.aurora.APP_VERSION
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -261,7 +262,7 @@ fun SettingsScreen(
                         SettingsSection.APPEARANCE -> themeName
                         SettingsSection.SOUND -> if (prefs.eq.enabled) "EQ " + (if (prefs.eq.isCustom) "propio" else Eq.presets[prefs.eq.preset].name) else "EQ apagado"
                         SettingsSection.LYRICS -> "LRCLIB"
-                        SettingsSection.ABOUT -> "v0.3.1"
+                        SettingsSection.ABOUT -> "v$APP_VERSION"
                         else -> null
                     }
                 }
@@ -741,7 +742,7 @@ private fun AboutSection(state: AppState) {
             Column(Modifier.padding(start = 12.dp)) {
                 BasicText("Aurora", style = Ui.type.h2.copy(color = c.ink))
                 androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(top = 4.dp)) {
-                    listOf("Versión 0.3", "GPL-3.0", state.platform.name).forEach { t ->
+                    listOf("Versión $APP_VERSION", "GPL-3.0", state.platform.name).forEach { t ->
                         BasicText(t, style = Ui.type.caption.copy(color = c.ink), maxLines = 1, softWrap = false, modifier = Modifier.border(1.dp, c.surfaceBorder, RoundedCornerShape(20.dp)).padding(horizontal = 9.dp, vertical = 2.dp))
                     }
                 }

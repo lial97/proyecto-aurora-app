@@ -80,3 +80,29 @@ En el reproductor, lo que queda es la onda a 30 fps: cada cuadro compone la vent
 | Ventanita de imagen en imagen con el video 1080p de 60 fps | 71 % de un núcleo · ~28 cuadros/s (igual que la vista de video) |
 
 En segundo plano sin ventanita (PiP apagado en los ajustes del sistema, o pantalla apagada con la app delante), la imagen del video se apaga y solo se decodifica el audio. Falta medirlo: requiere bloquear el teléfono.
+
+## Final de la 0.4.0 (2026-11-14)
+
+**Android (A35, APK de release 0.4.0, tema Carbono)**
+
+| Medición | Línea base 0.3.1 | 0.4.0 |
+|---|---|---|
+| Arranque en frío (media de 5) | 448 ms | **348 ms** (219–459) |
+| Memoria en Inicio | 166 MB | 161 MB |
+| Inicio, sonando | 77–82 % · ~64 cuadros/s | **13 % · ~4 cuadros/s** |
+| Reproductor, sonando | 93 % · ~116 cuadros/s | **30 % · ~31 cuadros/s** |
+| Mini video + mini reproductor (ahora solo el mini video) | 92 % | 72 % |
+| Vista de video / ventanita del sistema | 72 % | 71 % |
+| En pausa | 0 % | 0 % |
+
+**Escritorio (Linux, tema Aurora con luces animadas). Tres corridas: el escritorio tiene más ruido**
+
+| Pantalla | Línea base | 0.4.0 (corridas 1 / 2 / 3) |
+|---|---|---|
+| Inicio, sonando | 23,7 % | 23,5 / 24,5 / 19,3 % |
+| Reproductor, sonando | 18,5 % | 15,6 / 19,8 / 16,3 % |
+| Pausa | 0,1 % | 0,1 / 30,9 (*) / 0,1 % |
+
+(*) Una sola vez, sin repetirse: probablemente una tarea de fondo (letras o miniaturas) durante esos 15 s.
+
+En escritorio la mejora es pequeña: ya iba a 30 fps desde la 0.3.1, y con el tema Aurora las luces del fondo se mueven de verdad.

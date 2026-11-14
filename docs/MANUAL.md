@@ -1,6 +1,6 @@
 # Manual de usuario de Aurora
 
-Versión 0.3.1 · Android, Windows y Linux
+Versión 0.4.0 · Android, Windows y Linux
 
 ¿Tienes prisa? Lee primero la [guía rápida](GUIA-RAPIDA.md).
 
@@ -50,10 +50,10 @@ Los archivos están en la [página de descargas](https://github.com/lial97/proye
 
 | Sistema | Archivo | Cómo se instala |
 |---|---|---|
-| **Android** | `Aurora-0.3.1-android.apk` | Ábrelo en el celular y toca **Instalar**. Si lo pide, permite "instalar apps de fuentes desconocidas". |
-| **Windows** | `Aurora-0.3.1.exe` | Doble clic → **Siguiente** → **Siguiente** → **Finalizar**. Si aparece "Windows protegió su PC", toca **Más información** → **Ejecutar de todas formas**. |
-| **Ubuntu, Linux Mint, Debian** | `aurora_0.3.1_amd64.deb` | Doble clic → **Instalar**. |
-| **Arch y otros Linux** | `Aurora-0.3.1-x86_64.AppImage` | Clic derecho → **Propiedades** → **Permitir ejecutar** → doble clic. La primera vez se agrega solo al menú. |
+| **Android** | `Aurora-0.4.0-android.apk` | Ábrelo en el celular y toca **Instalar**. Si lo pide, permite "instalar apps de fuentes desconocidas". |
+| **Windows** | `Aurora-0.4.0.exe` | Doble clic → **Siguiente** → **Siguiente** → **Finalizar**. Si aparece "Windows protegió su PC", toca **Más información** → **Ejecutar de todas formas**. |
+| **Ubuntu, Linux Mint, Debian** | `aurora_0.4.0_amd64.deb` | Doble clic → **Instalar**. |
+| **Arch y otros Linux** | `Aurora-0.4.0-x86_64.AppImage` | Clic derecho → **Propiedades** → **Permitir ejecutar** → doble clic. La primera vez se agrega solo al menú. |
 
 **Actualizar:** instala la versión nueva encima de la anterior. No pierdes tus listas, tus Me gusta ni tus ajustes.
 
@@ -81,14 +81,17 @@ Hay 5 secciones:
 | Sección | Para qué sirve |
 |---|---|
 | **Inicio** | Lo último que escuchaste, tu mezcla del día y lo añadido hace poco. |
-| **Biblioteca** | Toda tu música, ordenada por canciones, álbumes, artistas, géneros y listas. |
+| **Biblioteca** | Toda tu música, ordenada por canciones, álbumes, artistas y géneros. |
 | **Videos** | Tus videos musicales. |
 | **Buscar** | Encuentra canciones, artistas o videos escribiendo. |
+| **Listas** (celular) | Tus listas, la mezcla del día y las mezclas automáticas. |
 | **Ajustes** | Todo lo configurable. |
 
-- **En el celular** están en la barra de abajo. El **mini reproductor**, encima de esa barra, muestra lo que suena;
-  tócalo para abrir el reproductor completo. El botón **Atrás** del teléfono funciona en toda la app y Aurora
-  recuerda hasta dónde bajaste en cada lista.
+- **En el celular** las secciones están en la barra de abajo: Inicio, Biblioteca, Videos, Buscar y **Listas**.
+  **Ajustes** se abre con el **engranaje ⚙** de arriba a la derecha, en cualquier sección; **Atrás** te devuelve
+  adonde estabas. El **mini reproductor**, encima de la barra, muestra lo que suena; tócalo para abrir el reproductor
+  completo. Con un video sonando, en lugar del mini reproductor aparece el **mini video**. El botón **Atrás** del
+  teléfono funciona en toda la app y Aurora recuerda hasta dónde bajaste en cada lista.
 - **En el PC** están en la barra lateral izquierda, junto con **Tus listas** y el botón **+** para crear una. Abajo
   está siempre la **barra de reproducción** (ver [sección 8](#8-el-reproductor)). Arriba hay flechas de **Atrás** y
   **Adelante** como en un navegador.
@@ -127,7 +130,8 @@ Toca **Reproducir** para escucharla. Abajo aparece **¿Te gustó?**:
 
 ## 6. Biblioteca
 
-Arriba hay pestañas (chips): **Canciones**, **Álbumes**, **Artistas**, **Géneros**, **Listas** y **Videos**.
+Arriba hay pestañas (chips): **Canciones**, **Álbumes**, **Artistas**, **Géneros** y **Videos** (en el PC también
+**Listas**; en el celular las listas tienen su propia sección).
 
 - **Buscar en la biblioteca:** el campo de arriba filtra lo que estás viendo.
 - **Ordenar:** toca **Ordenar** y elige un criterio. Tocar de nuevo el mismo invierte el orden.
@@ -257,10 +261,24 @@ En el reproductor hay un selector **Canción | Video**:
 
 Si una lista pasa de una canción a un video, el reproductor cambia solo a la vista de video, y al revés.
 
+**En el celular, los videos de una lista se ven a pantalla completa:** al tocar un video en una lista, o cuando le
+toca a un video dentro de ella, se abre a pantalla completa (horizontal si el video es horizontal). **Atrás** vuelve a
+la vista de video, con lo que sigue en la lista.
+
 ### Mini video
 
 Si sales del reproductor con un video sonando, aparece un **video pequeño flotante** en una esquina, con pausa,
-**ampliar** y **cerrar**. Al cerrarlo, el sonido sigue.
+**ampliar** y **cerrar**. Al cerrarlo, el sonido sigue y vuelve el mini reproductor de audio.
+
+En el celular, el mini video y el mini reproductor **se pueden quitar deslizándolos a la derecha, pero solo en pausa**
+(se van los dos). Vuelven al reanudar o al cambiar de canción.
+
+### Video en segundo plano (celular)
+
+Si sales de Aurora (botón **Inicio** o **Atrás**) con un video **sonando**, el video sigue en una **ventanita** sobre
+las demás apps, como en YouTube. Tócala para ver sus botones: reproducir/pausa, ampliar (vuelve a Aurora) y **×**.
+Cerrarla con **×** pausa el video. Si el video está en pausa, Aurora se va normal, sin ventanita. Con una canción la
+música sigue sonando, como siempre.
 
 ## 11. Listas
 
@@ -268,7 +286,8 @@ Si sales del reproductor con un video sonando, aparece un **video pequeño flota
 
 - Desde cualquier canción: **⋯** → **Añadir a una lista…** → **Nueva lista…**
 - En el PC: botón **+** en la barra lateral, junto a **Tus listas**.
-- En **Biblioteca** → **Listas** → **Nueva lista**.
+- En el celular: sección **Listas** → **Crear lista** (o en Inicio, **Tus listas** → **+**). Después de ponerle
+  nombre, eliges de una vez todas las canciones y videos que quieras.
 
 ### Qué puedes hacer
 

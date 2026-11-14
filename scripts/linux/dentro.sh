@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Pasos dentro del contenedor (ver scripts/empaquetar-linux.sh).
 set -euo pipefail
-VERSION=$(grep -oP 'packageVersion = "\K[^"]+' composeApp/build.gradle.kts)
+VERSION=$(grep -oP '^aurora.version=\K.+' gradle.properties)
 
 bash scripts/linux/copiar-vlc.sh composeApp/resources/linux/vlc
 

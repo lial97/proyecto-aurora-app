@@ -11,6 +11,28 @@ Formato de cada entrada:
 **Pendiente:** lo que queda abierto (opcional).
 ```
 
+## 2026-11-14 — Versión 0.4, fase 6: versión 0.4.0, medición final y documentación
+**Qué:**
+- **Versión 0.4.0 con una sola fuente:** `gradle.properties` (`aurora.version=0.4.0`, `aurora.versionCode=3`).
+  - De ahí salen `packageVersion` y el .exe (`composeApp/build.gradle.kts`) y `versionName`/`versionCode` de Android.
+  - Ajustes › Acerca de lee `APP_VERSION`, que genera la tarea `generateAppVersion`. Antes decía "Versión 0.3" en un lugar y "v0.3.1" en otro.
+  - `scripts/linux/dentro.sh` lee la versión de `gradle.properties`.
+- **Medición final** (`docs/RENDIMIENTO.md`), en el A35:
+  - Inicio sonando: 82 % → 13 % de un núcleo;
+  - reproductor sonando: 93 % → 30 %;
+  - arranque: 448 → 348 ms.
+
+  En escritorio hay poca diferencia (3 corridas, con ruido).
+- **Documentación:**
+  - `docs/MANUAL.md`: secciones del celular con Listas y el engranaje, videos de lista a pantalla completa, un solo mini reproductor, deslizar en pausa y video en segundo plano;
+  - `docs/GUIA-RAPIDA.md`, `docs/CONTINUAR.md` (estado de la 0.4) y `AURORA-APP/LEEME.md` (enlaces a v0.4.0).
+- **APK:** `AURORA-APP/Aurora-0.4.0-android.apk` reemplaza al de la 0.3.1.
+
+**Pendiente:**
+- El .deb y el AppImage 0.4.0: Docker está apagado y el usuario no está en el grupo `docker` (hace falta `sudo`).
+- El .exe se arma en Windows (`build-windows.bat`).
+- Fusionar `v0.4` en `main` y publicar la Release v0.4.0.
+
 ## 2026-11-14 — "Elegir carpeta de videos" abría la página de temas (reporte de un Xiaomi)
 **Qué:** en el móvil, Ajustes guarda dos datos: la subpágina abierta (`open`) y la última sección visitada (`section`). La subpágina dibujaba siempre `section`. "Elegir carpeta de videos" (Videos sin carpeta) pedía Biblioteca cambiando solo `open`: si antes se había entrado en Apariencia, se abría la página de temas, sin el botón para añadir carpeta. Ahora `content` recibe la sección que debe dibujar (`open` en el móvil, `section` en escritorio) y la petición también fija `section`.
 **Por qué:** reporte de un amigo del usuario con un Xiaomi. No depende del teléfono: pasa en cualquiera que haya visitado otra sección de Ajustes.

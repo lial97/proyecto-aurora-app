@@ -12,8 +12,9 @@ android {
         applicationId = "app.aurora.music"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 2
-        versionName = "0.3.1"
+        // Desde gradle.properties (aurora.version y aurora.versionCode), igual que escritorio.
+        versionCode = providers.gradleProperty("aurora.versionCode").get().toInt()
+        versionName = providers.gradleProperty("aurora.version").get()
     }
 
     buildTypes {

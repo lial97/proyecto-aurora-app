@@ -8,6 +8,20 @@ plugins {
 }
 
 val hasAndroidSdk = gradle.extra["hasAndroidSdk"] as Boolean
+
+// Versión de la app (gradle.properties): la usan los instaladores y Ajustes › Acerca de (AppVersion.kt generado).
+val auroraVersion = providers.gradleProperty("aurora.version").get()
+val generateAppVersion = tasks.register("generateAppVersion") {
+    val out = layout.buildDirectory.dir("generated/appVersion/commonMain/kotlin")
+    val version = auroraVersion
+    inputs.property("version", version)
+    outputs.dir(out)
+    doLast {
+        val f = out.get().file("app/aurora/AppVersion.kt").asFile
+        f.parentFile.mkdirs()
+        f.writeText("package app.aurora\n\n/** Generado desde gradle.properties (aurora.version). No editar. */\nconst val APP_VERSION = \"$version\"\n")
+    }
+}
 if (hasAndroidSdk) apply(plugin = libs.plugins.androidKmpLibrary.get().pluginId)
 
 kotlin {
@@ -25,6 +39,9 @@ kotlin {
     }
 
     sourceSets {
+        commonMain {
+            kotlin.srcDir(generateAppVersion)
+        }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
@@ -100,7 +117,7 @@ compose.desktop {
             // Lo preparan scripts/empaquetar-linux.sh y build-windows.bat; la app lo busca con BundledVlc.
             appResourcesRootDir.set(project.layout.projectDirectory.dir("resources"))
             packageName = "Aurora"
-            packageVersion = "0.3.1" // también en packageWindowsExe (auroraVersion), abajo
+            packageVersion = auroraVersion
             description = "Reproductor de música y video de código abierto"
             vendor = "Aurora"
             copyright = "GPL-3.0"
@@ -136,7 +153,6 @@ tasks.withType<Test>().configureEach {
 // Instalador de Windows (build-windows.bat): jpackage arma el .exe desde la versión portable con windows/main.wxs,
 // que al desinstalar borra la configuración y la caché (no al actualizar). No se usa packageReleaseExe de Compose
 // porque vacía y pasa su propia carpeta de recursos al final, y jpackage se queda con la última.
-val auroraVersion = "0.3.1"
 tasks.register<Exec>("packageWindowsExe") {
     group = "compose desktop"
     description = "Instalador .exe de Windows que borra los datos al desinstalar."
