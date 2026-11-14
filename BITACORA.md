@@ -11,6 +11,12 @@ Formato de cada entrada:
 **Pendiente:** lo que queda abierto (opcional).
 ```
 
+## 2026-11-14 — "Elegir carpeta de videos" abría la página de temas (reporte de un Xiaomi)
+**Qué:** en el móvil, Ajustes guarda dos datos: la subpágina abierta (`open`) y la última sección visitada (`section`). La subpágina dibujaba siempre `section`. "Elegir carpeta de videos" (Videos sin carpeta) pedía Biblioteca cambiando solo `open`: si antes se había entrado en Apariencia, se abría la página de temas, sin el botón para añadir carpeta. Ahora `content` recibe la sección que debe dibujar (`open` en el móvil, `section` en escritorio) y la petición también fija `section`.
+**Por qué:** reporte de un amigo del usuario con un Xiaomi. No depende del teléfono: pasa en cualquiera que haya visitado otra sección de Ajustes.
+**Archivos:** `screens/SettingsScreen.kt`.
+**Pruebas:** escena temporal a 400 dp (Ajustes › Apariencia › Atrás › cerrar › Videos vacío › "Elegir carpeta de videos") → abre Biblioteca con "Carpetas de videos". La prueba temporal se retiró. 131 pruebas pasan.
+
 ## 2026-11-14 — Versión 0.4, fase 5: video en segundo plano con la ventanita del sistema (Android)
 **Qué:**
 - **Imagen en imagen (PiP) del sistema, como YouTube:** al salir de la app con un video **sonando** (botón o gesto de Inicio, o Atrás en Inicio), el video sigue en una ventanita.

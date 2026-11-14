@@ -140,11 +140,14 @@ fun SettingsScreen(
 
     // Cada sección recuerda su propio desplazamiento (antes compartían uno y se abrían a media página).
     val scrolls = SettingsSection.entries.associateWith { rememberScrollState() }
-    val content: @Composable (Modifier) -> Unit = { m ->
+    // Se dibuja la sección que se le pasa: en el móvil, la subpágina abierta (`open`), no la última visitada.
+    // Antes el móvil dibujaba siempre `section`: "Elegir carpeta de videos" pedía Biblioteca pero, si antes se había
+    // entrado en Apariencia, se abría la página de temas y no había cómo elegir la carpeta.
+    val content: @Composable (Modifier, SettingsSection) -> Unit = { m, shown ->
         // El desplazamiento ocupa todo el ancho (la rueda funciona en cualquier parte); el contenido, como mucho 760 dp.
-        Column(m.verticalScroll(scrolls.getValue(section))) {
+        Column(m.verticalScroll(scrolls.getValue(shown))) {
             Column(Modifier.widthIn(max = 760.dp)) {
-                when (section) {
+                when (shown) {
                     SettingsSection.LIBRARY -> LibrarySection(state, lib, ctx)
                     SettingsSection.APPEARANCE -> AppearanceSection(state, ctx)
                     SettingsSection.SOUND -> SoundSection(state, ctx)
@@ -197,7 +200,7 @@ fun SettingsScreen(
                 BasicText("↑ ↓ para moverse", style = Ui.type.caption, modifier = Modifier.padding(start = 10.dp, top = 10.dp))
             }
             Spacer(Modifier.width(24.dp))
-            content(Modifier.weight(1f).fillMaxHeight())
+            content(Modifier.weight(1f).fillMaxHeight(), section)
         }
     } else {
         // Móvil: lista de secciones con buscador; cada sección abre su subpágina.
@@ -208,6 +211,7 @@ fun SettingsScreen(
             if (openLibraryRequest > handledLibraryRequest) {
                 handledLibraryRequest = openLibraryRequest
                 open = SettingsSection.LIBRARY
+                section = SettingsSection.LIBRARY
                 help = null
             }
         }
@@ -220,7 +224,7 @@ fun SettingsScreen(
                     IconButton(AuroraIcon.Back, "Volver a Ajustes", { open = null; help = null })
                     BasicText("Ajustes", style = Ui.type.caption, modifier = Modifier.padding(start = 4.dp))
                 }
-                content(Modifier.weight(1f).fillMaxWidth())
+                content(Modifier.weight(1f).fillMaxWidth(), o)
             }
         } else {
             val prefs by state.prefsRepo.prefs.collectAsState()
